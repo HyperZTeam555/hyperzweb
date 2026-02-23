@@ -1273,6 +1273,17 @@
         <div id="game-gridgame" class="game-inner">
             <div class="game-header"><h2>Block Dash</h2></div>
             <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; max-width: 600px; margin: 0 auto;">
+                
+                <div class="game-options">
+                    <label>Difficulty:</label>
+                    <select id="gridgame-difficulty" onchange="gridgame_change_difficulty()">
+                        <option value="easy">Easy (8 Hazards)</option>
+                        <option value="normal" selected>Normal (16 Hazards)</option>
+                        <option value="hard">Hard (32 Hazards)</option>
+                    </select>
+                    <button class="btn-small" onclick="gridgame_reset()">New Game</button>
+                </div>
+
                 <div style="display: flex; justify-content: space-around; width: 100%; padding: 0 20px;">
                     <div style="text-align: center;">
                         <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Score</div>
@@ -1296,8 +1307,6 @@
                     <div><strong>@</strong> = You | <strong>$</strong> = Collect | <strong>#</strong> = Hazard</div>
                     <div style="margin-top: 8px;">Use WASD, Arrow Keys, or Swipe to move</div>
                 </div>
-
-                <button class="btn-small" onclick="gridgame_reset()" style="width: 100%;">New Game</button>
             </div>
         </div>
 
@@ -5309,6 +5318,20 @@
         let gridgame_score = 0;
         let gridgame_gameOver = false;
         let gridgame_won = false;
+        let gridgame_difficulty = 'normal';
+        let gridgame_max_hazards = 16;
+
+        function gridgame_change_difficulty() {
+            let selected = document.getElementById('gridgame-difficulty').value;
+            if (selected === 'easy') {
+                gridgame_max_hazards = 8;
+            } else if (selected === 'normal') {
+                gridgame_max_hazards = 16;
+            } else if (selected === 'hard') {
+                gridgame_max_hazards = 32;
+            }
+            gridgame_reset();
+        }
 
         function gridgame_reset() {
             gridgame_grid = [];
@@ -5346,7 +5369,7 @@
         }
 
         function gridgame_addHazard() {
-            if (gridgame_hazards.length >= 16) return;
+            if (gridgame_hazards.length >= gridgame_max_hazards) return;
             
             let validPosition = false;
             let attempts = 0;
@@ -5423,16 +5446,16 @@
                     gridgame_score += 1;
                     
                     // Add hazard every 10 points
-                    if (gridgame_score % 10 === 0 && gridgame_hazards.length < 16) {
+                    if (gridgame_score % 10 === 0 && gridgame_hazards.length < gridgame_max_hazards) {
                         gridgame_addHazard();
                     }
                     
                     // Check win condition
-                    if (gridgame_hazards.length >= 16) {
+                    if (gridgame_hazards.length >= gridgame_max_hazards) {
                         gridgame_won = true;
                         document.getElementById('gridgame-status').textContent = 'WON!';
                         document.getElementById('gridgame-status').style.color = '#00ff88';
-                        alert('🎉 You won! All 16 hazards collected!');
+                        alert('🎉 You won! All ' + gridgame_max_hazards + ' hazards collected!');
                         gridgame_render();
                         return;
                     }
@@ -5489,7 +5512,7 @@
             
             // Update stats
             document.getElementById('gridgame-score').textContent = gridgame_score;
-            document.getElementById('gridgame-hazards').textContent = gridgame_hazards.length + '/16';
+            document.getElementById('gridgame-hazards').textContent = gridgame_hazards.length + '/' + gridgame_max_hazards;
         }
 
         // Keyboard controls
