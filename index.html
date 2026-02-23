@@ -4829,8 +4829,11 @@
         let tetrisNextPiece = null;
         let tetrisDropSpeed = 500;
         let tetrisDropTimer = null;
-        let tetrisCanvas = document.getElementById('tetrisCanvas');
-        let tetrisCtx = tetrisCanvas.getContext('2d');
+        let tetrisLockDelayTimer = null;
+        let tetrisLockDelayTime = 1000; // 1 second before piece locks
+        let tetrisLastMoveTime = 0;
+        let tetrisCanvasElement = document.getElementById('tetrisCanvas');
+        let tetrisCtx = tetrisCanvasElement.getContext('2d');
         let tetrisNextCanvas = document.getElementById('tetrisNextCanvas');
         let tetrisNextCtx = tetrisNextCanvas.getContext('2d');
 
@@ -4889,12 +4892,26 @@
 
         function tetrisMovePieceDown() {
             if (!tetrisCanMovePiece(tetrisCurrentPiece, 0, 1)) {
-                tetrisPlacePiece();
+                // Can't move down, start lock delay timer
+                if (!tetrisLockDelayTimer) {
+                    tetrisLastMoveTime = Date.now();
+                    tetrisLockDelayTimer = setTimeout(function() {
+                        tetrisPlacePiece();
+                        tetrisLockDelayTimer = null;
+                        tetrisRender();
+                        tetrisRenderNext();
+                    }, tetrisLockDelayTime);
+                }
             } else {
+                // Can move down
+                if (tetrisLockDelayTimer) {
+                    clearTimeout(tetrisLockDelayTimer);
+                    tetrisLockDelayTimer = null;
+                }
                 tetrisCurrentPiece.y++;
+                tetrisRender();
+                tetrisRenderNext();
             }
-            tetrisRender();
-            tetrisRenderNext();
         }
 
         function tetrisCanMovePiece(piece, dx, dy) {
@@ -4965,6 +4982,10 @@
         }
 
         function tetrisRotatePiece() {
+            if (tetrisLockDelayTimer) {
+                clearTimeout(tetrisLockDelayTimer);
+                tetrisLockDelayTimer = null;
+            }
             let newShape = [];
             for (let j = 0; j < tetrisCurrentPiece.shape[0].length; j++) {
                 let row = [];
@@ -5095,15 +5116,32 @@
             if (tetrisPaused) return;
             
             if (e.key === 'ArrowLeft') {
-                if (tetrisCanMovePiece(tetrisCurrentPiece, -1, 0)) tetrisCurrentPiece.x--;
+                if (tetrisCanMovePiece(tetrisCurrentPiece, -1, 0)) {
+                    if (tetrisLockDelayTimer) {
+                        clearTimeout(tetrisLockDelayTimer);
+                        tetrisLockDelayTimer = null;
+                    }
+                    tetrisCurrentPiece.x--;
+                }
                 tetrisRender();
                 tetrisRenderNext();
             } else if (e.key === 'ArrowRight') {
-                if (tetrisCanMovePiece(tetrisCurrentPiece, 1, 0)) tetrisCurrentPiece.x++;
+                if (tetrisCanMovePiece(tetrisCurrentPiece, 1, 0)) {
+                    if (tetrisLockDelayTimer) {
+                        clearTimeout(tetrisLockDelayTimer);
+                        tetrisLockDelayTimer = null;
+                    }
+                    tetrisCurrentPiece.x++;
+                }
                 tetrisRender();
                 tetrisRenderNext();
             } else if (e.key === 'ArrowDown') {
                 tetrisMovePieceDown();
+                // Only add score if piece actually moved down
+                if (tetrisCanMovePiece(tetrisCurrentPiece, 0, -1)) {
+                    tetrisScore += 1;
+                    document.getElementById('tetrisScore').innerHTML = tetrisScore;
+                }
             } else if (e.key === 'ArrowUp') {
                 tetrisRotatePiece();
             }
