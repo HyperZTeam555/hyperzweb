@@ -1187,6 +1187,11 @@
                 <p>Mine Bitcoin by hacking computers and upgrading power.</p>
                 <button class="btn-small" onclick="openGame('hackersim')">Play</button>
             </div>
+            <div class="game-card">
+                <h2>Block Blast</h2>
+                <p>Drag and drop blocks to clear lines and columns. Fast-paced and addictive!</p>
+                <button class="btn-small" onclick="openGame('blockblast')">Play</button>
+            </div>
         </div>
     </div>
 
@@ -1531,6 +1536,40 @@
                 </div>
             </div>
         </div>
+
+        <div id="game-blockblast" class="game-inner">
+            <div class="game-header"><h2>Block Blast</h2></div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; max-width: 500px; margin: 0 auto; padding: 0 10px;">
+                
+                <div style="display: flex; justify-content: space-around; width: 100%;">
+                    <div style="text-align: center;">
+                        <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Score</div>
+                        <div style="color: var(--accent); font-size: 24px; font-weight: 700;" id="blockblast-score">0</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Lines</div>
+                        <div style="color: var(--accent); font-size: 24px; font-weight: 700;" id="blockblast-lines">0</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Status</div>
+                        <div style="color: var(--accent); font-size: 24px; font-weight: 700;" id="blockblast-status">Playing</div>
+                    </div>
+                </div>
+
+                <button class="btn-small" onclick="blockblast_reset()" style="width: 100%;">New Game</button>
+
+                <div id="blockblast-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 15px; background: var(--bg-elevated); border-radius: 4px; border: 1px solid var(--border-subtle); aspect-ratio: 1; width: 100%; max-width: 400px; user-select: none; touch-action: none;">
+                    <!-- Grid will be generated here (6×6) -->
+                </div>
+
+                <div style="width: 100%; text-align: center; color: var(--text-soft); font-size: 12px;">
+                    <div style="margin-bottom: 8px;">Coming blocks:</div>
+                    <div id="blockblast-preview" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; min-height: 60px;">
+                        <!-- Next blocks will show here -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1814,6 +1853,7 @@
             document.getElementById("game-codebreaker").style.display = "none";
             document.getElementById("game-gridgame").style.display = "none";
             document.getElementById("game-hackersim").style.display = "none";
+            document.getElementById("game-blockblast").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -1857,6 +1897,9 @@
             } else if (gameId === "hackersim") {
                 document.getElementById("game-hackersim").style.display = "block";
                 hackersim_reset();
+            } else if (gameId === "blockblast") {
+                document.getElementById("game-blockblast").style.display = "block";
+                blockblast_reset();
             }
             
             // Dynamic scaling for mobile devices
@@ -6109,6 +6152,340 @@
                 }
             }
         });
-    </script>
+
+// ==================== BLOCK BLAST GAME ====================
+let BB = {
+    grid: [],
+    score: 0,
+    lines: 0,
+    gameOver: false,
+    SIZE: 6,
+    nextBlocks: [],
+    draggedBlockIdx: null,
+    previewCells: [],
+    lastPreviewState: JSON.stringify([]),
+    isRendering: false,
+    
+    SHAPES: [
+        { blocks: [[0,0]], color: '#00e0ff', name: 'Single' },
+        { blocks: [[0,0],[0,1]], color: '#00ff88', name: 'H2' },
+        { blocks: [[0,0],[0,1],[0,2]], color: '#ffff00', name: 'H3' },
+        { blocks: [[0,0],[1,0]], color: '#ff6b6b', name: 'V2' },
+        { blocks: [[0,0],[1,0],[2,0]], color: '#ff1744', name: 'V3' },
+        { blocks: [[0,0],[0,1],[1,0],[1,1]], color: '#00b4ff', name: 'Sq' }
+    ],
+    
+    init: function() {
+        this.grid = [];
+        for (let i = 0; i < this.SIZE; i++) {
+            this.grid[i] = new Array(this.SIZE).fill(null);
+        }
+        this.score = 0;
+        this.lines = 0;
+        this.gameOver = false;
+        this.previewCells = [];
+        this.lastPreviewState = JSON.stringify([]);
+        this.generateNextBlocks();
+        this.render();
+        this.renderPreview();
+    },
+    
+    generateNextBlocks: function() {
+        this.nextBlocks = [];
+        for (let i = 0; i < 3; i++) {
+            let shape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
+            this.nextBlocks.push(JSON.parse(JSON.stringify(shape)));
+        }
+    },
+    
+    canPlace: function(shape, row, col) {
+        for (let b of shape.blocks) {
+            let r = row + b[0], c = col + b[1];
+            if (r < 0 || r >= this.SIZE || c < 0 || c >= this.SIZE) return false;
+            if (this.grid[r][c] !== null) return false;
+        }
+        return true;
+    },
+    
+    place: function(shape, row, col) {
+        for (let b of shape.blocks) {
+            let r = row + b[0], c = col + b[1];
+            this.grid[r][c] = shape.color;
+        }
+    },
+    
+    checkClear: function() {
+        let cleared = [];
+        
+        // Check rows
+        for (let i = 0; i < this.SIZE; i++) {
+            if (this.grid[i].every(c => c !== null)) {
+                cleared.push(...this.grid[i].map((_, j) => [i, j]));
+                this.grid[i] = new Array(this.SIZE).fill(null);
+            }
+        }
+        
+        // Check columns
+        for (let j = 0; j < this.SIZE; j++) {
+            if (this.grid.every(row => row[j] !== null)) {
+                for (let i = 0; i < this.SIZE; i++) {
+                    if (!cleared.some(c => c[0] === i && c[1] === j)) {
+                        cleared.push([i, j]);
+                    }
+                    this.grid[i][j] = null;
+                }
+            }
+        }
+        
+        if (cleared.length > 0) {
+            this.score += cleared.length * 10;
+            this.lines++;
+            cleared.forEach(([r, c]) => {
+                let el = document.getElementById(`bb-${r}-${c}`);
+                if (el) el.style.animation = 'none';
+                setTimeout(() => {
+                    if (el) el.style.animation = 'bb-pop 0.4s ease-out forwards';
+                }, 10);
+            });
+        }
+        
+        return cleared.length > 0;
+    },
+    
+    blockPreview: function(shape, row, col) {
+        this.previewCells = [];
+        if (this.canPlace(shape, row, col)) {
+            for (let b of shape.blocks) {
+                this.previewCells.push([row + b[0], col + b[1]]);
+            }
+        }
+    },
+    
+    tryPlace: function(idx, row, col) {
+        if (this.gameOver || idx < 0 || idx >= this.nextBlocks.length) return false;
+        
+        let shape = JSON.parse(JSON.stringify(this.nextBlocks[idx]));
+        if (!this.canPlace(shape, row, col)) return false;
+        
+        // Place the block
+        this.place(shape, row, col);
+        
+        // Remove only the placed block and add a new one
+        this.nextBlocks.splice(idx, 1);
+        let newShape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
+        this.nextBlocks.push(JSON.parse(JSON.stringify(newShape)));
+        
+        // Check for clears
+        while (this.checkClear()) {}
+        
+        // Check game over
+        let canMove = false;
+        for (let block of this.nextBlocks) {
+            for (let i = 0; i < this.SIZE && !canMove; i++) {
+                for (let j = 0; j < this.SIZE && !canMove; j++) {
+                    if (this.canPlace(block, i, j)) canMove = true;
+                }
+            }
+            if (canMove) break;
+        }
+        
+        if (!canMove) {
+            this.gameOver = true;
+            document.getElementById('blockblast-status').textContent = 'Game Over!';
+            document.getElementById('blockblast-status').style.color = '#ff1744';
+            setTimeout(() => alert(`Game Over!\nScore: ${this.score}\nLines: ${this.lines}`), 100);
+        }
+        
+        this.previewCells = [];
+        this.lastPreviewState = JSON.stringify([]);
+        this.render();
+        this.renderPreview();
+        return true;
+    },
+    
+    render: function() {
+        let grid = document.getElementById('blockblast-grid');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
+        
+        if (!document.getElementById('bb-styles')) {
+            let style = document.createElement('style');
+            style.id = 'bb-styles';
+            style.textContent = `
+                @keyframes bb-pop {
+                    0% { transform: scale(1) rotate(0deg); opacity: 1; }
+                    100% { transform: scale(0) rotate(90deg); opacity: 0; }
+                }
+                .bb-cell-placed {
+                    animation: bb-pop 0.4s ease-out forwards !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        for (let i = 0; i < this.SIZE; i++) {
+            for (let j = 0; j < this.SIZE; j++) {
+                let cell = document.createElement('div');
+                let color = this.grid[i][j];
+                let isPreview = this.previewCells.some(c => c[0] === i && c[1] === j);
+                
+                cell.id = `bb-${i}-${j}`;
+                cell.style.cssText = `
+                    aspect-ratio: 1;
+                    background: ${color ? color : 'rgba(0, 224, 255, 0.05)'};
+                    border: 2px solid ${color ? 'rgba(255,255,255,0.4)' : (isPreview ? '#00e0ff' : 'rgba(0,224,255,0.2)')};
+                    border-radius: 8px;
+                    cursor: grab;
+                    transition: all 0.15s ease;
+                    box-shadow: ${isPreview ? '0 0 16px rgba(0,224,255,0.6) inset' : 'none'};
+                    ${isPreview ? 'background: rgba(0,224,255,0.2);' : ''}
+                `;
+                
+                cell.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!cell.style.transform || cell.style.transform === 'scale(1)') {
+                        cell.style.transform = 'scale(1.05)';
+                    }
+                });
+                
+                cell.addEventListener('dragleave', (e) => {
+                    cell.style.transform = 'scale(1)';
+                });
+                
+                cell.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    cell.style.transform = 'scale(1)';
+                    try {
+                        let idx = parseInt(e.dataTransfer.getData('idx'));
+                        this.tryPlace(idx, i, j);
+                    } catch(err) {
+                        console.error('Drop error:', err);
+                    }
+                });
+                
+                grid.appendChild(cell);
+            }
+        }
+        
+        document.getElementById('blockblast-score').textContent = this.score;
+        document.getElementById('blockblast-lines').textContent = this.lines;
+    },
+    
+    renderPreview: function() {
+        let prev = document.getElementById('blockblast-preview');
+        if (!prev) return;
+        
+        prev.innerHTML = '';
+        
+        this.nextBlocks.forEach((shape, idx) => {
+            let container = document.createElement('div');
+            container.draggable = true;
+            container.style.cssText = `
+                padding: 12px;
+                background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,180,255,0.15));
+                border: 2px solid rgba(0,224,255,0.5);
+                border-radius: 8px;
+                cursor: grab;
+                transition: all 0.2s ease;
+                min-width: 75px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            let preview = document.createElement('div');
+            let maxR = Math.max(...shape.blocks.map(b => b[0])) + 1;
+            let maxC = Math.max(...shape.blocks.map(b => b[1])) + 1;
+            preview.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(${maxC}, 20px);
+                grid-template-rows: repeat(${maxR}, 20px);
+                gap: 3px;
+            `;
+            
+            for (let i = 0; i < maxR; i++) {
+                for (let j = 0; j < maxC; j++) {
+                    let cell = document.createElement('div');
+                    let isBlock = shape.blocks.some(b => b[0] === i && b[1] === j);
+                    cell.style.cssText = `
+                        width: 20px;
+                        height: 20px;
+                        background: ${isBlock ? shape.color : 'transparent'};
+                        border: ${isBlock ? '2px solid rgba(255,255,255,0.5)' : 'none'};
+                        border-radius: ${isBlock ? '4px' : '0'};
+                        box-shadow: ${isBlock ? `0 0 8px ${shape.color}80` : 'none'};
+                    `;
+                    preview.appendChild(cell);
+                }
+            }
+            
+            container.appendChild(preview);
+            
+            container.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'copy';
+                e.dataTransfer.setData('idx', idx);
+                container.style.opacity = '0.6';
+            });
+            
+            container.addEventListener('dragend', (e) => {
+                container.style.opacity = '1';
+            });
+            
+            container.addEventListener('mouseenter', () => {
+                container.style.transform = 'scale(1.1)';
+                container.style.boxShadow = '0 8px 24px rgba(0,224,255,0.4)';
+            });
+            
+            container.addEventListener('mouseleave', () => {
+                container.style.transform = 'scale(1)';
+                container.style.boxShadow = 'none';
+            });
+            
+            prev.appendChild(container);
+        });
+    }
+};
+
+function blockblast_reset() {
+    BB.init();
+}
+
+// Drag preview on grid - ONLY update preview, don't re-render everything
+document.addEventListener('dragover', (e) => {
+    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+    
+    let grid = document.getElementById('blockblast-grid');
+    if (!grid) return;
+    
+    let rect = grid.getBoundingClientRect();
+    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+    
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+    let cellSize = rect.width / BB.SIZE;
+    let col = Math.floor(x / cellSize);
+    let row = Math.floor(y / cellSize);
+    
+    if (row >= 0 && row < BB.SIZE && col >= 0 && col < BB.SIZE) {
+        try {
+            let idx = parseInt(e.dataTransfer.getData('idx'));
+            if (idx >= 0 && idx < BB.nextBlocks.length) {
+                let oldPreview = JSON.stringify(BB.previewCells);
+                BB.blockPreview(BB.nextBlocks[idx], row, col);
+                let newPreview = JSON.stringify(BB.previewCells);
+                
+                // Only re-render if preview actually changed
+                if (oldPreview !== newPreview) {
+                    BB.render();
+                }
+            }
+        } catch(err) {}
+    }
+});
+   </script>
+ </script>
 </body>
 </html>
