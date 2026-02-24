@@ -5574,10 +5574,14 @@
                     }
                 } else if (absY > SWIPE_THRESHOLD) {
                     // Vertical swipe is dominant
-                    if (diffY > 0) {
-                        gridgame_movePlayer(0, 1); // Swipe down = move down
+                    // IMPORTANT: Y-axis is inverted in browser coordinates
+                    // diffY = startY - endY
+                    // Swipe DOWN: endY > startY, so diffY < 0 (NEGATIVE)
+                    // Swipe UP: endY < startY, so diffY > 0 (POSITIVE)
+                    if (diffY < 0) {
+                        gridgame_movePlayer(0, 1); // Swipe down (negative diffY) = move down
                     } else {
-                        gridgame_movePlayer(0, -1); // Swipe up = move up
+                        gridgame_movePlayer(0, -1); // Swipe up (positive diffY) = move up
                     }
                 }
             }, false);
