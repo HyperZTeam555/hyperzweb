@@ -406,6 +406,169 @@
             display:none;
             box-sizing:border-box;
             padding-top: 40px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Dynamic resize for mobile - scales game elements to fit viewport */
+        @media (max-width: 768px) {
+            .game-inner {
+                padding-top: 20px;
+                padding-bottom: 20px;
+            }
+            
+            /* Canvas games responsive sizing */
+            canvas {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+            
+            /* Tetris responsive sizing */
+            #game-tetris > div:first-of-type {
+                flex-direction: column;
+                gap: 15px !important;
+            }
+            
+            #tetrisCanvas {
+                max-width: 100%;
+                height: auto;
+                width: auto !important;
+            }
+            
+            #tetrisNextCanvas {
+                width: 80px !important;
+                height: 80px !important;
+            }
+            
+            /* Grid game responsive sizing - scale down large boards */
+            .board {
+                max-width: 100% !important;
+                overflow-x: auto;
+                padding: 0 5px;
+            }
+            
+            /* Chess board - 8×8 with 50px cells = 400px, needs scaling */
+            .board.chess {
+                grid-template-columns: repeat(8, minmax(auto, 50px)) !important;
+            }
+            
+            .cell.chess-cell {
+                width: auto;
+                height: auto;
+                aspect-ratio: 1;
+                max-width: 100%;
+            }
+            
+            /* Checkers board - 8×8 with 40px cells = 320px, might need scaling */
+            .board.checkers {
+                grid-template-columns: repeat(8, minmax(auto, 40px)) !important;
+            }
+            
+            .checkers-square {
+                width: auto;
+                height: auto;
+                aspect-ratio: 1;
+                max-width: 100%;
+            }
+            
+            /* Reversi board - 8×8 with 40px cells = 320px */
+            .board.reversi {
+                grid-template-columns: repeat(8, minmax(auto, 40px)) !important;
+            }
+            
+            /* Minesweeper board - 10×10 with 32px cells = 320px */
+            .board.minesweeper {
+                grid-template-columns: repeat(10, minmax(auto, 32px)) !important;
+            }
+            
+            /* Connect 4 board - 7×6 with 50px cells = 350px */
+            .board.connect4 {
+                grid-template-columns: repeat(7, minmax(auto, 50px)) !important;
+                grid-template-rows: repeat(6, minmax(auto, 50px)) !important;
+            }
+            
+            .cell.connect4-cell {
+                width: auto;
+                height: auto;
+                aspect-ratio: 1;
+                max-width: 100%;
+            }
+            
+            /* Tictactoe - small, usually fine but add just in case */
+            .board.tictactoe {
+                grid-template-columns: repeat(3, minmax(auto, 80px)) !important;
+            }
+            
+            .cell {
+                aspect-ratio: 1;
+                width: auto;
+                height: auto;
+                max-width: 100%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .game-inner {
+                padding-top: 15px;
+                padding-bottom: 15px;
+            }
+            
+            /* Small phone canvas scaling */
+            #tetrisCanvas {
+                max-width: 90vw;
+                height: auto;
+                width: auto !important;
+            }
+            
+            #tetrisNextCanvas {
+                width: 70px !important;
+                height: 70px !important;
+            }
+            
+            canvas {
+                max-width: 90vw !important;
+                height: auto !important;
+                max-height: 50vh;
+            }
+            
+            /* Aggressive grid scaling for small phones */
+            .board {
+                gap: 2px !important;
+                padding: 0 3px;
+            }
+            
+            .board.chess {
+                grid-template-columns: repeat(8, minmax(auto, 40px)) !important;
+            }
+            
+            .board.checkers {
+                grid-template-columns: repeat(8, minmax(auto, 32px)) !important;
+            }
+            
+            .board.reversi {
+                grid-template-columns: repeat(8, minmax(auto, 32px)) !important;
+            }
+            
+            .board.minesweeper {
+                grid-template-columns: repeat(10, minmax(auto, 26px)) !important;
+            }
+            
+            .board.connect4 {
+                grid-template-columns: repeat(7, minmax(auto, 40px)) !important;
+                grid-template-rows: repeat(6, minmax(auto, 40px)) !important;
+            }
+            
+            .board.tictactoe {
+                grid-template-columns: repeat(3, minmax(auto, 70px)) !important;
+            }
+            
+            .cell, .checkers-square, .cell.chess-cell, .cell.connect4-cell {
+                font-size: 14px !important;
+            }
+            
+            .cell.chess-cell {
+                font-size: 24px !important;
+            }
         }
 
         .game-header {
@@ -1695,7 +1858,139 @@
                 document.getElementById("game-hackersim").style.display = "block";
                 hackersim_reset();
             }
+            
+            // Dynamic scaling for mobile devices
+            setTimeout(function() {
+                scaleGameForMobile(gameId);
+            }, 100);
         }
+        
+        // Function to dynamically scale game elements to fit mobile screens
+        function scaleGameForMobile(gameId) {
+            if (window.innerWidth >= 768) return; // Only scale on mobile/tablet
+            
+            var canvasesToScale = [];
+            var boardsToScale = [];
+            
+            // Identify which canvases and boards to scale based on game
+            if (gameId === "tetris") {
+                canvasesToScale = ["tetrisCanvas"];
+            } else if (gameId === "flappybird") {
+                canvasesToScale = ["flappybird-canvas"];
+            } else if (gameId === "pong") {
+                canvasesToScale = ["pong-canvas"];
+            } else if (gameId === "snake") {
+                canvasesToScale = ["snake-canvas"];
+            } else if (gameId === "chess") {
+                boardsToScale = [{ type: "chess", cells: 8, cellSize: 50 }];
+            } else if (gameId === "checkers") {
+                boardsToScale = [{ type: "checkers", cells: 8, cellSize: 40 }];
+            } else if (gameId === "reversi") {
+                boardsToScale = [{ type: "reversi", cells: 8, cellSize: 40 }];
+            } else if (gameId === "minesweeper") {
+                boardsToScale = [{ type: "minesweeper", cells: 10, cellSize: 32 }];
+            } else if (gameId === "connect4") {
+                boardsToScale = [{ type: "connect4", cols: 7, rows: 6, cellSize: 50 }];
+            } else if (gameId === "ttt") {
+                boardsToScale = [{ type: "tictactoe", cells: 3, cellSize: 80 }];
+            }
+            
+            // Scale canvases
+            canvasesToScale.forEach(function(canvasId) {
+                var canvas = document.getElementById(canvasId);
+                if (!canvas) return;
+                
+                // Get original dimensions
+                var originalWidth = parseInt(canvas.getAttribute("width"));
+                var originalHeight = parseInt(canvas.getAttribute("height"));
+                var aspectRatio = originalWidth / originalHeight;
+                
+                // Calculate max available space
+                var maxWidth = window.innerWidth - 30;
+                var maxHeight = (window.innerHeight - 200);
+                
+                var newWidth = maxWidth;
+                var newHeight = newWidth / aspectRatio;
+                
+                // If height exceeds max, scale down from height
+                if (newHeight > maxHeight) {
+                    newHeight = maxHeight;
+                    newWidth = newHeight * aspectRatio;
+                }
+                
+                // Apply the scaled dimensions
+                canvas.style.width = newWidth + "px";
+                canvas.style.height = newHeight + "px";
+                canvas.style.display = "block";
+                canvas.style.margin = "0 auto";
+            });
+            
+            // Scale grid boards
+            boardsToScale.forEach(function(boardConfig) {
+                var boardElement = document.querySelector(".board." + boardConfig.type);
+                if (!boardElement) return;
+                
+                // Calculate board dimensions
+                var cellsPerSide = boardConfig.cells || boardConfig.cols;
+                var originalCellSize = boardConfig.cellSize;
+                var originalBoardWidth = (originalCellSize * cellsPerSide) + (4 * (cellsPerSide - 1)); // +gap
+                
+                // Calculate available space
+                var maxWidth = window.innerWidth - 30;
+                
+                // ONLY scale if the original board would overflow
+                if (originalBoardWidth > maxWidth) {
+                    // Board would overflow - need to scale
+                    var newCellSize = Math.floor((maxWidth - (4 * (cellsPerSide - 1))) / cellsPerSide);
+                    
+                    // For very small screens, be more aggressive
+                    if (window.innerWidth < 380) {
+                        newCellSize = Math.floor((window.innerWidth - 20 - (4 * (cellsPerSide - 1))) / cellsPerSide);
+                    }
+                    
+                    // Don't scale down too much
+                    newCellSize = Math.max(newCellSize, 24);
+                    
+                    // Apply grid template only if scaling is needed
+                    if (boardConfig.cells) {
+                        // Square boards (chess, checkers, reversi, tictactoe)
+                        boardElement.style.gridTemplateColumns = "repeat(" + boardConfig.cells + ", " + newCellSize + "px)";
+                        boardElement.style.gridTemplateRows = "repeat(" + boardConfig.cells + ", " + newCellSize + "px)";
+                    } else if (boardConfig.cols && boardConfig.rows) {
+                        // Rectangular boards (connect4)
+                        boardElement.style.gridTemplateColumns = "repeat(" + boardConfig.cols + ", " + newCellSize + "px)";
+                        boardElement.style.gridTemplateRows = "repeat(" + boardConfig.rows + ", " + newCellSize + "px)";
+                    }
+                    
+                    // Center the board
+                    boardElement.style.margin = "0 auto";
+                    boardElement.style.justifyContent = "center";
+                } else {
+                    // Board fits fine - use CSS defaults, just center it
+                    boardElement.style.margin = "0 auto";
+                    boardElement.style.justifyContent = "center";
+                    // Don't override grid template - let CSS handle it
+                }
+            });
+        }
+        
+        // Rescale on window resize for mobile
+        window.addEventListener("orientationchange", function() {
+            setTimeout(function() {
+                var gameOverlay = document.getElementById("game-overlay");
+                if (gameOverlay && gameOverlay.style.display === "block") {
+                    // Find which game is currently open
+                    var games = ["ttt", "rev", "pong", "snake", "minesweeper", "2048", "flappybird", "checkers", "connect4", "chess", "tetris", "codebreaker", "gridgame", "hackersim"];
+                    for (var i = 0; i < games.length; i++) {
+                        var gameEl = document.getElementById("game-" + games[i]);
+                        if (gameEl && gameEl.style.display === "block") {
+                            scaleGameForMobile(games[i]);
+                            break;
+                        }
+                    }
+                }
+            }, 100);
+        });
 
         function closeGame() {
             document.getElementById("game-overlay").style.display = "none";
@@ -5706,8 +6001,68 @@
         }
 
         function hackersim_copy_password() {
-            navigator.clipboard.writeText(hackersim_password).then(function() {
-                alert('✓ Password copied to clipboard!');
+            // Try using the modern Clipboard API first
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(hackersim_password).then(function() {
+                    alert('✓ Password copied to clipboard!');
+                    document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
+                    document.getElementById('hackersim-password-display').textContent = hackersim_password;
+                    setTimeout(function() {
+                        document.getElementById('hackersim-copy-btn').textContent = 'Copy Password';
+                        hackersim_crack_in_progress = false;
+                        hackersim_enter_password_menu();
+                    }, 1000);
+                }).catch(function(err) {
+                    // Clipboard API failed - use fallback
+                    hackersim_copy_password_fallback();
+                });
+            } else {
+                // Clipboard API not available - use fallback
+                hackersim_copy_password_fallback();
+            }
+        }
+        
+        function hackersim_copy_password_fallback() {
+            // Fallback method for devices without Clipboard API support
+            try {
+                // Try the old method using textarea
+                var textArea = document.createElement("textarea");
+                textArea.value = hackersim_password;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                
+                textArea.focus();
+                textArea.select();
+                
+                var successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                if (successful) {
+                    // Successfully copied with fallback method
+                    alert('✓ Password copied to clipboard!');
+                    document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
+                    document.getElementById('hackersim-password-display').textContent = hackersim_password;
+                    setTimeout(function() {
+                        document.getElementById('hackersim-copy-btn').textContent = 'Copy Password';
+                        hackersim_crack_in_progress = false;
+                        hackersim_enter_password_menu();
+                    }, 1000);
+                } else {
+                    // Even fallback failed - show message but continue game anyway
+                    alert('✓ Password displayed (copy not supported on this device)');
+                    document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
+                    document.getElementById('hackersim-password-display').textContent = hackersim_password;
+                    setTimeout(function() {
+                        document.getElementById('hackersim-copy-btn').textContent = 'Copy Password';
+                        hackersim_crack_in_progress = false;
+                        hackersim_enter_password_menu();
+                    }, 1000);
+                }
+            } catch(err) {
+                // Last resort - just show the password and continue game
+                alert('✓ Password displayed (copy not supported on this device)');
                 document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
                 document.getElementById('hackersim-password-display').textContent = hackersim_password;
                 setTimeout(function() {
@@ -5715,10 +6070,7 @@
                     hackersim_crack_in_progress = false;
                     hackersim_enter_password_menu();
                 }, 1000);
-            }).catch(function(err) {
-                alert('Failed to copy password');
-                console.error(err);
-            });
+            }
         }
 
         function hackersim_collect_bitcoin() {
