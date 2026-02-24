@@ -4829,11 +4829,8 @@
         let tetrisNextPiece = null;
         let tetrisDropSpeed = 500;
         let tetrisDropTimer = null;
-        let tetrisLockDelayTimer = null;
-        let tetrisLockDelayTime = 1000; // 1 second before piece locks
-        let tetrisLastMoveTime = 0;
-        let tetrisCanvasElement = document.getElementById('tetrisCanvas');
-        let tetrisCtx = tetrisCanvasElement.getContext('2d');
+        let tetrisCanvas = document.getElementById('tetrisCanvas');
+        let tetrisCtx = tetrisCanvas.getContext('2d');
         let tetrisNextCanvas = document.getElementById('tetrisNextCanvas');
         let tetrisNextCtx = tetrisNextCanvas.getContext('2d');
 
@@ -4892,26 +4889,12 @@
 
         function tetrisMovePieceDown() {
             if (!tetrisCanMovePiece(tetrisCurrentPiece, 0, 1)) {
-                // Can't move down, start lock delay timer
-                if (!tetrisLockDelayTimer) {
-                    tetrisLastMoveTime = Date.now();
-                    tetrisLockDelayTimer = setTimeout(function() {
-                        tetrisPlacePiece();
-                        tetrisLockDelayTimer = null;
-                        tetrisRender();
-                        tetrisRenderNext();
-                    }, tetrisLockDelayTime);
-                }
+                tetrisPlacePiece();
             } else {
-                // Can move down
-                if (tetrisLockDelayTimer) {
-                    clearTimeout(tetrisLockDelayTimer);
-                    tetrisLockDelayTimer = null;
-                }
                 tetrisCurrentPiece.y++;
-                tetrisRender();
-                tetrisRenderNext();
             }
+            tetrisRender();
+            tetrisRenderNext();
         }
 
         function tetrisCanMovePiece(piece, dx, dy) {
@@ -4982,10 +4965,6 @@
         }
 
         function tetrisRotatePiece() {
-            if (tetrisLockDelayTimer) {
-                clearTimeout(tetrisLockDelayTimer);
-                tetrisLockDelayTimer = null;
-            }
             let newShape = [];
             for (let j = 0; j < tetrisCurrentPiece.shape[0].length; j++) {
                 let row = [];
@@ -5116,38 +5095,21 @@
             if (tetrisPaused) return;
             
             if (e.key === 'ArrowLeft') {
-                if (tetrisCanMovePiece(tetrisCurrentPiece, -1, 0)) {
-                    if (tetrisLockDelayTimer) {
-                        clearTimeout(tetrisLockDelayTimer);
-                        tetrisLockDelayTimer = null;
-                    }
-                    tetrisCurrentPiece.x--;
-                }
+                if (tetrisCanMovePiece(tetrisCurrentPiece, -1, 0)) tetrisCurrentPiece.x--;
                 tetrisRender();
                 tetrisRenderNext();
             } else if (e.key === 'ArrowRight') {
-                if (tetrisCanMovePiece(tetrisCurrentPiece, 1, 0)) {
-                    if (tetrisLockDelayTimer) {
-                        clearTimeout(tetrisLockDelayTimer);
-                        tetrisLockDelayTimer = null;
-                    }
-                    tetrisCurrentPiece.x++;
-                }
+                if (tetrisCanMovePiece(tetrisCurrentPiece, 1, 0)) tetrisCurrentPiece.x++;
                 tetrisRender();
                 tetrisRenderNext();
             } else if (e.key === 'ArrowDown') {
                 tetrisMovePieceDown();
-                // Only add score if piece actually moved down
-                if (tetrisCanMovePiece(tetrisCurrentPiece, 0, -1)) {
-                    tetrisScore += 1;
-                    document.getElementById('tetrisScore').innerHTML = tetrisScore;
-                }
             } else if (e.key === 'ArrowUp') {
                 tetrisRotatePiece();
             }
         });
 
-        // Touch/Gesture controls for mobile
+        // Touch/Gesture controls for mobile - FIXED VERSION
         let tetrisTouchStartX = 0;
         let tetrisTouchStartY = 0;
 
@@ -5165,21 +5127,30 @@
             
             let touchEndX = e.changedTouches[0].clientX;
             let touchEndY = e.changedTouches[0].clientY;
-            let diffX = touchStartX - touchEndX;
-            let diffY = touchEndY - tetrisTouchStartY;
+            
+            // FIX #1: Use correct variable name (was 'touchStartX', should be 'tetrisTouchStartX')
+            let diffX = tetrisTouchStartX - touchEndX;
+            let diffY = tetrisTouchStartY - touchEndY;
+            
+            let absX = Math.abs(diffX);
+            let absY = Math.abs(diffY);
+            const SWIPE_THRESHOLD = 30;
 
-            if (Math.abs(diffX) > Math.abs(diffY)) {
-                // Horizontal swipe
-                if (diffX > 30) {
+            if (absX > absY && absX > SWIPE_THRESHOLD) {
+                // Horizontal swipe is dominant
+                if (diffX > 0) {
                     // Swipe left
                     if (tetrisCanMovePiece(tetrisCurrentPiece, -1, 0)) tetrisCurrentPiece.x--;
-                } else if (diffX < -30) {
+                } else {
                     // Swipe right
                     if (tetrisCanMovePiece(tetrisCurrentPiece, 1, 0)) tetrisCurrentPiece.x++;
                 }
-            } else {
-                // Vertical swipe
-                if (diffY > 30) {
+            } else if (absY > SWIPE_THRESHOLD) {
+                // Vertical swipe is dominant
+                if (diffY > 0) {
+                    // FIX #2: Swipe UP - ROTATE (was missing this functionality)
+                    tetrisRotatePiece();
+                } else {
                     // Swipe down - move down faster
                     tetrisMovePieceDown();
                     tetrisMovePieceDown();
@@ -5568,7 +5539,7 @@
             }
         });
 
-        // Touch controls
+        // Touch controls - FIXED VERSION for all 4 directions
         let gridgame_touchStartX = 0;
         let gridgame_touchStartY = 0;
         let gridgameGridEl = document.getElementById('gridgame-grid');
@@ -5582,20 +5553,31 @@
             gridgameGridEl.addEventListener('touchend', function(e) {
                 let touchEndX = e.changedTouches[0].clientX;
                 let touchEndY = e.changedTouches[0].clientY;
+                
+                // Calculate swipe differences
                 let diffX = gridgame_touchStartX - touchEndX;
                 let diffY = gridgame_touchStartY - touchEndY;
+                
+                // Get absolute values for direction determination
+                let absX = Math.abs(diffX);
+                let absY = Math.abs(diffY);
+                
+                const SWIPE_THRESHOLD = 30;
 
-                if (Math.abs(diffX) > Math.abs(diffY)) {
-                    if (diffX > 30) {
-                        gridgame_movePlayer(-1, 0); // Left
-                    } else if (diffX < -30) {
-                        gridgame_movePlayer(1, 0); // Right
+                // FIX: Detect all 4 directions properly
+                if (absX > absY && absX > SWIPE_THRESHOLD) {
+                    // Horizontal swipe is dominant
+                    if (diffX > 0) {
+                        gridgame_movePlayer(-1, 0); // Swipe left = move left
+                    } else {
+                        gridgame_movePlayer(1, 0); // Swipe right = move right
                     }
-                } else {
-                    if (diffY > 30) {
-                        gridgame_movePlayer(0, 1); // Down
-                    } else if (diffY < -30) {
-                        gridgame_movePlayer(0, -1); // Up
+                } else if (absY > SWIPE_THRESHOLD) {
+                    // Vertical swipe is dominant
+                    if (diffY > 0) {
+                        gridgame_movePlayer(0, 1); // Swipe down = move down
+                    } else {
+                        gridgame_movePlayer(0, -1); // Swipe up = move up
                     }
                 }
             }, false);
