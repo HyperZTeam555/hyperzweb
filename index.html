@@ -6153,339 +6153,470 @@
             }
         });
 
-// ==================== BLOCK BLAST GAME ====================
-let BB = {
-    grid: [],
-    score: 0,
-    lines: 0,
-    gameOver: false,
-    SIZE: 6,
-    nextBlocks: [],
-    draggedBlockIdx: null,
-    previewCells: [],
-    lastPreviewState: JSON.stringify([]),
-    isRendering: false,
-    
-    SHAPES: [
-        { blocks: [[0,0]], color: '#00e0ff', name: 'Single' },
-        { blocks: [[0,0],[0,1]], color: '#00ff88', name: 'H2' },
-        { blocks: [[0,0],[0,1],[0,2]], color: '#ffff00', name: 'H3' },
-        { blocks: [[0,0],[1,0]], color: '#ff6b6b', name: 'V2' },
-        { blocks: [[0,0],[1,0],[2,0]], color: '#ff1744', name: 'V3' },
-        { blocks: [[0,0],[0,1],[1,0],[1,1]], color: '#00b4ff', name: 'Sq' }
-    ],
-    
-    init: function() {
-        this.grid = [];
-        for (let i = 0; i < this.SIZE; i++) {
-            this.grid[i] = new Array(this.SIZE).fill(null);
-        }
-        this.score = 0;
-        this.lines = 0;
-        this.gameOver = false;
-        this.previewCells = [];
-        this.lastPreviewState = JSON.stringify([]);
-        this.generateNextBlocks();
-        this.render();
-        this.renderPreview();
-    },
-    
-    generateNextBlocks: function() {
-        this.nextBlocks = [];
-        for (let i = 0; i < 3; i++) {
-            let shape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
-            this.nextBlocks.push(JSON.parse(JSON.stringify(shape)));
-        }
-    },
-    
-    canPlace: function(shape, row, col) {
-        for (let b of shape.blocks) {
-            let r = row + b[0], c = col + b[1];
-            if (r < 0 || r >= this.SIZE || c < 0 || c >= this.SIZE) return false;
-            if (this.grid[r][c] !== null) return false;
-        }
-        return true;
-    },
-    
-    place: function(shape, row, col) {
-        for (let b of shape.blocks) {
-            let r = row + b[0], c = col + b[1];
-            this.grid[r][c] = shape.color;
-        }
-    },
-    
-    checkClear: function() {
-        let cleared = [];
-        
-        // Check rows
-        for (let i = 0; i < this.SIZE; i++) {
-            if (this.grid[i].every(c => c !== null)) {
-                cleared.push(...this.grid[i].map((_, j) => [i, j]));
-                this.grid[i] = new Array(this.SIZE).fill(null);
-            }
-        }
-        
-        // Check columns
-        for (let j = 0; j < this.SIZE; j++) {
-            if (this.grid.every(row => row[j] !== null)) {
+        // ==================== BLOCK BLAST GAME ====================
+        let BB = {
+            grid: [],
+            score: 0,
+            lines: 0,
+            gameOver: false,
+            SIZE: 6,
+            nextBlocks: [],
+            draggedBlockIdx: null,
+            previewCells: [],
+            
+            SHAPES: [
+                { blocks: [[0,0]], color: '#00e0ff', name: 'Single' },
+                { blocks: [[0,0],[0,1]], color: '#00ff88', name: 'H2' },
+                { blocks: [[0,0],[0,1],[0,2]], color: '#ffff00', name: 'H3' },
+                { blocks: [[0,0],[1,0]], color: '#ff6b6b', name: 'V2' },
+                { blocks: [[0,0],[1,0],[2,0]], color: '#ff1744', name: 'V3' },
+                { blocks: [[0,0],[0,1],[1,0],[1,1]], color: '#00b4ff', name: 'Sq' }
+            ],
+            
+            init: function() {
+                this.grid = [];
                 for (let i = 0; i < this.SIZE; i++) {
-                    if (!cleared.some(c => c[0] === i && c[1] === j)) {
-                        cleared.push([i, j]);
-                    }
-                    this.grid[i][j] = null;
+                    this.grid[i] = new Array(this.SIZE).fill(null);
                 }
-            }
-        }
-        
-        if (cleared.length > 0) {
-            this.score += cleared.length * 10;
-            this.lines++;
-            cleared.forEach(([r, c]) => {
-                let el = document.getElementById(`bb-${r}-${c}`);
-                if (el) el.style.animation = 'none';
-                setTimeout(() => {
-                    if (el) el.style.animation = 'bb-pop 0.4s ease-out forwards';
-                }, 10);
-            });
-        }
-        
-        return cleared.length > 0;
-    },
-    
-    blockPreview: function(shape, row, col) {
-        this.previewCells = [];
-        if (this.canPlace(shape, row, col)) {
-            for (let b of shape.blocks) {
-                this.previewCells.push([row + b[0], col + b[1]]);
-            }
-        }
-    },
-    
-    tryPlace: function(idx, row, col) {
-        if (this.gameOver || idx < 0 || idx >= this.nextBlocks.length) return false;
-        
-        let shape = JSON.parse(JSON.stringify(this.nextBlocks[idx]));
-        if (!this.canPlace(shape, row, col)) return false;
-        
-        // Place the block
-        this.place(shape, row, col);
-        
-        // Remove only the placed block and add a new one
-        this.nextBlocks.splice(idx, 1);
-        let newShape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
-        this.nextBlocks.push(JSON.parse(JSON.stringify(newShape)));
-        
-        // Check for clears
-        while (this.checkClear()) {}
-        
-        // Check game over
-        let canMove = false;
-        for (let block of this.nextBlocks) {
-            for (let i = 0; i < this.SIZE && !canMove; i++) {
-                for (let j = 0; j < this.SIZE && !canMove; j++) {
-                    if (this.canPlace(block, i, j)) canMove = true;
-                }
-            }
-            if (canMove) break;
-        }
-        
-        if (!canMove) {
-            this.gameOver = true;
-            document.getElementById('blockblast-status').textContent = 'Game Over!';
-            document.getElementById('blockblast-status').style.color = '#ff1744';
-            setTimeout(() => alert(`Game Over!\nScore: ${this.score}\nLines: ${this.lines}`), 100);
-        }
-        
-        this.previewCells = [];
-        this.lastPreviewState = JSON.stringify([]);
-        this.render();
-        this.renderPreview();
-        return true;
-    },
-    
-    render: function() {
-        let grid = document.getElementById('blockblast-grid');
-        if (!grid) return;
-        
-        grid.innerHTML = '';
-        
-        if (!document.getElementById('bb-styles')) {
-            let style = document.createElement('style');
-            style.id = 'bb-styles';
-            style.textContent = `
-                @keyframes bb-pop {
-                    0% { transform: scale(1) rotate(0deg); opacity: 1; }
-                    100% { transform: scale(0) rotate(90deg); opacity: 0; }
-                }
-                .bb-cell-placed {
-                    animation: bb-pop 0.4s ease-out forwards !important;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        for (let i = 0; i < this.SIZE; i++) {
-            for (let j = 0; j < this.SIZE; j++) {
-                let cell = document.createElement('div');
-                let color = this.grid[i][j];
-                let isPreview = this.previewCells.some(c => c[0] === i && c[1] === j);
-                
-                cell.id = `bb-${i}-${j}`;
-                cell.style.cssText = `
-                    aspect-ratio: 1;
-                    background: ${color ? color : 'rgba(0, 224, 255, 0.05)'};
-                    border: 2px solid ${color ? 'rgba(255,255,255,0.4)' : (isPreview ? '#00e0ff' : 'rgba(0,224,255,0.2)')};
-                    border-radius: 8px;
-                    cursor: grab;
-                    transition: all 0.15s ease;
-                    box-shadow: ${isPreview ? '0 0 16px rgba(0,224,255,0.6) inset' : 'none'};
-                    ${isPreview ? 'background: rgba(0,224,255,0.2);' : ''}
-                `;
-                
-                cell.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (!cell.style.transform || cell.style.transform === 'scale(1)') {
-                        cell.style.transform = 'scale(1.05)';
-                    }
-                });
-                
-                cell.addEventListener('dragleave', (e) => {
-                    cell.style.transform = 'scale(1)';
-                });
-                
-                cell.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    cell.style.transform = 'scale(1)';
-                    try {
-                        let idx = parseInt(e.dataTransfer.getData('idx'));
-                        this.tryPlace(idx, i, j);
-                    } catch(err) {
-                        console.error('Drop error:', err);
-                    }
-                });
-                
-                grid.appendChild(cell);
-            }
-        }
-        
-        document.getElementById('blockblast-score').textContent = this.score;
-        document.getElementById('blockblast-lines').textContent = this.lines;
-    },
-    
-    renderPreview: function() {
-        let prev = document.getElementById('blockblast-preview');
-        if (!prev) return;
-        
-        prev.innerHTML = '';
-        
-        this.nextBlocks.forEach((shape, idx) => {
-            let container = document.createElement('div');
-            container.draggable = true;
-            container.style.cssText = `
-                padding: 12px;
-                background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,180,255,0.15));
-                border: 2px solid rgba(0,224,255,0.5);
-                border-radius: 8px;
-                cursor: grab;
-                transition: all 0.2s ease;
-                min-width: 75px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            `;
+                this.score = 0;
+                this.lines = 0;
+                this.gameOver = false;
+                this.generateNextBlocks();
+                this.render();
+                this.renderPreview();
+            },
             
-            let preview = document.createElement('div');
-            let maxR = Math.max(...shape.blocks.map(b => b[0])) + 1;
-            let maxC = Math.max(...shape.blocks.map(b => b[1])) + 1;
-            preview.style.cssText = `
-                display: grid;
-                grid-template-columns: repeat(${maxC}, 20px);
-                grid-template-rows: repeat(${maxR}, 20px);
-                gap: 3px;
-            `;
+            generateNextBlocks: function() {
+                this.nextBlocks = [];
+                for (let i = 0; i < 3; i++) {
+                    let shape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
+                    this.nextBlocks.push(JSON.parse(JSON.stringify(shape)));
+                }
+            },
             
-            for (let i = 0; i < maxR; i++) {
-                for (let j = 0; j < maxC; j++) {
-                    let cell = document.createElement('div');
-                    let isBlock = shape.blocks.some(b => b[0] === i && b[1] === j);
-                    cell.style.cssText = `
-                        width: 20px;
-                        height: 20px;
-                        background: ${isBlock ? shape.color : 'transparent'};
-                        border: ${isBlock ? '2px solid rgba(255,255,255,0.5)' : 'none'};
-                        border-radius: ${isBlock ? '4px' : '0'};
-                        box-shadow: ${isBlock ? `0 0 8px ${shape.color}80` : 'none'};
+            canPlace: function(shape, row, col) {
+                for (let b of shape.blocks) {
+                    let r = row + b[0], c = col + b[1];
+                    if (r < 0 || r >= this.SIZE || c < 0 || c >= this.SIZE) return false;
+                    if (this.grid[r][c] !== null) return false;
+                }
+                return true;
+            },
+            
+            place: function(shape, row, col) {
+                for (let b of shape.blocks) {
+                    let r = row + b[0], c = col + b[1];
+                    this.grid[r][c] = shape.color;
+                }
+            },
+            
+            checkClear: function() {
+                let cleared = [];
+                
+                // Check rows
+                for (let i = 0; i < this.SIZE; i++) {
+                    if (this.grid[i].every(c => c !== null)) {
+                        cleared.push(...this.grid[i].map((_, j) => [i, j]));
+                        this.grid[i] = new Array(this.SIZE).fill(null);
+                    }
+                }
+                
+                // Check columns
+                for (let j = 0; j < this.SIZE; j++) {
+                    if (this.grid.every(row => row[j] !== null)) {
+                        for (let i = 0; i < this.SIZE; i++) {
+                            if (!cleared.some(c => c[0] === i && c[1] === j)) {
+                                cleared.push([i, j]);
+                            }
+                            this.grid[i][j] = null;
+                        }
+                    }
+                }
+                
+                if (cleared.length > 0) {
+                    this.score += cleared.length * 10;
+                    this.lines++;
+                    cleared.forEach(([r, c]) => {
+                        let el = document.getElementById(`bb-${r}-${c}`);
+                        if (el) el.style.animation = 'bb-pop 0.4s ease-out forwards';
+                    });
+                }
+                
+                return cleared.length > 0;
+            },
+            
+            blockPreview: function(shape, row, col) {
+                this.previewCells = [];
+                if (this.canPlace(shape, row, col)) {
+                    for (let b of shape.blocks) {
+                        this.previewCells.push([row + b[0], col + b[1]]);
+                    }
+                }
+            },
+            
+            tryPlace: function(idx, row, col) {
+                if (this.gameOver || idx >= this.nextBlocks.length) return false;
+                
+                let shape = this.nextBlocks[idx];
+                if (!this.canPlace(shape, row, col)) return false;
+                
+                this.place(shape, row, col);
+                this.nextBlocks.splice(idx, 1);
+                this.nextBlocks.push(JSON.parse(JSON.stringify(this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)])));
+                
+                while (this.checkClear()) {}
+                
+                // Check game over
+                let canMove = false;
+                for (let block of this.nextBlocks) {
+                    for (let i = 0; i < this.SIZE && !canMove; i++) {
+                        for (let j = 0; j < this.SIZE && !canMove; j++) {
+                            if (this.canPlace(block, i, j)) canMove = true;
+                        }
+                    }
+                    if (canMove) break;
+                }
+                
+                if (!canMove) {
+                    this.gameOver = true;
+                    document.getElementById('blockblast-status').textContent = 'Game Over!';
+                    document.getElementById('blockblast-status').style.color = '#ff1744';
+                    setTimeout(() => alert(`Game Over!\nScore: ${this.score}\nLines: ${this.lines}`), 100);
+                }
+                
+                this.previewCells = [];
+                this.render();
+                this.renderPreview();
+                return true;
+            },
+            
+            render: function() {
+                let grid = document.getElementById('blockblast-grid');
+                grid.innerHTML = '';
+                
+                if (!document.getElementById('bb-styles')) {
+                    let style = document.createElement('style');
+                    style.id = 'bb-styles';
+                    style.textContent = `
+                        @keyframes bb-pop {
+                            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+                            100% { transform: scale(0) rotate(90deg); opacity: 0; }
+                        }
                     `;
-                    preview.appendChild(cell);
+                    document.head.appendChild(style);
                 }
+                
+                for (let i = 0; i < this.SIZE; i++) {
+                    for (let j = 0; j < this.SIZE; j++) {
+                        let cell = document.createElement('div');
+                        let color = this.grid[i][j];
+                        let isPreview = this.previewCells.some(c => c[0] === i && c[1] === j);
+                        
+                        cell.id = `bb-${i}-${j}`;
+                        cell.style.cssText = `
+                            aspect-ratio: 1;
+                            background: ${color ? color : 'rgba(0, 224, 255, 0.05)'};
+                            border: 2px solid ${color ? 'rgba(255,255,255,0.4)' : (isPreview ? '#00e0ff' : 'rgba(0,224,255,0.2)')};
+                            border-radius: 8px;
+                            cursor: grab;
+                            transition: all 0.15s ease;
+                            box-shadow: ${isPreview ? '0 0 16px rgba(0,224,255,0.6) inset' : 'none'};
+                            ${isPreview ? 'background: rgba(0,224,255,0.2);' : ''}
+                        `;
+                        
+                        cell.addEventListener('dragover', e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            cell.style.transform = 'scale(1.05)';
+                        });
+                        
+                        cell.addEventListener('dragleave', e => {
+                            cell.style.transform = 'scale(1)';
+                        });
+                        
+                        cell.addEventListener('drop', e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            cell.style.transform = 'scale(1)';
+                            let idx = parseInt(e.dataTransfer.getData('idx'));
+                            
+                            // Calculate position from drop event (same as preview!)
+                            let grid = document.getElementById('blockblast-grid');
+                            let rect = grid.getBoundingClientRect();
+                            let x = e.clientX - rect.left;
+                            let y = e.clientY - rect.top;
+                            let cellSize = rect.width / this.SIZE;
+                            
+                            // Use same center-rounded calculation as preview
+                            let col = Math.round((x - cellSize / 2) / cellSize);
+                            let row = Math.round((y - cellSize / 2) / cellSize);
+                            
+                            // Clamp to grid bounds
+                            col = Math.max(0, Math.min(col, this.SIZE - 1));
+                            row = Math.max(0, Math.min(row, this.SIZE - 1));
+                            
+                            this.tryPlace(idx, row, col);
+                        });
+                        
+                        grid.appendChild(cell);
+                    }
+                }
+                
+                document.getElementById('blockblast-score').textContent = this.score;
+                document.getElementById('blockblast-lines').textContent = this.lines;
+            },
+            
+            renderPreview: function() {
+                let prev = document.getElementById('blockblast-preview');
+                prev.innerHTML = '';
+                
+                this.nextBlocks.forEach((shape, idx) => {
+                    let container = document.createElement('div');
+                    container.draggable = true;
+                    container.id = 'blockblast-preview-' + idx;
+                    container.dataset.blockIndex = idx;
+                    container.style.cssText = `
+                        padding: 12px;
+                        background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,180,255,0.15));
+                        border: 2px solid rgba(0,224,255,0.5);
+                        border-radius: 8px;
+                        cursor: grab;
+                        transition: all 0.2s ease;
+                        min-width: 75px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        touch-action: none;
+                    `;
+                    
+                    let preview = document.createElement('div');
+                    let maxR = Math.max(...shape.blocks.map(b => b[0])) + 1;
+                    let maxC = Math.max(...shape.blocks.map(b => b[1])) + 1;
+                    preview.style.cssText = `
+                        display: grid;
+                        grid-template-columns: repeat(${maxC}, 20px);
+                        grid-template-rows: repeat(${maxR}, 20px);
+                        gap: 3px;
+                    `;
+                    
+                    for (let i = 0; i < maxR; i++) {
+                        for (let j = 0; j < maxC; j++) {
+                            let cell = document.createElement('div');
+                            let isBlock = shape.blocks.some(b => b[0] === i && b[1] === j);
+                            cell.style.cssText = `
+                                width: 20px;
+                                height: 20px;
+                                background: ${isBlock ? shape.color : 'transparent'};
+                                border: ${isBlock ? '2px solid rgba(255,255,255,0.5)' : 'none'};
+                                border-radius: ${isBlock ? '4px' : '0'};
+                                box-shadow: ${isBlock ? `0 0 8px ${shape.color}80` : 'none'};
+                            `;
+                            preview.appendChild(cell);
+                        }
+                    }
+                    
+                    container.appendChild(preview);
+                    
+                    container.addEventListener('dragstart', e => {
+                        e.dataTransfer.effectAllowed = 'copy';
+                        e.dataTransfer.setData('idx', idx);
+                        BB_currentDragIdx = idx;  // Track current drag index
+                        
+                        // Create custom drag image showing the actual block
+                        let dragImage = document.createElement('canvas');
+                        let maxR = Math.max(...shape.blocks.map(b => b[0])) + 1;
+                        let maxC = Math.max(...shape.blocks.map(b => b[1])) + 1;
+                        let cellSize = 32;
+                        dragImage.width = maxC * cellSize;
+                        dragImage.height = maxR * cellSize;
+                        
+                        let ctx = dragImage.getContext('2d');
+                        ctx.fillStyle = 'rgba(0,0,0,0)';
+                        ctx.fillRect(0, 0, dragImage.width, dragImage.height);
+                        
+                        // Draw the actual blocks
+                        shape.blocks.forEach(b => {
+                            ctx.fillStyle = shape.color;
+                            ctx.shadowColor = shape.color + '80';
+                            ctx.shadowBlur = 10;
+                            ctx.fillRect(b[1] * cellSize + 2, b[0] * cellSize + 2, cellSize - 4, cellSize - 4);
+                            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                            ctx.lineWidth = 2;
+                            ctx.strokeRect(b[1] * cellSize + 2, b[0] * cellSize + 2, cellSize - 4, cellSize - 4);
+                        });
+                        
+                        e.dataTransfer.setDragImage(dragImage, dragImage.width / 2, dragImage.height / 2);
+                        container.style.opacity = '0.6';
+                    });
+                    
+                    container.addEventListener('dragend', e => {
+                        container.style.opacity = '1';
+                        BB_currentDragIdx = null;  // Clear drag index
+                    });
+                    
+                    container.addEventListener('mouseenter', () => {
+                        container.style.transform = 'scale(1.1)';
+                        container.style.boxShadow = '0 8px 24px rgba(0,224,255,0.4)';
+                    });
+                    
+                    container.addEventListener('mouseleave', () => {
+                        container.style.transform = 'scale(1)';
+                        container.style.boxShadow = 'none';
+                    });
+                    
+                    prev.appendChild(container);
+                });
+            }
+        };
+        
+        function blockblast_reset() {
+            BB.init();
+        }
+        
+        // Drag preview on grid with GUARANTEED updates on every move
+        let BB_currentDragIdx = null;
+        let BB_draggedIdx = null;
+        let BB_touchStartBlock = null;
+        
+        // Update on dragover - ALWAYS render on every movement
+        document.addEventListener('dragover', e => {
+            if (BB_currentDragIdx === null) return;
+            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+            
+            let grid = document.getElementById('blockblast-grid');
+            if (!grid) return;
+            
+            let rect = grid.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                BB.previewCells = [];
+                BB.render();
+                return;
             }
             
-            container.appendChild(preview);
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+            let cellSize = rect.width / BB.SIZE;
             
-            container.addEventListener('dragstart', (e) => {
-                e.dataTransfer.effectAllowed = 'copy';
-                e.dataTransfer.setData('idx', idx);
-                container.style.opacity = '0.6';
-            });
+            // Round to nearest cell center for accurate placement
+            let col = Math.round((x - cellSize / 2) / cellSize);
+            let row = Math.round((y - cellSize / 2) / cellSize);
             
-            container.addEventListener('dragend', (e) => {
-                container.style.opacity = '1';
-            });
+            // Clamp to grid bounds
+            col = Math.max(0, Math.min(col, BB.SIZE - 1));
+            row = Math.max(0, Math.min(row, BB.SIZE - 1));
             
-            container.addEventListener('mouseenter', () => {
-                container.style.transform = 'scale(1.1)';
-                container.style.boxShadow = '0 8px 24px rgba(0,224,255,0.4)';
-            });
-            
-            container.addEventListener('mouseleave', () => {
-                container.style.transform = 'scale(1)';
-                container.style.boxShadow = 'none';
-            });
-            
-            prev.appendChild(container);
+            // ALWAYS update - no position checking
+            if (BB_currentDragIdx >= 0 && BB_currentDragIdx < BB.nextBlocks.length) {
+                BB.blockPreview(BB.nextBlocks[BB_currentDragIdx], row, col);
+                BB.render();
+            }
         });
-    }
-};
-
-function blockblast_reset() {
-    BB.init();
-}
-
-// Drag preview on grid - ONLY update preview, don't re-render everything
-document.addEventListener('dragover', (e) => {
-    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
-    
-    let grid = document.getElementById('blockblast-grid');
-    if (!grid) return;
-    
-    let rect = grid.getBoundingClientRect();
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
-    
-    let x = e.clientX - rect.left;
-    let y = e.clientY - rect.top;
-    let cellSize = rect.width / BB.SIZE;
-    let col = Math.floor(x / cellSize);
-    let row = Math.floor(y / cellSize);
-    
-    if (row >= 0 && row < BB.SIZE && col >= 0 && col < BB.SIZE) {
-        try {
-            let idx = parseInt(e.dataTransfer.getData('idx'));
-            if (idx >= 0 && idx < BB.nextBlocks.length) {
-                let oldPreview = JSON.stringify(BB.previewCells);
-                BB.blockPreview(BB.nextBlocks[idx], row, col);
-                let newPreview = JSON.stringify(BB.previewCells);
-                
-                // Only re-render if preview actually changed
-                if (oldPreview !== newPreview) {
+        
+        // BACKUP: Also track mousemove for consistent updates
+        document.addEventListener('mousemove', e => {
+            if (BB_currentDragIdx === null) return;
+            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+            
+            let grid = document.getElementById('blockblast-grid');
+            if (!grid) return;
+            
+            let rect = grid.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+                BB.previewCells = [];
+                BB.render();
+                return;
+            }
+            
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+            let cellSize = rect.width / BB.SIZE;
+            
+            // Round to nearest cell center
+            let col = Math.round((x - cellSize / 2) / cellSize);
+            let row = Math.round((y - cellSize / 2) / cellSize);
+            
+            // Clamp to grid bounds
+            col = Math.max(0, Math.min(col, BB.SIZE - 1));
+            row = Math.max(0, Math.min(row, BB.SIZE - 1));
+            
+            // ALWAYS update
+            if (BB_currentDragIdx >= 0 && BB_currentDragIdx < BB.nextBlocks.length) {
+                BB.blockPreview(BB.nextBlocks[BB_currentDragIdx], row, col);
+                BB.render();
+            }
+        });
+        
+        document.addEventListener('touchmove', e => {
+            if (BB_draggedIdx === null) return;
+            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+            
+            let grid = document.getElementById('blockblast-grid');
+            if (!grid) return;
+            
+            let touch = e.touches[0];
+            let rect = grid.getBoundingClientRect();
+            
+            // Check if touch is over grid
+            if (touch.clientX < rect.left || touch.clientX > rect.right || touch.clientY < rect.top || touch.clientY > rect.bottom) {
+                BB.previewCells = [];
+                BB.render();
+                return;
+            }
+            
+            let x = touch.clientX - rect.left;
+            let y = touch.clientY - rect.top;
+            let cellSize = rect.width / BB.SIZE;
+            
+            // Round to nearest cell center for accurate placement
+            let col = Math.round((x - cellSize / 2) / cellSize);
+            let row = Math.round((y - cellSize / 2) / cellSize);
+            
+            // Clamp to grid bounds
+            col = Math.max(0, Math.min(col, BB.SIZE - 1));
+            row = Math.max(0, Math.min(row, BB.SIZE - 1));
+            
+            if (row >= 0 && row < BB.SIZE && col >= 0 && col < BB.SIZE) {
+                if (BB_draggedIdx >= 0 && BB_draggedIdx < BB.nextBlocks.length) {
+                    // ALWAYS update preview, always render
+                    BB.blockPreview(BB.nextBlocks[BB_draggedIdx], row, col);
                     BB.render();
                 }
             }
-        } catch(err) {}
-    }
-});
-   </script>
- </script>
+        }, { passive: true });
+        
+        document.addEventListener('touchend', e => {
+            if (BB_draggedIdx === null) return;
+            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+            
+            let grid = document.getElementById('blockblast-grid');
+            if (!grid) return;
+            
+            let touch = e.changedTouches[0];
+            let rect = grid.getBoundingClientRect();
+            
+            // Check if touch ended over grid
+            if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                let x = touch.clientX - rect.left;
+                let y = touch.clientY - rect.top;
+                let cellSize = rect.width / BB.SIZE;
+                
+                // Round to nearest cell center
+                let col = Math.round((x - cellSize / 2) / cellSize);
+                let row = Math.round((y - cellSize / 2) / cellSize);
+                
+                // Clamp to grid bounds
+                col = Math.max(0, Math.min(col, BB.SIZE - 1));
+                row = Math.max(0, Math.min(row, BB.SIZE - 1));
+                
+                // Try to place block
+                BB.tryPlace(BB_draggedIdx, row, col);
+            }
+            
+            BB_draggedIdx = null;
+            BB_touchStartBlock = null;
+            BB.previewCells = [];
+            BB.render();
+        }, { passive: true });
+    </script>
 </body>
 </html>
