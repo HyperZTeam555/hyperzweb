@@ -6546,77 +6546,134 @@
             }
         });
         
-        document.addEventListener('touchmove', e => {
-            if (BB_draggedIdx === null) return;
-            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
-            
-            let grid = document.getElementById('blockblast-grid');
-            if (!grid) return;
-            
-            let touch = e.touches[0];
-            let rect = grid.getBoundingClientRect();
-            
-            // Check if touch is over grid
-            if (touch.clientX < rect.left || touch.clientX > rect.right || touch.clientY < rect.top || touch.clientY > rect.bottom) {
-                BB.previewCells = [];
-                BB.render();
-                return;
-            }
-            
-            let x = touch.clientX - rect.left;
-            let y = touch.clientY - rect.top;
-            let cellSize = rect.width / BB.SIZE;
-            
-            // Round to nearest cell center for accurate placement
-            let col = Math.round((x - cellSize / 2) / cellSize);
-            let row = Math.round((y - cellSize / 2) / cellSize);
-            
-            // Clamp to grid bounds
-            col = Math.max(0, Math.min(col, BB.SIZE - 1));
-            row = Math.max(0, Math.min(row, BB.SIZE - 1));
-            
-            if (row >= 0 && row < BB.SIZE && col >= 0 && col < BB.SIZE) {
-                if (BB_draggedIdx >= 0 && BB_draggedIdx < BB.nextBlocks.length) {
-                    // ALWAYS update preview, always render
-                    BB.blockPreview(BB.nextBlocks[BB_draggedIdx], row, col);
-                    BB.render();
-                }
-            }
-        }, { passive: true });
+        // ==================== MOBILE TAP-AND-TAP INTERFACE ====================
+        let BB_selectedBlockIdx = null;
         
-        document.addEventListener('touchend', e => {
-            if (BB_draggedIdx === null) return;
-            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
-            
+        // Update preview blocks to handle taps
+        let originalRenderPreview = BB.renderPreview;
+        BB.renderPreview = function() {
+            originalRenderPreview.call(this);
+            setupMobileBlockTaps();
+        };
+        
+        // Update grid to handle taps
+        let originalRender = BB.render;
+        BB.render = function() {
+            originalRender.call(this);
+            setupMobileGridTaps();
+        };
+        
+        function setupMobileBlockTaps() {
+            document.querySelectorAll('[data-block-index]').forEach((container) => {
+                container.style.cursor = 'pointer';
+                
+                // Click handler for desktop too
+                container.onclick = (e) => {
+                    e.stopPropagation();
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    
+                    let blockIdx = parseInt(container.dataset.blockIndex);
+                    if (blockIdx >= 0 && blockIdx < BB.nextBlocks.length) {
+                        BB_selectedBlockIdx = blockIdx;
+                        // Highlight selected block
+                        document.querySelectorAll('[data-block-index]').forEach(c => {
+                            c.style.boxShadow = 'none';
+                            c.style.opacity = '1';
+                        });
+                        container.style.boxShadow = '0 0 20px #00e0ff, 0 0 40px #00e0ff80';
+                        container.style.opacity = '0.9';
+                    }
+                };
+                
+                // Touch handler for mobile
+                container.ontouchstart = (e) => {
+                    e.stopPropagation();
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    
+                    let blockIdx = parseInt(container.dataset.blockIndex);
+                    if (blockIdx >= 0 && blockIdx < BB.nextBlocks.length) {
+                        BB_selectedBlockIdx = blockIdx;
+                        // Highlight selected block
+                        document.querySelectorAll('[data-block-index]').forEach(c => {
+                            c.style.boxShadow = 'none';
+                            c.style.opacity = '1';
+                        });
+                        container.style.boxShadow = '0 0 20px #00e0ff, 0 0 40px #00e0ff80';
+                        container.style.opacity = '0.9';
+                    }
+                };
+            });
+        }
+        
+        function setupMobileGridTaps() {
             let grid = document.getElementById('blockblast-grid');
             if (!grid) return;
             
-            let touch = e.changedTouches[0];
-            let rect = grid.getBoundingClientRect();
-            
-            // Check if touch ended over grid
-            if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-                let x = touch.clientX - rect.left;
-                let y = touch.clientY - rect.top;
-                let cellSize = rect.width / BB.SIZE;
+            document.querySelectorAll('[id^="bb-"]').forEach((cell) => {
+                cell.style.cursor = 'pointer';
                 
-                // Round to nearest cell center
-                let col = Math.round((x - cellSize / 2) / cellSize);
-                let row = Math.round((y - cellSize / 2) / cellSize);
+                // Click handler
+                cell.onclick = (e) => {
+                    e.stopPropagation();
+                    if (BB_selectedBlockIdx === null) return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    
+                    // Parse cell coordinates from ID
+                    let coords = cell.id.match(/bb-(\d+)-(\d+)/);
+                    if (!coords) return;
+                    let row = parseInt(coords[1]);
+                    let col = parseInt(coords[2]);
+                    
+                    // Place block
+                    BB.tryPlace(BB_selectedBlockIdx, row, col);
+                    
+                    // Deselect
+                    BB_selectedBlockIdx = null;
+                    document.querySelectorAll('[data-block-index]').forEach(c => {
+                        c.style.boxShadow = 'none';
+                        c.style.opacity = '1';
+                    });
+                };
                 
-                // Clamp to grid bounds
-                col = Math.max(0, Math.min(col, BB.SIZE - 1));
-                row = Math.max(0, Math.min(row, BB.SIZE - 1));
+                // Touch handler - show preview
+                cell.ontouchstart = (e) => {
+                    e.stopPropagation();
+                    if (BB_selectedBlockIdx === null) return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    
+                    let coords = cell.id.match(/bb-(\d+)-(\d+)/);
+                    if (!coords) return;
+                    let row = parseInt(coords[1]);
+                    let col = parseInt(coords[2]);
+                    
+                    // Show preview
+                    BB.blockPreview(BB.nextBlocks[BB_selectedBlockIdx], row, col);
+                    BB.render();
+                };
                 
-                // Try to place block
-                BB.tryPlace(BB_draggedIdx, row, col);
-            }
-            
-            BB_draggedIdx = null;
-            BB_touchStartBlock = null;
-            BB.previewCells = [];
-            BB.render();
-        }, { passive: true });
+                // Touch handler - place on release
+                cell.ontouchend = (e) => {
+                    e.stopPropagation();
+                    if (BB_selectedBlockIdx === null) return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    
+                    let coords = cell.id.match(/bb-(\d+)-(\d+)/);
+                    if (!coords) return;
+                    let row = parseInt(coords[1]);
+                    let col = parseInt(coords[2]);
+                    
+                    // Place block
+                    BB.tryPlace(BB_selectedBlockIdx, row, col);
+                    
+                    // Deselect
+                    BB_selectedBlockIdx = null;
+                    document.querySelectorAll('[data-block-index]').forEach(c => {
+                        c.style.boxShadow = 'none';
+                        c.style.opacity = '1';
+                    });
+                };
+            });
+        }
     </script>
 </body>
 </html>
