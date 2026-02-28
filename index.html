@@ -5861,7 +5861,7 @@
 
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
-            if (tetrisGameOver || !document.getElementById('game-tetris') || document.getElementById('game-tetris').style.display === 'none') return;
+            if (tetrisGameOver || !document.getElementById('game-tetris') || document.getElementById('game-tetris').style.display !== 'block') return;
             if (tetrisPaused) return;
             
             if (e.key === 'ArrowLeft') {
@@ -6298,7 +6298,7 @@
 
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
-            if (!document.getElementById('game-gridgame') || document.getElementById('game-gridgame').style.display === 'none') return;
+            if (!document.getElementById('game-gridgame') || document.getElementById('game-gridgame').style.display !== 'block') return;
             
             if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
                 gridgame_movePlayer(0, -1);
@@ -6913,7 +6913,7 @@
         // Update on dragover - ALWAYS render on every movement
         document.addEventListener('dragover', e => {
             if (BB_currentDragIdx === null) return;
-            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
             
             let grid = document.getElementById('blockblast-grid');
             if (!grid) return;
@@ -6947,7 +6947,7 @@
         // BACKUP: Also track mousemove for consistent updates
         document.addEventListener('mousemove', e => {
             if (BB_currentDragIdx === null) return;
-            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
             
             let grid = document.getElementById('blockblast-grid');
             if (!grid) return;
@@ -7002,7 +7002,7 @@
                 // Click handler for desktop too
                 container.onclick = (e) => {
                     e.stopPropagation();
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
                     
                     let blockIdx = parseInt(container.dataset.blockIndex);
                     if (blockIdx >= 0 && blockIdx < BB.nextBlocks.length) {
@@ -7020,7 +7020,7 @@
                 // Touch handler for mobile
                 container.ontouchstart = (e) => {
                     e.stopPropagation();
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
                     
                     let blockIdx = parseInt(container.dataset.blockIndex);
                     if (blockIdx >= 0 && blockIdx < BB.nextBlocks.length) {
@@ -7048,7 +7048,7 @@
                 cell.onclick = (e) => {
                     e.stopPropagation();
                     if (BB_selectedBlockIdx === null) return;
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
                     
                     // Parse cell coordinates from ID
                     let coords = cell.id.match(/bb-(\d+)-(\d+)/);
@@ -7071,7 +7071,7 @@
                 cell.ontouchstart = (e) => {
                     e.stopPropagation();
                     if (BB_selectedBlockIdx === null) return;
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
                     
                     let coords = cell.id.match(/bb-(\d+)-(\d+)/);
                     if (!coords) return;
@@ -7087,7 +7087,7 @@
                 cell.ontouchend = (e) => {
                     e.stopPropagation();
                     if (BB_selectedBlockIdx === null) return;
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display === 'none') return;
+                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
                     
                     let coords = cell.id.match(/bb-(\d+)-(\d+)/);
                     if (!coords) return;
@@ -7411,7 +7411,7 @@
 
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
-            if (!document.getElementById('game-gridmaze') || document.getElementById('game-gridmaze').style.display === 'none') return;
+            if (!document.getElementById('game-gridmaze') || document.getElementById('game-gridmaze').style.display !== 'block') return;
             var key = e.key;
             if (key === 'ArrowUp'    || key === 'w' || key === 'W') { e.preventDefault(); gridmaze.move(0, -1); }
             if (key === 'ArrowDown'  || key === 's' || key === 'S') { e.preventDefault(); gridmaze.move(0,  1); }
@@ -7429,7 +7429,7 @@
                 ty = e.touches[0].clientY;
             }, false);
             el.addEventListener('touchend', function(e) {
-                if (!document.getElementById('game-gridmaze') || document.getElementById('game-gridmaze').style.display === 'none') return;
+                if (!document.getElementById('game-gridmaze') || document.getElementById('game-gridmaze').style.display !== 'block') return;
                 var dx = e.changedTouches[0].clientX - tx;
                 var dy = e.changedTouches[0].clientY - ty;
                 var ax = Math.abs(dx), ay = Math.abs(dy);
@@ -7441,7 +7441,7 @@
 
         // Resize maze on window resize
         window.addEventListener('resize', function() {
-            if (document.getElementById('game-gridmaze') && document.getElementById('game-gridmaze').style.display !== 'none') {
+            if (document.getElementById('game-gridmaze') && document.getElementById('game-gridmaze').style.display === 'block') {
                 gridmaze.resize();
                 gridmaze.render();
             }
