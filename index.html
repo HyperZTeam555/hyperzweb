@@ -1028,7 +1028,7 @@
             height: calc(100vh - 64px);
             height: -webkit-calc(100vh - var(--topbar-h));
             height: calc(100vh - var(--topbar-h));
-            padding: 16px;
+            padding: 16px 16px 28px;
             -webkit-box-sizing: border-box;
             box-sizing: border-box;
             gap: 12px;
@@ -1041,7 +1041,6 @@
             min-height: 0;
             border-radius: 12px;
             padding: 16px;
-            overflow: hidden;
             overflow-y: scroll;
             background: rgba(0,0,0,0.35);
             border: 1px solid #141e35;
@@ -1983,7 +1982,14 @@
             document.getElementById("zweb").style.display = "none";
             document.getElementById("games").style.display = "none";
             document.getElementById("chatbot").style.display = "none";
-            document.getElementById(id).style.display = "block";
+
+            if (id === "chatbot") {
+                document.getElementById("chatbot").style.display = "-webkit-box";
+                document.getElementById("chatbot").style.display = "-ms-flexbox";
+                document.getElementById("chatbot").style.display = "flex";
+            } else {
+                document.getElementById(id).style.display = "block";
+            }
 
             // Update active nav button highlight
             var navBtns = document.querySelectorAll ? document.querySelectorAll(".center-buttons button") : [];
