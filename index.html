@@ -5597,7 +5597,7 @@
         let tetrisGameOver = false;
         let tetrisCurrentPiece = null;
         let tetrisNextPiece = null;
-        let tetrisDropSpeed = 500;
+        let tetrisDropSpeed = 1200;
         let tetrisDropTimer = null;
         let tetrisCanvas = document.getElementById('tetrisCanvas');
         let tetrisCtx = tetrisCanvas.getContext('2d');
@@ -5635,7 +5635,7 @@
             tetrisLines = 0;
             tetrisPaused = false;
             tetrisGameOver = false;
-            tetrisDropSpeed = 500;
+            tetrisDropSpeed = 1200;
             tetrisCurrentPiece = tetrisGetRandomPiece();
             tetrisCurrentPiece.x = Math.floor(TETRIS_COLS / 2) - 1;
             tetrisCurrentPiece.y = 0;
@@ -5657,11 +5657,15 @@
             }, tetrisDropSpeed);
         }
 
-        function tetrisMovePieceDown() {
+        function tetrisMovePieceDown(isSoftDrop) {
             if (!tetrisCanMovePiece(tetrisCurrentPiece, 0, 1)) {
                 tetrisPlacePiece();
             } else {
                 tetrisCurrentPiece.y++;
+                if (isSoftDrop) {
+                    tetrisScore += 1;
+                    document.getElementById('tetrisScore').innerHTML = tetrisScore;
+                }
             }
             tetrisRender();
             tetrisRenderNext();
@@ -5726,7 +5730,7 @@
                 tetrisLines += linesCleared;
                 tetrisScore += linesCleared * 100 * tetrisLevel;
                 tetrisLevel = Math.floor(tetrisLines / 10) + 1;
-                tetrisDropSpeed = Math.max(100, 500 - (tetrisLevel - 1) * 50);
+                tetrisDropSpeed = Math.max(150, 1200 - (tetrisLevel - 1) * 80);
                 tetrisStartDropTimer();
                 document.getElementById('tetrisScore').innerHTML = tetrisScore;
                 document.getElementById('tetrisLevel').innerHTML = tetrisLevel;
@@ -5873,7 +5877,7 @@
                 tetrisRender();
                 tetrisRenderNext();
             } else if (e.key === 'ArrowDown') {
-                tetrisMovePieceDown();
+                tetrisMovePieceDown(true);
             } else if (e.key === 'ArrowUp') {
                 tetrisRotatePiece();
             }
@@ -5922,8 +5926,8 @@
                     tetrisRotatePiece();
                 } else {
                     // Swipe down - move down faster
-                    tetrisMovePieceDown();
-                    tetrisMovePieceDown();
+                    tetrisMovePieceDown(true);
+                    tetrisMovePieceDown(true);
                 }
             }
             tetrisRender();
