@@ -1553,6 +1553,11 @@
                 <p>Navigate a randomly generated maze from start to finish. Four sizes from tiny to massive.</p>
                 <button class="btn-small" onclick="openGame('gridmaze')">Play</button>
             </div>
+            <div class="game-card">
+                <h2>Dune!</h2>
+                <p>Surf the sand dunes! Hold S or ↓ to slide down, release to soar up. How far can you go?</p>
+                <button class="btn-small" onclick="openGame('dune')">Play</button>
+            </div>
         </div>
     </div>
 
@@ -1975,6 +1980,31 @@
                 </div>
             </div>
         </div>
+
+        <div id="game-dune" class="game-inner">
+            <div class="game-header"><h2>Dune!</h2></div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:10px; max-width:480px; margin:0 auto; padding:0 10px;">
+                <div style="display:flex; justify-content:space-around; width:100%;">
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Distance</div>
+                        <div style="color:var(--accent); font-size:22px; font-weight:700; font-family:monospace;" id="dune-score">0</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Best</div>
+                        <div style="color:var(--accent); font-size:22px; font-weight:700; font-family:monospace;" id="dune-best">0</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Status</div>
+                        <div style="color:var(--accent); font-size:22px; font-weight:700;" id="dune-status">Ready</div>
+                    </div>
+                </div>
+                <canvas id="dune-canvas" style="display:block; border:1px solid #1e2d4a; border-radius:8px; touch-action:none;"></canvas>
+                <div style="color:var(--text-soft); font-size:12px; text-align:center; line-height:1.8;">
+                    <span style="color:var(--accent-strong);">Hold S / ↓</span> to dive &nbsp;|&nbsp; <span style="color:var(--accent-strong);">Release</span> to soar
+                    <div style="color:#4a5878; margin-top:2px;">Touch &amp; hold on mobile</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2282,6 +2312,7 @@
             document.getElementById("game-hackersim").style.display = "none";
             document.getElementById("game-blockblast").style.display = "none";
             document.getElementById("game-gridmaze").style.display = "none";
+            document.getElementById("game-dune").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -2331,6 +2362,9 @@
             } else if (gameId === "gridmaze") {
                 document.getElementById("game-gridmaze").style.display = "block";
                 gridmaze_reset();
+            } else if (gameId === "dune") {
+                document.getElementById("game-dune").style.display = "block";
+                dune_reset();
             }
             
             // Dynamic scaling for mobile devices
@@ -2454,7 +2488,7 @@
                 var gameOverlay = document.getElementById("game-overlay");
                 if (gameOverlay && gameOverlay.style.display === "block") {
                     // Find which game is currently open
-                    var games = ["ttt", "rev", "pong", "snake", "minesweeper", "2048", "flappybird", "checkers", "connect4", "chess", "tetris", "codebreaker", "gridgame", "hackersim", "blockblast", "gridmaze"];
+                    var games = ["ttt", "rev", "pong", "snake", "minesweeper", "2048", "flappybird", "checkers", "connect4", "chess", "tetris", "codebreaker", "gridgame", "hackersim", "blockblast", "gridmaze", "dune"];
                     for (var i = 0; i < games.length; i++) {
                         var gameEl = document.getElementById("game-" + games[i]);
                         if (gameEl && gameEl.style.display === "block") {
@@ -2478,6 +2512,7 @@
             if (tetrisDropTimer) { clearInterval(tetrisDropTimer); tetrisDropTimer = null; }
             gridmaze_stop();
             gridgame_gameOver = true;
+            dune_stop();
         }
 
         var tttBoardEl = document.getElementById("ttt-board");
@@ -7465,6 +7500,525 @@
             if (document.getElementById('game-gridmaze') && document.getElementById('game-gridmaze').style.display === 'block') {
                 gridmaze.resize();
                 gridmaze.render();
+            }
+        });
+
+        // ==================== DUNE! GAME ====================
+        var dune = {
+            canvas: null,
+            ctx: null,
+            running: false,
+            raf: null,
+            lastTime: 0,
+
+            W: 0,
+            H: 0,
+
+            // World state
+            scrollX: 0,       // how far world has scrolled (for terrain gen)
+            speed: 220,       // horizontal scroll speed px/s
+            distance: 0,
+            best: 0,
+            dead: false,
+            started: false,
+
+            // Player - fixed screen X, moves only vertically
+            px: 0,            // fixed screen x
+            py: 0,            // screen y (top of player)
+            vy: 0,            // vertical velocity (positive = down)
+            onGround: false,
+            holding: false,
+            airborne: false,
+
+            // Physics constants
+            GRAVITY: 1800,    // px/s² downward
+            DIVE_BOOST: 900,  // extra down accel when holding
+            MAX_VY: 1100,
+            FRICTION: 0.92,   // speed multiplier each frame when on ground
+            LAUNCH_FACTOR: 0.85, // how much slope launches player upward
+
+            // Player size
+            PW: 18,
+            PH: 10,
+
+            // Terrain: array of world-x,y points (y=0 is top)
+            pts: [],
+            SEG: 8,          // px per terrain segment
+
+            init: function() {
+                this.canvas = document.getElementById('dune-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                this._startGame();
+            },
+
+            resize: function() {
+                var el = document.getElementById('game-dune');
+                if (!el) return;
+                var w = Math.min(el.clientWidth - 24, 460);
+                var h = Math.min(window.innerHeight - 240, 300);
+                h = Math.max(h, 200);
+                this.W = Math.max(w, 280);
+                this.H = h;
+                this.canvas.width = this.W;
+                this.canvas.height = this.H;
+                this.canvas.style.width = this.W + 'px';
+                this.canvas.style.height = this.H + 'px';
+                this.px = Math.floor(this.W * 0.25);
+            },
+
+            _startGame: function() {
+                this.stop();
+                this.scrollX = 0;
+                this.speed = 220;
+                this.distance = 0;
+                this.dead = false;
+                this.started = false;
+                this.holding = false;
+                this.airborne = false;
+                this._wasHolding = false;
+                this._valleyY = 0;
+                this.vy = 0;
+                this.onGround = false;
+
+                document.getElementById('dune-score').textContent = '0';
+                document.getElementById('dune-status').textContent = 'Hold ↓';
+                document.getElementById('dune-status').style.color = 'var(--accent)';
+
+                // Build initial terrain: pure sinusoidal dunes
+                this._buildTerrain(0, Math.ceil(this.W / this.SEG) + 200);
+
+                // Place player on terrain surface
+                var sy = this._surfaceY(this.px);
+                this.py = sy - this.PH;
+
+                this.running = true;
+                this.lastTime = 0;
+                var self = this;
+                var loop = function(ts) {
+                    if (!self.running) return;
+                    if (!self.lastTime) self.lastTime = ts;
+                    var dt = Math.min((ts - self.lastTime) / 1000, 0.05);
+                    self.lastTime = ts;
+                    if (!self.dead) self._update(dt);
+                    self._draw();
+                    self.raf = requestAnimationFrame(loop);
+                };
+                this.raf = requestAnimationFrame(loop);
+            },
+
+            // Build terrain points for world x range [startX, startX + count*SEG]
+            _buildTerrain: function(startWorldX, count) {
+                this.pts = [];
+                var baseY = this.H * 0.58;
+                var amp1 = this.H * 0.22;   // big dunes
+                var amp2 = this.H * 0.08;   // small ripples
+                var freq1 = 0.0045;
+                var freq2 = 0.018;
+                for (var i = 0; i < count; i++) {
+                    var wx = startWorldX + i * this.SEG;
+                    var y = baseY
+                        - Math.abs(Math.sin(wx * freq1)) * amp1          // always positive bumps (dunes go up from baseline)
+                        - Math.abs(Math.sin(wx * freq1 * 0.7 + 2.1)) * amp1 * 0.6
+                        + Math.sin(wx * freq2 + 0.8) * amp2;             // ripple
+                    // Clamp
+                    y = Math.max(this.H * 0.2, Math.min(this.H * 0.82, y));
+                    this.pts.push({ wx: wx, y: y });
+                }
+            },
+
+            // Extend terrain on the right
+            _extendTerrain: function() {
+                var last = this.pts[this.pts.length - 1];
+                var next = last.wx + this.SEG;
+                var baseY = this.H * 0.58;
+                var amp1 = this.H * 0.22;
+                var amp2 = this.H * 0.08;
+                var freq1 = 0.0045;
+                var freq2 = 0.018;
+                var y = baseY
+                    - Math.abs(Math.sin(next * freq1)) * amp1
+                    - Math.abs(Math.sin(next * freq1 * 0.7 + 2.1)) * amp1 * 0.6
+                    + Math.sin(next * freq2 + 0.8) * amp2;
+                y = Math.max(this.H * 0.2, Math.min(this.H * 0.82, y));
+                this.pts.push({ wx: next, y: y });
+            },
+
+            // Get screen X for a world point
+            _screenX: function(wx) {
+                return wx - this.scrollX;
+            },
+
+            // Interpolate terrain Y at screen x position
+            _surfaceY: function(screenX) {
+                var wx = screenX + this.scrollX;
+                for (var i = 0; i < this.pts.length - 1; i++) {
+                    var a = this.pts[i], b = this.pts[i + 1];
+                    if (wx >= a.wx && wx <= b.wx) {
+                        var t = (wx - a.wx) / (b.wx - a.wx);
+                        return a.y + (b.y - a.y) * t;
+                    }
+                }
+                return this.H * 0.58;
+            },
+
+            // Terrain slope at screen x (dy/dx, positive = going down right)
+            _slope: function(screenX) {
+                var wx = screenX + this.scrollX;
+                for (var i = 0; i < this.pts.length - 1; i++) {
+                    var a = this.pts[i], b = this.pts[i + 1];
+                    if (wx >= a.wx && wx <= b.wx) {
+                        return (b.y - a.y) / (b.wx - a.wx);
+                    }
+                }
+                return 0;
+            },
+
+            _update: function(dt) {
+                // Scroll world
+                this.scrollX += this.speed * dt;
+                this.speed = Math.min(700, this.speed + 12 * dt);
+
+                // Trim off-screen left pts
+                while (this.pts.length > 0 && this._screenX(this.pts[0].wx) < -this.SEG * 3) {
+                    this.pts.shift();
+                }
+                // Extend right
+                while (this.pts.length > 0 && this._screenX(this.pts[this.pts.length - 1].wx) < this.W + this.SEG * 20) {
+                    this._extendTerrain();
+                }
+
+                var surfY = this._surfaceY(this.px);
+                var slope = this._slope(this.px);
+                // Lookahead slope — were we going uphill a moment ago?
+                var prevSlope = this._slope(this.px - this.SEG * 4);
+
+                // ── VALLEY TRACKING ──────────────────────────────────────────
+                // _valleyY = highest screen-Y value (deepest physical point) since last launch
+                // When descending (surfY increasing) update it
+                if (!this._valleyY) this._valleyY = surfY;
+                if (surfY > this._valleyY) this._valleyY = surfY;
+
+                // hillHeight: how many px we've climbed up from the valley floor
+                var hillHeight = Math.max(0, this._valleyY - surfY);
+
+                // ── ON GROUND ────────────────────────────────────────────────
+                if (this.py + this.PH >= surfY - 1) {
+                    this.onGround = true;
+                    this.airborne = false;
+                    this.py = surfY - this.PH;
+
+                    // Crest = was going uphill, now flat or starting to go down
+                    var atCrest = prevSlope < -0.055 && slope > -0.03;
+
+                    if (atCrest && this.speed > 100 && hillHeight > 8) {
+                        // ── LAUNCH ───────────────────────────────────────────
+                        // Launch strength purely driven by hill height + speed
+                        // Normalize hill height against canvas (tall hill on small screen still feels big)
+                        var norm = Math.min(1.0, hillHeight / (this.H * 0.30));  // 0..1
+                        // Base launch from speed, scaled up by hill height
+                        var launchVy = -(this.speed * (0.30 + norm * 1.10));
+                        launchVy = Math.max(-this.MAX_VY, launchVy);
+                        this.vy = launchVy;
+                        this.py -= 4;
+                        this.onGround = false;
+                        this.airborne = true;
+                        // Reset valley so next hill is measured fresh
+                        this._valleyY = surfY;
+
+                    } else if (slope > 0.015) {
+                        // ── DOWNHILL ─────────────────────────────────────────
+                        // Holding dives hard and builds speed faster
+                        var downBoost = this.holding ? 1600 : 900;
+                        this.speed += slope * downBoost * dt;
+                        this.vy = 0;
+
+                    } else if (slope < -0.015) {
+                        // ── UPHILL ───────────────────────────────────────────
+                        // Drag slows you; holding adds more drag (pressing into slope)
+                        var drag = this.holding ? 1100 : 650;
+                        this.speed = Math.max(80, this.speed + slope * drag * dt);
+
+                        // Releasing hold on uphill = speed burst (unweighting)
+                        if (!this.holding && this._wasHolding) {
+                            this.speed += 60 + Math.abs(slope) * 160;
+                        }
+                        this.vy = 0;
+
+                    } else {
+                        // Flat — gentle deceleration
+                        this.speed = Math.max(80, this.speed * (1 - 0.4 * dt));
+                        this.vy = 0;
+                    }
+
+                    this._wasHolding = this.holding;
+
+                } else {
+                    // ── IN THE AIR ───────────────────────────────────────────
+                    this.onGround = false;
+                    this.airborne = true;
+
+                    var grav = this.GRAVITY;
+                    if (this.holding) grav += this.DIVE_BOOST;
+                    this.vy += grav * dt;
+                    this.vy = Math.min(this.vy, this.MAX_VY);
+                    this.py += this.vy * dt;
+
+                    // While airborne keep _valleyY tracking the terrain below
+                    if (surfY > this._valleyY) this._valleyY = surfY;
+
+                    // Land?
+                    if (this.py + this.PH >= surfY) {
+                        this.py = surfY - this.PH;
+                        // Crash penalty for very hard vertical landings
+                        if (this.vy > 550) {
+                            this.speed = Math.max(80, this.speed * 0.72);
+                        }
+                        this.vy = 0;
+                        this.onGround = true;
+                        this.airborne = false;
+                        this._valleyY = surfY;
+                    }
+                }
+
+                // Off top of screen = dead
+                if (this.py + this.PH < 0) {
+                    this.py = -this.PH;
+                    this.vy = 0;
+                }
+
+                // Off bottom = wipeout
+                if (this.py > this.H + 20) {
+                    this._wipeout();
+                    return;
+                }
+
+                // Distance
+                this.distance += this.speed * dt / 80;
+                var d = Math.floor(this.distance);
+                document.getElementById('dune-score').textContent = d;
+                if (d > this.best) {
+                    this.best = d;
+                    document.getElementById('dune-best').textContent = d;
+                }
+            },
+
+            _wipeout: function() {
+                this.dead = true;
+                document.getElementById('dune-status').textContent = 'WIPEOUT!';
+                document.getElementById('dune-status').style.color = '#ff3d70';
+            },
+
+            _draw: function() {
+                var ctx = this.ctx;
+                var W = this.W, H = this.H;
+
+                // Sky
+                var sky = ctx.createLinearGradient(0, 0, 0, H);
+                sky.addColorStop(0, '#060e22');
+                sky.addColorStop(0.6, '#0d1e3a');
+                sky.addColorStop(1, '#1a3a5c');
+                ctx.fillStyle = sky;
+                ctx.fillRect(0, 0, W, H);
+
+                // Warm sun glow
+                var sg = ctx.createRadialGradient(W * 0.8, H * 0.15, 4, W * 0.8, H * 0.15, 80);
+                sg.addColorStop(0, 'rgba(255,190,60,0.22)');
+                sg.addColorStop(1, 'transparent');
+                ctx.fillStyle = sg;
+                ctx.fillRect(0, 0, W, H);
+
+                // Draw dunes
+                if (this.pts.length > 1) {
+                    ctx.beginPath();
+                    var first = true;
+                    for (var i = 0; i < this.pts.length; i++) {
+                        var sx = this._screenX(this.pts[i].wx);
+                        if (sx < -this.SEG || sx > W + this.SEG) continue;
+                        if (first) { ctx.moveTo(sx, this.pts[i].y); first = false; }
+                        else ctx.lineTo(sx, this.pts[i].y);
+                    }
+                    // Close bottom
+                    ctx.lineTo(W + this.SEG, H + 2);
+                    ctx.lineTo(-this.SEG, H + 2);
+                    ctx.closePath();
+
+                    var sg2 = ctx.createLinearGradient(0, H * 0.2, 0, H);
+                    sg2.addColorStop(0, '#e8b84a');
+                    sg2.addColorStop(0.3, '#c49030');
+                    sg2.addColorStop(0.7, '#8a5e18');
+                    sg2.addColorStop(1, '#4a2e08');
+                    ctx.fillStyle = sg2;
+                    ctx.fill();
+
+                    // Surface highlight
+                    ctx.beginPath();
+                    first = true;
+                    for (var j = 0; j < this.pts.length; j++) {
+                        var sx2 = this._screenX(this.pts[j].wx);
+                        if (sx2 < -this.SEG || sx2 > W + this.SEG) continue;
+                        if (first) { ctx.moveTo(sx2, this.pts[j].y); first = false; }
+                        else ctx.lineTo(sx2, this.pts[j].y);
+                    }
+                    ctx.strokeStyle = 'rgba(255,230,140,0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Sand shadow under crest
+                    ctx.beginPath();
+                    first = true;
+                    for (var k = 0; k < this.pts.length; k++) {
+                        var sx3 = this._screenX(this.pts[k].wx);
+                        if (sx3 < -this.SEG || sx3 > W + this.SEG) continue;
+                        if (first) { ctx.moveTo(sx3, this.pts[k].y + 4); first = false; }
+                        else ctx.lineTo(sx3, this.pts[k].y + 4);
+                    }
+                    ctx.strokeStyle = 'rgba(80,40,0,0.3)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                // Player
+                var px = this.px;
+                var py = this.py + this.PH / 2;
+                var slope = this._slope(px);
+                var rot = this.airborne
+                    ? Math.atan2(this.vy, this.speed) * 0.5
+                    : Math.atan2(slope, 1) * 0.8;
+
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.rotate(rot);
+
+                // Board
+                ctx.fillStyle = '#40dfff';
+                ctx.beginPath();
+                ctx.moveTo(-this.PW / 2, 2);
+                ctx.quadraticCurveTo(0, -3, this.PW / 2, 2);
+                ctx.quadraticCurveTo(0, 6, -this.PW / 2, 2);
+                ctx.closePath();
+                ctx.fill();
+                // Board gloss
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.PW * 0.3, 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Rider
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1.8;
+                ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(0, -10); ctx.stroke();
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(0, -13, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, -5); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-3, -1); ctx.lineTo(-5, 3); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(3, -1); ctx.lineTo(5, 3); ctx.stroke();
+
+                ctx.restore();
+
+                // Air trail
+                if (this.airborne) {
+                    for (var t = 1; t <= 4; t++) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.07 * (5 - t);
+                        ctx.fillStyle = '#40dfff';
+                        ctx.beginPath();
+                        ctx.ellipse(px - t * 10, py, 8, 4, rot, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+
+                // Wipeout overlay
+                if (this.dead) {
+                    ctx.fillStyle = 'rgba(255,61,112,0.1)';
+                    ctx.fillRect(0, 0, W, H);
+                    ctx.fillStyle = 'rgba(3,4,14,0.72)';
+                    var bw = Math.min(W * 0.78, 290), bh = 68;
+                    var bx = (W - bw) / 2, by = (H - bh) / 2;
+                    ctx.fillRect(bx, by, bw, bh);
+                    ctx.fillStyle = '#ff3d70';
+                    var fs = Math.max(15, Math.min(24, W / 15));
+                    ctx.font = 'bold ' + fs + 'px Segoe UI,sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('WIPEOUT! ' + Math.floor(this.distance) + 'm', W / 2, by + bh * 0.46);
+                    ctx.fillStyle = '#8899bb';
+                    ctx.font = Math.max(10, fs * 0.62) + 'px Segoe UI,sans-serif';
+                    ctx.fillText('Hold ↓ / S to restart', W / 2, by + bh * 0.8);
+                    ctx.textAlign = 'left';
+                }
+
+                // Pre-start prompt
+                if (!this.started) {
+                    ctx.fillStyle = 'rgba(0,200,255,0.12)';
+                    var iw = Math.min(W * 0.72, 250), ih = 46;
+                    var ix = (W - iw) / 2, iy = H * 0.1;
+                    ctx.fillRect(ix, iy, iw, ih);
+                    ctx.fillStyle = '#40dfff';
+                    ctx.font = 'bold ' + Math.max(12, Math.min(17, W / 22)) + 'px Segoe UI,sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Hold ↓ or S to start!', W / 2, iy + ih * 0.65);
+                    ctx.textAlign = 'left';
+                }
+            },
+
+            pressDown: function() {
+                if (this.dead) { this._startGame(); return; }
+                if (!this.started) this.started = true;
+                this.holding = true;
+            },
+
+            releaseDown: function() {
+                this.holding = false;
+            },
+
+            stop: function() {
+                this.running = false;
+                if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; }
+            }
+        };
+
+        function dune_reset() { dune.init(); }
+        function dune_stop()  { dune.stop(); }
+
+        // Keyboard controls for dune
+        (function() {
+            var held = {};
+            window.addEventListener('keydown', function(e) {
+                if (!document.getElementById('game-dune') || document.getElementById('game-dune').style.display !== 'block') return;
+                var tag = document.activeElement ? document.activeElement.tagName : '';
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && !held[e.key]) {
+                    held[e.key] = true;
+                    dune.pressDown();
+                    e.preventDefault();
+                }
+            });
+            window.addEventListener('keyup', function(e) {
+                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+                    held[e.key] = false;
+                    if (!held['ArrowDown'] && !held['s'] && !held['S']) dune.releaseDown();
+                }
+            });
+        })();
+
+        // Touch + mouse controls for dune canvas
+        (function() {
+            var el = document.getElementById('dune-canvas');
+            if (!el) return;
+            el.addEventListener('touchstart',  function(e) { e.preventDefault(); dune.pressDown(); },  { passive: false });
+            el.addEventListener('touchend',    function(e) { e.preventDefault(); dune.releaseDown(); }, { passive: false });
+            el.addEventListener('touchcancel', function()  { dune.releaseDown(); });
+            el.addEventListener('mousedown',   function()  { dune.pressDown(); });
+            el.addEventListener('mouseup',     function()  { dune.releaseDown(); });
+            el.addEventListener('mouseleave',  function()  { dune.releaseDown(); });
+        })();
+
+        // Resize
+        window.addEventListener('resize', function() {
+            if (document.getElementById('game-dune') && document.getElementById('game-dune').style.display === 'block') {
+                dune.resize();
             }
         });
 
