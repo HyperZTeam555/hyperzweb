@@ -2468,11 +2468,16 @@
 
         function closeGame() {
             document.getElementById("game-overlay").style.display = "none";
+            // Stop all game loops and timers
             pongStop();
             snakeRunning = false;
-            if (snakeTimer) clearInterval(snakeTimer);
+            if (snakeTimer) { clearInterval(snakeTimer); snakeTimer = null; }
             minesweaperRunning = false;
+            flappybirdStop();
+            tetrisGameOver = true;
+            if (tetrisDropTimer) { clearInterval(tetrisDropTimer); tetrisDropTimer = null; }
             gridmaze_stop();
+            gridgame_gameOver = true;
         }
 
         var tttBoardEl = document.getElementById("ttt-board");
@@ -3068,6 +3073,8 @@
         }
 
         window.addEventListener("keydown", function (e) {
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             pongKeys[e.key] = true;
         });
         window.addEventListener("keyup", function (e) {
@@ -3437,6 +3444,8 @@
 
         window.addEventListener("keydown", function(e){
             if (!snakeRunning) return;
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             var key = e.key.toLowerCase();
             if ((key === "arrowup" || key === "w") && snakeDir.y !== 1) snakeDir = {x:0, y:-1};
             if ((key === "arrowdown" || key === "s") && snakeDir.y !== -1) snakeDir = {x:0, y:1};
@@ -3987,6 +3996,8 @@
         }
 
         window.addEventListener("keydown", function (e) {
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             if (document.getElementById("game-2048").style.display === "block") {
                 if (e.key === "ArrowLeft") {
                     e.preventDefault();
@@ -5866,6 +5877,8 @@
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
             if (tetrisGameOver || !document.getElementById('game-tetris') || document.getElementById('game-tetris').style.display !== 'block') return;
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             if (tetrisPaused) return;
             
             if (e.key === 'ArrowLeft') {
@@ -6303,6 +6316,8 @@
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
             if (!document.getElementById('game-gridgame') || document.getElementById('game-gridgame').style.display !== 'block') return;
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             
             if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
                 gridgame_movePlayer(0, -1);
@@ -7416,6 +7431,8 @@
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
             if (!document.getElementById('game-gridmaze') || document.getElementById('game-gridmaze').style.display !== 'block') return;
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             var key = e.key;
             if (key === 'ArrowUp'    || key === 'w' || key === 'W') { e.preventDefault(); gridmaze.move(0, -1); }
             if (key === 'ArrowDown'  || key === 's' || key === 'S') { e.preventDefault(); gridmaze.move(0,  1); }
