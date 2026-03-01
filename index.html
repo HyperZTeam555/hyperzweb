@@ -1558,6 +1558,11 @@
                 <p>Surf the sand dunes! Hold S or ↓ to slide down, release to soar up. How far can you go?</p>
                 <button class="btn-small" onclick="openGame('dune')">Play</button>
             </div>
+            <div class="game-card">
+                <h2>Wordle</h2>
+                <p>Guess the hidden word! Easy=4 letters, Normal=5, Hard=6. You have 5 chances. Green=right spot, yellow=wrong spot.</p>
+                <button class="btn-small" onclick="openGame('wordle')">Play</button>
+            </div>
         </div>
     </div>
 
@@ -1981,6 +1986,24 @@
             </div>
         </div>
 
+        <div id="game-wordle" class="game-inner">
+            <div class="game-header"><h2>Wordle</h2></div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:12px; max-width:420px; margin:0 auto; padding:0 10px;">
+                <div class="game-options">
+                    <label>Difficulty:</label>
+                    <select id="wordle-difficulty">
+                        <option value="easy">Easy (4 letters, 5 guesses)</option>
+                        <option value="normal" selected>Normal (5 letters, 5 guesses)</option>
+                        <option value="hard">Hard (6 letters, 5 guesses)</option>
+                    </select>
+                    <button class="btn-small" onclick="wordle_newGame()" style="margin-top:0;">New Game</button>
+                </div>
+                <div id="wordle-status" style="color:var(--accent); font-size:15px; font-weight:600; min-height:22px; text-align:center;"></div>
+                <div id="wordle-grid" style="display:flex; flex-direction:column; gap:6px;"></div>
+                <div id="wordle-keyboard" style="display:flex; flex-direction:column; gap:5px; align-items:center; width:100%;"></div>
+            </div>
+        </div>
+
         <div id="game-dune" class="game-inner">
             <div class="game-header"><h2>Dune!</h2></div>
             <div style="display:flex; flex-direction:column; align-items:center; gap:10px; max-width:480px; margin:0 auto; padding:0 10px;">
@@ -1994,8 +2017,8 @@
                         <div style="color:var(--accent); font-size:22px; font-weight:700; font-family:monospace;" id="dune-best">0</div>
                     </div>
                     <div style="text-align:center;">
-                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Status</div>
-                        <div style="color:var(--accent); font-size:22px; font-weight:700;" id="dune-status">Ready</div>
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Time</div>
+                        <div style="color:#ffb830; font-size:22px; font-weight:700; font-family:monospace;" id="dune-timer">2:00</div>
                     </div>
                 </div>
                 <canvas id="dune-canvas" style="display:block; border:1px solid #1e2d4a; border-radius:8px; touch-action:none;"></canvas>
@@ -2003,6 +2026,7 @@
                     <span style="color:var(--accent-strong);">Hold S / ↓</span> to dive &nbsp;|&nbsp; <span style="color:var(--accent-strong);">Release</span> to soar
                     <div style="color:#4a5878; margin-top:2px;">Touch &amp; hold on mobile</div>
                 </div>
+                <button id="dune-newgame-btn" onclick="dune_reset()" style="display:none; background:transparent; border:2px solid var(--accent); color:var(--accent); padding:10px 32px; border-radius:6px; font-size:15px; font-weight:700; cursor:pointer; letter-spacing:1px;">New Game</button>
             </div>
         </div>
     </div>
@@ -2313,6 +2337,7 @@
             document.getElementById("game-blockblast").style.display = "none";
             document.getElementById("game-gridmaze").style.display = "none";
             document.getElementById("game-dune").style.display = "none";
+            document.getElementById("game-wordle").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -2365,6 +2390,9 @@
             } else if (gameId === "dune") {
                 document.getElementById("game-dune").style.display = "block";
                 dune_reset();
+            } else if (gameId === "wordle") {
+                document.getElementById("game-wordle").style.display = "block";
+                wordle_newGame();
             }
             
             // Dynamic scaling for mobile devices
@@ -2488,7 +2516,7 @@
                 var gameOverlay = document.getElementById("game-overlay");
                 if (gameOverlay && gameOverlay.style.display === "block") {
                     // Find which game is currently open
-                    var games = ["ttt", "rev", "pong", "snake", "minesweeper", "2048", "flappybird", "checkers", "connect4", "chess", "tetris", "codebreaker", "gridgame", "hackersim", "blockblast", "gridmaze", "dune"];
+                    var games = ["ttt", "rev", "pong", "snake", "minesweeper", "2048", "flappybird", "checkers", "connect4", "chess", "tetris", "codebreaker", "gridgame", "hackersim", "blockblast", "gridmaze", "dune", "wordle"];
                     for (var i = 0; i < games.length; i++) {
                         var gameEl = document.getElementById("game-" + games[i]);
                         if (gameEl && gameEl.style.display === "block") {
@@ -2513,6 +2541,7 @@
             gridmaze_stop();
             gridgame_gameOver = true;
             dune_stop();
+            wordle_stop();
         }
 
         var tttBoardEl = document.getElementById("ttt-board");
@@ -7515,12 +7544,14 @@
             H: 0,
 
             // World state
-            scrollX: 0,       // how far world has scrolled (for terrain gen)
-            speed: 220,       // horizontal scroll speed px/s
+            scrollX: 0,
+            speed: 220,
             distance: 0,
             best: 0,
             dead: false,
             started: false,
+            timeLeft: 120,    // seconds remaining
+            GAME_TIME: 120,   // total game duration
 
             // Player - fixed screen X, moves only vertically
             px: 0,            // fixed screen x
@@ -7542,7 +7573,7 @@
             ballRot: 0,       // visual spin in radians
 
             // Physics constants
-            GRAVITY: 1350,    // px/s² downward
+            GRAVITY: 1600,    // px/s² downward
             DIVE_BOOST: 780,  // extra down accel when holding
             MAX_VY: 1000,
 
@@ -7592,10 +7623,13 @@
                 this.camY = 0;
                 this._camTargetY = 0;
                 this.ballRot = 0;
+                this.timeLeft = this.GAME_TIME;
+                this._lastMilestone = 0;
 
                 document.getElementById('dune-score').textContent = '0';
-                document.getElementById('dune-status').textContent = 'Hold ↓';
-                document.getElementById('dune-status').style.color = 'var(--accent)';
+                document.getElementById('dune-timer').textContent = '2:00';
+                document.getElementById('dune-timer').style.color = '#ffb830';
+                document.getElementById('dune-newgame-btn').style.display = 'none';
 
                 // Build initial terrain: pure sinusoidal dunes
                 this._buildTerrain(0, Math.ceil(this.W / this.SEG) + 200);
@@ -7699,18 +7733,22 @@
                 var holdCharge = 1 - Math.exp(-(this._holdTime || 0) * 0.9);
 
                 // ── IDLE DECAY ────────────────────────────────────────────
+                // Not holding = ball slows down hard (2x slower feel like real Dune)
                 if (this.holding) {
                     this._idleTime = Math.max(0, this._idleTime - dt * 3.5);
                 } else {
-                    this._idleTime = Math.min(6, this._idleTime + dt);
+                    this._idleTime = Math.min(3, this._idleTime + dt);
                 }
-                var idleFriction = this._idleTime / 6 * 0.55;
-                var minSpeed = Math.max(28, 80 - this._idleTime / 6 * 52);
+                // idleFriction ramps from 0 → 1.4/s in 3s when not holding
+                // At full idle this halves speed roughly every 0.5s
+                var idleFriction = this._idleTime / 3 * 1.4;
+                var minSpeed = Math.max(20, 60 - this._idleTime / 3 * 40);
 
                 // Scroll world
                 this.scrollX += this.speed * dt;
-                this.speed = Math.min(700, this.speed + 10 * dt);
-                if (idleFriction > 0) {
+                this.speed = Math.min(700, this.speed + 7 * dt);
+                // Strong idle friction only on ground — in air the glide handles it
+                if (idleFriction > 0 && this.onGround) {
                     this.speed = Math.max(minSpeed, this.speed * (1 - idleFriction * dt));
                 }
 
@@ -7724,7 +7762,7 @@
 
                 var surfY = this._surfaceY(this.px);
                 var slope = this._slope(this.px);
-                var prevSlope = this._slope(this.px - this.SEG * 4);
+                var prevSlope = this._slope(this.px - this.SEG * 16);
 
                 // ── VALLEY TRACKING ───────────────────────────────────────
                 if (!this._valleyY) this._valleyY = surfY;
@@ -7737,16 +7775,17 @@
                     this.airborne = false;
                     this.py = surfY - this.PH;
 
-                    var atCrest = prevSlope < -0.055 && slope > -0.03;
+                    // Fire about 1/3 up the hill — slope is steep uphill but clearly
+                    // shallowing vs where it was. Max terrain slope ~0.39 so -0.28 is mid-climb.
+                    var atCrest = prevSlope < -0.28 && slope > -0.34 && slope < -0.18;
 
-                    if (atCrest && this.speed > 100 && hillHeight > 8 && this._wasHolding) {
+                    if (atCrest && this.speed > 120 && hillHeight > 22) {
                         // ── LAUNCH ────────────────────────────────────────
-                        // Quadratic hill-height curve: tall hills launch MUCH harder.
-                        // norm² means a half-height hill only gives 25% of peak power.
-                        var norm = Math.min(1.0, hillHeight / (this.H * 0.28));
-                        var heightPow = norm * norm;
-                        // holdCharge also scales launch: held longer = launched higher
-                        var launchVy = -(this.speed * (0.45 + heightPow * 2.2) * (0.8 + holdCharge * 0.2));
+                        // Cubic curve: short hills barely pop, only tall hills truly soar.
+                        // norm at 50% height = 0.5^3 = 0.125 (12% of peak power)
+                        var norm = Math.min(1.0, hillHeight / (this.H * 0.26));
+                        var heightPow = norm * norm * norm;
+                        var launchVy = -(this.speed * (0.06 + heightPow * 0.75) * (0.85 + holdCharge * 0.15));
                         launchVy = Math.max(-this.MAX_VY, launchVy);
                         this.vy = launchVy;
                         this.py -= 5;
@@ -7758,7 +7797,7 @@
 
                     } else if (slope > 0.015) {
                         // ── DOWNHILL ──────────────────────────────────────
-                        var downBoost = this.holding ? 1700 : 950;
+                        var downBoost = this.holding ? 1133 : 633;
                         this.speed += slope * downBoost * dt;
                         this.vy = 0;
 
@@ -7770,7 +7809,7 @@
                         // On release: immediate strong burst scaled by how long they held.
                         // Short hold (~0.3s) = modest bump. Full hold (~2s+) = big surge.
                         if (!this.holding && this._wasHolding) {
-                            var burst = 90 + holdCharge * 280; // 90..370 px/s added
+                            var burst = 60 + holdCharge * 187; // 60..247 px/s added
                             this.speed += burst;
                             this._uphillBoosting = true;
                             // Don't reset holdTime yet — keep it so continuous boost uses same charge
@@ -7779,7 +7818,7 @@
                         // Continuous push while boosting (from release to crest)
                         // Scales with holdCharge so a harder press = stronger sustained push
                         if (this._uphillBoosting && !this.holding) {
-                            this.speed += (60 + holdCharge * 180) * dt;
+                            this.speed += (40 + holdCharge * 120) * dt;
                         }
                         this.vy = 0;
 
@@ -7796,12 +7835,12 @@
                     this.onGround = false;
                     this.airborne = true;
 
-                    // Glide: almost zero speed loss in flight
-                    this.speed = Math.max(minSpeed, this.speed * (1 - 0.012 * dt));
+                    // Glide: gentle speed bleed in air, natural gravity arc
+                    this.speed = Math.max(minSpeed, this.speed * (1 - 0.018 * dt));
 
-                    // Very weak gravity on the way UP → long soaring arc
+                    // Moderate gravity reduction on the way UP — smooth arc, not a bounce
                     var grav = this.GRAVITY;
-                    if (this.vy < 0) grav *= 0.32;
+                    if (this.vy < 0) grav *= 0.22;  // very weak going up = long glidy soar
                     if (this.holding) grav += this.DIVE_BOOST;
                     this.vy += grav * dt;
                     this.vy = Math.min(this.vy, this.MAX_VY);
@@ -7843,6 +7882,31 @@
                     document.getElementById('dune-best').textContent = d;
                 }
 
+                // +1 second every 100 distance
+                var milestone = Math.floor(this.distance / 50);
+                if (milestone > this._lastMilestone) {
+                    var gained = milestone - this._lastMilestone;
+                    this.timeLeft = Math.min(this.timeLeft + gained, 120); // cap at 2 min
+                    this.GAME_TIME = Math.max(this.GAME_TIME, this.timeLeft); // sun tracks up
+                    this._lastMilestone = milestone;
+                }
+
+                // ── TIMER ─────────────────────────────────────────────────
+                if (this.started && !this.dead) {
+                    this.timeLeft = Math.max(0, this.timeLeft - dt);
+                    var tSecs = Math.ceil(this.timeLeft);
+                    var mm = Math.floor(tSecs / 60);
+                    var ss = tSecs % 60;
+                    var timerEl = document.getElementById('dune-timer');
+                    timerEl.textContent = mm + ':' + (ss < 10 ? '0' : '') + ss;
+                    // Turn red in last 30s
+                    timerEl.style.color = this.timeLeft <= 30 ? '#ff3d70' : '#ffb830';
+                    if (this.timeLeft <= 0) {
+                        this._timeup();
+                        return;
+                    }
+                }
+
                 // ── CAMERA ────────────────────────────────────────────────
                 // Target: keep ball at ~45% of screen height
                 var targetPlayerScreenY = this.H * 0.45;
@@ -7861,28 +7925,65 @@
 
             _wipeout: function() {
                 this.dead = true;
-                document.getElementById('dune-status').textContent = 'WIPEOUT!';
-                document.getElementById('dune-status').style.color = '#ff3d70';
+                document.getElementById('dune-newgame-btn').style.display = 'inline-block';
+            },
+
+            _timeup: function() {
+                this.dead = true;
+                this.running = false;
+                if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; }
+                this._draw(); // draw final frame with overlay
+                document.getElementById('dune-newgame-btn').style.display = 'inline-block';
             },
 
             _draw: function() {
                 var ctx = this.ctx;
                 var W = this.W, H = this.H;
 
-                // Sky
+                // ── SUN POSITION ──────────────────────────────────────────
+                // Sun starts high on the left, descends to the horizon over 2 min.
+                // progress 0 = game start (sun high), 1 = time's up (sun at horizon)
+                var progress = this.started ? Math.min(1, 1 - this.timeLeft / this.GAME_TIME) : 0;
+                // Sun X: fixed on left quarter
+                var sunX = W * 0.12;
+                // Sun Y: starts at 15% of H, descends to 88% (below horizon)
+                var sunY = H * (0.15 + progress * 0.73);
+                var sunR = Math.max(12, W * 0.055);
+                // Sky colour shifts from deep blue → orange-red as sun sets
+                var skyR = Math.floor(6  + progress * 80);
+                var skyG = Math.floor(14 + progress * 20);
+                var skyB = Math.floor(34 - progress * 20);
+                var horR = Math.floor(26 + progress * 180);
+                var horG = Math.floor(40 + progress * 60);
+                var horB = Math.floor(80 - progress * 60);
+
+                // Sky gradient
                 var sky = ctx.createLinearGradient(0, 0, 0, H);
-                sky.addColorStop(0, '#060e22');
-                sky.addColorStop(0.6, '#0d1e3a');
-                sky.addColorStop(1, '#1a3a5c');
+                sky.addColorStop(0, 'rgb('+skyR+','+skyG+','+skyB+')');
+                sky.addColorStop(0.65, 'rgb('+horR+','+horG+','+horB+')');
+                sky.addColorStop(1, 'rgb('+Math.min(255,horR+30)+','+Math.floor(horG*0.6)+',10)');
                 ctx.fillStyle = sky;
                 ctx.fillRect(0, 0, W, H);
 
-                // Warm sun glow
-                var sg = ctx.createRadialGradient(W * 0.8, H * 0.15, 4, W * 0.8, H * 0.15, 80);
-                sg.addColorStop(0, 'rgba(255,190,60,0.22)');
-                sg.addColorStop(1, 'transparent');
-                ctx.fillStyle = sg;
+                // Sun glow halo
+                var glowR = Math.floor(255);
+                var glowG = Math.floor(200 - progress * 120);
+                var glowB = Math.floor(60  - progress * 50);
+                var halo = ctx.createRadialGradient(sunX, sunY, sunR * 0.5, sunX, sunY, sunR * 3.5);
+                halo.addColorStop(0, 'rgba('+glowR+','+glowG+','+glowB+',0.35)');
+                halo.addColorStop(1, 'transparent');
+                ctx.fillStyle = halo;
                 ctx.fillRect(0, 0, W, H);
+
+                // Sun disc
+                var sunGrad = ctx.createRadialGradient(sunX - sunR*0.2, sunY - sunR*0.2, 1, sunX, sunY, sunR);
+                sunGrad.addColorStop(0, 'rgb(255,255,180)');
+                sunGrad.addColorStop(0.5, 'rgb('+glowR+','+glowG+','+Math.max(0,glowB)+')');
+                sunGrad.addColorStop(1, 'rgba('+glowR+','+Math.max(0,glowG-40)+',0,0.85)');
+                ctx.fillStyle = sunGrad;
+                ctx.beginPath();
+                ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+                ctx.fill();
 
                 // Draw dunes (all Y coords shifted by camY)
                 if (this.pts.length > 1) {
@@ -7995,27 +8096,33 @@
                 ctx.fill();
                 ctx.restore();
 
-                // Wipeout overlay
+                // ── GAME OVER OVERLAYS ────────────────────────────────────
                 if (this.dead) {
-                    ctx.fillStyle = 'rgba(255,61,112,0.1)';
+                    var isTimeup = this.timeLeft <= 0;
+                    ctx.fillStyle = isTimeup ? 'rgba(255,160,20,0.10)' : 'rgba(255,61,112,0.10)';
                     ctx.fillRect(0, 0, W, H);
-                    ctx.fillStyle = 'rgba(3,4,14,0.72)';
-                    var bw = Math.min(W * 0.78, 290), bh = 68;
-                    var bx = (W - bw) / 2, by = (H - bh) / 2;
-                    ctx.fillRect(bx, by, bw, bh);
-                    ctx.fillStyle = '#ff3d70';
-                    var fs = Math.max(15, Math.min(24, W / 15));
+                    ctx.fillStyle = 'rgba(3,4,14,0.78)';
+                    var bw = Math.min(W * 0.82, 300), bh = 72;
+                    var bx2 = (W - bw) / 2, by2 = (H - bh) / 2;
+                    ctx.fillRect(bx2, by2, bw, bh);
+                    var fs = Math.max(14, Math.min(22, W / 16));
                     ctx.font = 'bold ' + fs + 'px Segoe UI,sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('WIPEOUT! ' + Math.floor(this.distance) + 'm', W / 2, by + bh * 0.46);
+                    if (isTimeup) {
+                        ctx.fillStyle = '#ffb830';
+                        ctx.fillText('SUN HAS SET  ' + Math.floor(this.distance) + 'm', W / 2, by2 + bh * 0.45);
+                    } else {
+                        ctx.fillStyle = '#ff3d70';
+                        ctx.fillText('WIPEOUT!  ' + Math.floor(this.distance) + 'm', W / 2, by2 + bh * 0.45);
+                    }
                     ctx.fillStyle = '#8899bb';
-                    ctx.font = Math.max(10, fs * 0.62) + 'px Segoe UI,sans-serif';
-                    ctx.fillText('Hold ↓ / S to restart', W / 2, by + bh * 0.8);
+                    ctx.font = Math.max(10, fs * 0.6) + 'px Segoe UI,sans-serif';
+                    ctx.fillText('Best: ' + this.best + 'm  —  Press New Game to play again', W / 2, by2 + bh * 0.80);
                     ctx.textAlign = 'left';
                 }
 
                 // Pre-start prompt
-                if (!this.started) {
+                if (!this.started && !this.dead) {
                     ctx.fillStyle = 'rgba(0,200,255,0.12)';
                     var iw = Math.min(W * 0.72, 250), ih = 46;
                     var ix = (W - iw) / 2, iy = H * 0.1;
@@ -8029,9 +8136,9 @@
             },
 
             pressDown: function() {
-                if (this.dead) { this._startGame(); return; }
+                if (this.dead) return; // use New Game button instead
                 if (!this.started) this.started = true;
-                if (!this.holding) this._holdTime = 0; // fresh press = fresh charge
+                if (!this.holding) this._holdTime = 0;
                 this.holding = true;
             },
 
@@ -8086,6 +8193,217 @@
             if (document.getElementById('game-dune') && document.getElementById('game-dune').style.display === 'block') {
                 dune.resize();
             }
+        });
+
+        // ==================== WORDLE ====================
+        var wordle = {
+            word: '',
+            guesses: [],
+            currentGuess: '',
+            maxGuesses: 5,
+            wordLen: 5,
+            over: false,
+
+            WORDS: {
+                4: ["able","acid","aged","also","area","army","away","baby","back","ball","band","bank","bare","barn","base","bath","bear","beat","been","bell","belt","best","bill","bird","blow","blue","boat","body","bone","book","boom","born","both","bull","burn","busy","calm","came","camp","card","care","cart","case","cash","cast","cave","cell","char","chip","clan","clap","clay","clip","club","coal","coat","code","coil","coin","cold","coma","come","cool","cope","cord","core","corn","cost","coup","crew","crop","cure","curl","cute","dark","data","dawn","days","dead","deal","dear","deck","deed","deep","deny","desk","diet","dirt","disk","dock","dome","done","door","dose","down","draw","drew","drop","drug","drum","dual","dull","dumb","dump","dune","dust","duty","each","earl","earn","ease","east","edge","emit","envy","epic","even","ever","exam","face","fact","fail","fair","fall","fame","farm","fast","fate","fawn","fear","feat","feel","felt","file","fill","film","find","fine","fire","firm","fish","fist","flag","flat","flaw","flea","flew","flex","flip","flow","foam","fold","folk","fond","font","food","fool","foot","ford","fore","fork","form","fort","four","free","from","fuel","full","fume","fund","fuse","fuzz","gain","gale","game","gang","gate","gave","gaze","gear","gene","gift","girl","give","glad","glow","glue","goal","goes","gold","golf","gone","good","gown","grab","gram","gray","grew","grid","grim","grip","grow","gulf","gust","guts","hack","hail","half","hall","halt","hand","hang","hard","harm","harp","hash","hate","have","hawk","head","heal","heap","hear","heat","heel","held","help","here","hero","hide","high","hill","hint","hire","hold","hole","home","hood","hook","hoop","hope","horn","host","hour","huge","hull","hump","hung","hunt","hurl","hymn","icon","idle","inch","into","iris","iron","isle","jail","jerk","jest","join","joke","jolt","junk","just","keen","keep","kill","kind","king","kiss","kite","knee","knot","know","lack","laid","lake","lamp","land","lane","lark","last","late","lava","lawn","lead","leaf","lean","leap","left","lend","lens","less","lick","lied","life","lift","like","limb","lime","limp","line","link","lion","list","live","load","loan","lock","loft","long","look","loop","lore","lorn","lose","loss","lost","loud","love","luck","lull","lump","lung","lure","lurk","lust","mace","made","mail","main","make","male","mall","malt","mark","mars","mask","mass","mast","mate","math","maze","mead","meal","mean","meat","melt","menu","mere","mesh","mild","mile","milk","mill","mime","mind","mine","mint","mire","miss","mist","mode","mold","mole","monk","moon","moor","more","moss","most","moth","move","much","mugg","mule","muse","musk","must","myth","nail","name","navy","near","neck","need","nest","newt","next","nice","nine","node","noon","norm","note","nude","null","numb","oath","obey","once","only","open","oral","oven","over","owed","pace","pack","page","paid","pain","pair","pale","palm","pang","park","part","pass","past","path","pave","peak","peel","peer","pelt","perk","pest","pick","pier","pile","pill","pine","pink","pipe","plan","play","plea","plot","plow","plug","plum","plus","poem","poet","poll","polo","pond","pool","poor","pope","pore","port","pose","post","pour","prey","prod","prop","pull","pulp","pump","pure","push","rack","rage","raid","rail","rain","rake","ramp","rank","rash","rate","rays","read","real","reap","reel","rely","rent","rest","rice","rich","ride","rift","ring","riot","rise","risk","road","roam","roar","robe","rock","rode","role","roll","roof","room","root","rope","rose","rout","rove","ruby","ruin","rule","rune","rush","rust","safe","saga","sage","sail","sake","sale","salt","same","sand","sane","sang","sank","sap","sash","save","scan","scar","seal","seam","seed","seem","seep","self","sell","send","sent","shed","shin","ship","shop","shot","show","sick","side","sift","sigh","sign","silk","sill","sing","sink","sire","site","size","skin","skip","slam","slap","slew","slim","slip","slot","slow","slug","slum","snap","snug","soak","soar","sock","soft","soil","sold","sole","some","song","soon","sore","sort","soul","soup","span","spar","spin","spit","spot","spur","stab","stag","star","stay","stem","step","stew","stir","stop","stub","stun","such","suit","sulk","sung","sunk","sunk","sure","surf","swam","swan","swap","swat","swear","swel","swum","sync","tack","tail","tale","talk","tall","tame","tang","tank","tape","tare","task","tear","teem","tell","tend","tent","term","test","text","than","that","them","then","they","thin","thud","thus","tidy","tilt","time","tiny","tire","toad","toil","told","toll","tomb","tome","tone","tong","tool","tops","tore","torn","toss","tour","town","trap","trek","trim","trio","trip","trod","true","tuck","tuft","tugs","tune","turf","turn","twin","type","ugly","undo","unit","upon","used","vain","vale","vane","vary","vast","veil","vein","very","vibe","view","vine","void","volt","vote","wade","wake","walk","wall","wand","want","ward","warm","warp","wart","wary","wash","wave","waxy","weal","wean","weld","went","were","west","whim","whip","whir","wide","wild","will","wilt","wilt","wind","wine","wing","wink","wire","wise","wish","with","woke","womb","wood","wool","word","wore","work","worm","worn","wove","wrap","wren","writ","yarn","yawn","year","yell","yoga","yore","your","zeal","zero","zinc","zone","zoom"],
+                5: ["abled","abode","about","above","abuse","acute","adept","admit","adopt","adobe","adore","adult","agent","agile","agony","agree","ahead","aided","aimed","alarm","album","alert","alien","align","alike","aloft","alone","along","aloof","aloud","alter","amaze","amber","amble","amend","ample","angel","anger","angle","annex","antic","anvil","apart","apple","apply","aptly","arbor","ardor","arena","argue","arise","armor","aroma","arose","array","aside","asset","atlas","atone","attic","audio","audit","avail","avoid","awake","award","aware","awful","badly","bagel","basic","batch","baton","beach","beard","beige","being","below","bench","berth","beset","bevel","beware","bigot","black","blade","blame","bland","blank","blast","blaze","bleak","bleed","blend","bless","bliss","block","blood","bloom","blown","blunt","blurt","blush","boded","bonus","botch","bound","brace","braid","brain","brand","brave","brawl","bread","break","breed","bribe","bride","brief","brine","brink","brisk","broil","broke","brood","brook","broom","broth","brows","brown","brute","budge","build","built","bunch","burst","buyer","cabin","camel","candy","canny","caper","cargo","carry","cause","cedar","chair","chalk","chaos","charm","chase","chasm","cheap","check","cheek","cheer","chess","chick","chief","child","chill","china","choir","chord","chunk","cider","civic","civil","claim","clang","clank","clash","class","clean","clear","clerk","click","cliff","cling","cloak","clone","close","cloth","cloud","clown","cluck","clued","clump","coast","cobweb","color","comes","comma","conch","condo","coral","could","count","coupe","court","cover","covet","crack","craft","crane","crash","crazy","cream","creek","creak","creep","crime","crisp","croak","cross","crowd","crown","cruel","crumb","cubic","curse","curve","cycle","daily","dairy","dance","dated","daunt","decal","decay","decoy","decry","delta","dense","depot","depth","derby","devil","digit","disco","dizzy","doing","doubt","dough","dowel","draft","drama","drape","drive","drone","drove","drown","dryer","dying","eager","eagle","early","earth","easel","eight","eject","elite","emote","empty","enact","enjoy","ensue","enter","envoy","equal","equip","erase","error","essay","ether","evade","event","every","exact","exert","exile","exist","extra","exude","fable","facet","faint","fairy","faith","false","fancy","fatal","fault","feast","fetid","fever","fiber","field","fiery","fifth","fifty","fight","final","first","fitful","fjord","flame","flank","flare","flash","flask","flaunt","flaw","flesh","flick","fling","float","flood","floor","floss","flour","flout","flown","fluff","fluke","fluid","flush","flutter","foamy","focal","force","forge","found","frail","frame","frank","fraud","freak","fresh","front","frost","froth","frown","froze","fudge","funky","funny","gauze","gavel","giddy","girth","given","gland","glare","glass","glaze","gleam","glean","glide","glint","globe","gloom","glory","gloss","glove","gnarl","gnash","golem","gouge","gourd","grace","grade","graft","grail","grand","grant","grasp","grass","grate","graze","greed","greet","grief","grill","grind","groan","groom","grope","grove","gruff","grunge","guard","guile","guise","gulch","gusto","haunt","haven","heart","heavy","hedge","heist","hiked","hitch","hoard","holly","homer","honey","honor","horse","hotel","hovel","human","humid","humor","hurry","hyena","ideal","image","imbue","imply","inane","incur","inert","infer","inner","inset","inter","irony","ivory","jaunt","joust","judge","juice","juicy","jumpy","kayak","knave","kneel","knife","knoll","known","lathe","latte","laugh","layer","lemon","level","light","lilac","limit","liner","lingo","local","lodge","logic","loopy","lotto","lousy","lowly","lucid","lyric","magic","major","manga","manor","maple","march","match","mayor","melon","mercy","merge","metal","melon","merit","mezzo","mixer","model","moody","moral","motel","motif","motor","mourn","mouth","muddy","mulch","music","nadir","nerve","nettle","night","nifty","nimbly","noble","noise","notch","novel","nurse","nymph","occur","octet","often","olive","onset","optic","orbit","order","other","outer","ovoid","owing","oxide","ozone","paddy","paint","panda","panic","pansy","paper","patio","pause","payee","peace","peach","pearl","pedal","penny","perch","peril","phase","phone","photo","piano","picky","pilot","pinch","pixel","pizza","place","plaid","plain","plane","plant","plate","plaza","pleat","pluck","plumb","plume","plump","plunk","plush","poach","point","poker","polar","polka","poppy","porch","pouch","power","press","price","prick","pride","print","prize","probe","prone","prong","prose","prove","prowl","prude","prune","psalm","pulse","punch","puppy","purge","query","quest","queue","quick","quiet","quirk","quota","quote","rabbi","radix","rainy","raise","rally","ramen","ranch","range","rapid","raspy","ratio","reach","realm","rebel","rebus","refit","reign","relax","relay","repay","repel","repot","reprise","reign","rerun","reset","resin","reuse","revel","ridge","risky","rival","river","rivet","riyal","rogue","roman","round","rouse","rover","rowdy","royal","rugby","ruler","rumba","runner","rupee","rural","sauna","savvy","scald","scalp","scene","scent","scone","scope","score","scorn","scout","scowl","scrub","seize","sense","serve","shack","shade","shaft","shaky","shame","shape","share","shark","sharp","shawl","sheen","sheep","sheer","sheet","shelf","shell","shift","shone","shore","short","shout","shove","shrub","shrug","shuck","shunt","siege","since","sixth","sixty","sized","skate","skier","skiff","skill","skimp","skimp","skirt","skulk","slack","slain","slant","slash","slate","slave","sleek","sleep","sleet","slept","slide","slime","sloth","slump","slung","slunk","smack","small","smash","smear","smell","smile","smite","smoke","snack","snail","snake","snare","sneak","sniff","snore","snort","snout","snowy","soapy","solar","solve","spare","spasm","spawn","speak","speck","speed","spell","spend","spent","spice","spike","spill","spine","spite","spoil","spook","spoon","sport","spout","spray","spree","sprig","squad","squat","squib","squid","stack","staff","stage","stain","stair","stake","stale","stalk","stall","stamp","stand","stare","start","state","stave","steal","steam","steel","steep","steer","stern","stick","stiff","still","sting","stink","stomp","store","storm","story","stout","stove","strap","straw","stray","strum","strut","stuck","study","stump","stung","stunk","style","sugar","suite","sulky","sunny","swamp","swear","sweat","sweet","swept","swift","swill","swirl","swoop","sword","synod","syrup","table","taffy","tabby","taken","talon","taunt","tasty","teach","tense","their","theme","these","thief","thing","think","third","thorn","those","those","three","threw","throw","tiara","tiger","tiger","tight","tired","titan","title","today","token","topaz","torch","total","totem","touch","toxic","trace","track","trade","trail","train","tramp","trawl","tremble","trench","trial","tribe","trick","tripe","trite","troll","tromp","trout","truck","truly","trump","trunk","tryst","tulip","tumor","tutor","tweak","twice","twill","twirl","twist","tying","udder","under","undue","uneasy","unfit","unite","unlit","until","upper","upset","usher","usurp","utter","vague","value","valve","vapor","vault","verge","verse","viral","visor","vital","vivid","voice","voila","vouch","vowel","vulva","wager","waist","waive","waltz","waver","weary","weave","wedge","wield","wince","windy","witch","witty","world","worry","worse","worst","worth","would","wrack","wrath","wreak","wreck","wrest","wring","wrist","wrong","yacht","yield","young","youth","zebra","zesty","zilch","zippy"],
+                6: ["abound","absurd","accent","access","accrue","accuse","active","adjust","affirm","afford","afraid","agency","agenda","agents","agreed","almost","always","anemia","animal","answer","appear","apples","assert","assign","astute","attain","auburn","banter","barely","belong","bestow","better","beware","beyond","blight","bother","bridge","bright","buffet","bundle","cannon","canopy","canter","cavern","center","chance","change","charge","choose","church","circle","client","closet","cobalt","commit","common","comply","corner","costly","county","crafty","create","crisis","dagger","damage","dampen","danger","debris","decide","deeply","defend","define","defuse","delight","demand","denial","depend","depths","desert","design","devour","differ","divert","domain","double","during","dusty","either","embark","empire","endure","engage","engine","enough","ensure","entire","escape","except","expand","extend","famine","fathom","feline","fellow","finder","finger","finite","flight","flinch","flower","follow","folly","forbid","forest","formal","foster","freeze","frozen","futile","galaxy","gallop","gentle","gifted","global","golden","gravel","greedy","grudge","guitar","happen","hasten","hazard","health","height","heroes","hidden","hiking","hinder","hollow","honest","hunger","hunter","ignite","immune","impact","insane","insist","intact","intent","invest","jigsaw","juggle","jungle","junior","kidnap","latest","lather","length","lessen","likely","lively","listen","locale","locker","lonely","magnet","marker","marvel","master","matter","mayhem","medley","memory","mentor","middle","mirror","misfit","modest","monkey","mortal","motive","moving","mundane","murder","mutton","mystic","nation","native","nature","nearby","needle","newest","normal","notion","oblique","obtain","oppose","output","outrun","ounces","pardon","parrot","patron","phrase","pickle","pillar","pirate","planet","please","pledge","plunge","pocket","polish","pretty","prince","prison","profit","proper","pursue","puzzle","racial","ransom","recent","record","reduce","refill","reform","refund","refuse","relate","relief","remedy","remote","render","repair","repeat","rescue","resign","resort","return","revamp","reveal","revoke","ribbon","robber","robust","rugged","ruling","rumble","rushed","saddle","salmon","sample","scarce","school","season","sector","select","settle","sigh","signal","simple","single","sketch","sleepy","slight","smooth","snatch","spiral","splash","spoken","spring","squall","statue","string","strong","struck","stubby","summit","surely","survey","switch","symbol","system","tender","tennis","theory","thorny","though","threat","timber","timely","tingle","toggle","tongue","touchy","toward","travel","triple","trophy","tucked","tunnel","typing","useful","unkempt","unlock","unveil","update","uplift","versus","victor","violin","virtue","visible","warden","warmth","wisdom","within","worthy","writer","yellow","zealot","zipper"]
+            },
+
+            init: function() {
+                this.buildKeyboard();
+                this.newGame();
+            },
+
+            newGame: function() {
+                var diff = document.getElementById('wordle-difficulty').value;
+                this.wordLen = diff === 'easy' ? 4 : diff === 'hard' ? 6 : 5;
+                this.maxGuesses = 5;
+                var pool = this.WORDS[this.wordLen];
+                this.word = pool[Math.floor(Math.random() * pool.length)].toUpperCase();
+                this.guesses = [];
+                this.currentGuess = '';
+                this.over = false;
+                document.getElementById('wordle-status').textContent = '';
+                this.buildKeyboard();
+                this.buildGrid();
+                this.updateKeyboard({});
+            },
+
+            buildGrid: function() {
+                var grid = document.getElementById('wordle-grid');
+                grid.innerHTML = '';
+                grid.style.width = (this.wordLen * 54 + (this.wordLen - 1) * 6) + 'px';
+                for (var r = 0; r < this.maxGuesses; r++) {
+                    var row = document.createElement('div');
+                    row.style.cssText = 'display:flex; gap:6px;';
+                    row.id = 'wordle-row-' + r;
+                    for (var c = 0; c < this.wordLen; c++) {
+                        var cell = document.createElement('div');
+                        cell.id = 'wordle-cell-' + r + '-' + c;
+                        cell.style.cssText = 'width:52px;height:52px;border:2px solid #2a3a55;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;background:#0d1626;border-radius:4px;transition:background 0.2s,border-color 0.2s;font-family:Segoe UI,sans-serif;text-transform:uppercase;';
+                        row.appendChild(cell);
+                    }
+                    grid.appendChild(row);
+                }
+            },
+
+            buildKeyboard: function() {
+                var kb = document.getElementById('wordle-keyboard');
+                kb.innerHTML = '';
+                var rows = [
+                    ['Q','W','E','R','T','Y','U','I','O','P'],
+                    ['A','S','D','F','G','H','J','K','L'],
+                    ['ENTER','Z','X','C','V','B','N','M','⌫']
+                ];
+                for (var r = 0; r < rows.length; r++) {
+                    var row = document.createElement('div');
+                    row.style.cssText = 'display:flex;gap:5px;justify-content:center;';
+                    for (var k = 0; k < rows[r].length; k++) {
+                        var key = rows[r][k];
+                        var btn = document.createElement('button');
+                        btn.textContent = key;
+                        btn.id = 'wordle-key-' + key;
+                        var isWide = key === 'ENTER' || key === '⌫';
+                        btn.style.cssText = 'background:#1a2a45;color:#fff;border:1px solid #2a3a55;border-radius:4px;padding:0;cursor:pointer;font-size:13px;font-weight:700;height:42px;' + (isWide ? 'width:62px;font-size:11px;' : 'width:34px;') + 'transition:background 0.15s;';
+                        btn.setAttribute('data-key', key);
+                        btn.onclick = (function(k){ return function(){ wordle.onKey(k); }; })(key);
+                        row.appendChild(btn);
+                    }
+                    kb.appendChild(row);
+                }
+            },
+
+            updateKeyboard: function(colorMap) {
+                var allKeys = 'QWERTYUIOPASDFGHJKLZXCVBNM'.split('');
+                for (var i = 0; i < allKeys.length; i++) {
+                    var el = document.getElementById('wordle-key-' + allKeys[i]);
+                    if (!el) continue;
+                    var state = colorMap[allKeys[i]];
+                    if (state === 'green')       el.style.background = '#538d4e';
+                    else if (state === 'yellow') el.style.background = '#b59f3b';
+                    else if (state === 'grey')   el.style.background = '#3a3a3a';
+                    else                         el.style.background = '#1a2a45';
+                }
+            },
+
+            onKey: function(key) {
+                if (this.over) return;
+                if (key === '⌫' || key === 'BACKSPACE') {
+                    this.currentGuess = this.currentGuess.slice(0, -1);
+                } else if (key === 'ENTER') {
+                    this.submitGuess();
+                    return;
+                } else if (/^[A-Z]$/.test(key) && this.currentGuess.length < this.wordLen) {
+                    this.currentGuess += key;
+                }
+                this.renderCurrent();
+            },
+
+            renderCurrent: function() {
+                var row = this.guesses.length;
+                for (var c = 0; c < this.wordLen; c++) {
+                    var cell = document.getElementById('wordle-cell-' + row + '-' + c);
+                    if (!cell) continue;
+                    cell.textContent = this.currentGuess[c] || '';
+                    cell.style.borderColor = this.currentGuess[c] ? '#4a6a8a' : '#2a3a55';
+                }
+            },
+
+            submitGuess: function() {
+                if (this.currentGuess.length < this.wordLen) {
+                    document.getElementById('wordle-status').textContent = 'Not enough letters!';
+                    return;
+                }
+                var guess = this.currentGuess.toUpperCase();
+                var result = this.checkGuess(guess);
+                var row = this.guesses.length;
+
+                // Colour the row
+                var colorMap = this._currentColorMap();
+                for (var c = 0; c < this.wordLen; c++) {
+                    var cell = document.getElementById('wordle-cell-' + row + '-' + c);
+                    var bg = result[c] === 'green' ? '#538d4e' : result[c] === 'yellow' ? '#b59f3b' : '#3a3a3a';
+                    cell.style.background = bg;
+                    cell.style.borderColor = bg;
+                    // Update keyboard color map (green > yellow > grey)
+                    var letter = guess[c];
+                    var cur = colorMap[letter];
+                    if (cur !== 'green') {
+                        if (result[c] === 'green') colorMap[letter] = 'green';
+                        else if (result[c] === 'yellow' && cur !== 'green') colorMap[letter] = 'yellow';
+                        else if (!cur) colorMap[letter] = 'grey';
+                    }
+                }
+                this.updateKeyboard(colorMap);
+                this.guesses.push({ guess: guess, result: result });
+                this.currentGuess = '';
+
+                if (guess === this.word) {
+                    document.getElementById('wordle-status').textContent = '🎉 You got it!';
+                    this.over = true;
+                } else if (this.guesses.length >= this.maxGuesses) {
+                    document.getElementById('wordle-status').textContent = 'Answer: ' + this.word;
+                    this.over = true;
+                } else {
+                    document.getElementById('wordle-status').textContent = '';
+                }
+            },
+
+            _currentColorMap: function() {
+                var map = {};
+                for (var g = 0; g < this.guesses.length; g++) {
+                    var gg = this.guesses[g];
+                    for (var c = 0; c < this.wordLen; c++) {
+                        var letter = gg.guess[c];
+                        var cur = map[letter];
+                        if (cur !== 'green') {
+                            if (gg.result[c] === 'green') map[letter] = 'green';
+                            else if (gg.result[c] === 'yellow' && cur !== 'green') map[letter] = 'yellow';
+                            else if (!cur) map[letter] = 'grey';
+                        }
+                    }
+                }
+                return map;
+            },
+
+            checkGuess: function(guess) {
+                var result = new Array(this.wordLen).fill('grey');
+                var wordArr = this.word.split('');
+                var guessArr = guess.split('');
+                // First pass: greens
+                for (var i = 0; i < this.wordLen; i++) {
+                    if (guessArr[i] === wordArr[i]) {
+                        result[i] = 'green';
+                        wordArr[i] = null;
+                        guessArr[i] = null;
+                    }
+                }
+                // Second pass: yellows
+                for (var j = 0; j < this.wordLen; j++) {
+                    if (guessArr[j] === null) continue;
+                    var idx = wordArr.indexOf(guessArr[j]);
+                    if (idx !== -1) {
+                        result[j] = 'yellow';
+                        wordArr[idx] = null;
+                    }
+                }
+                return result;
+            }
+        };
+
+        function wordle_newGame() { wordle.newGame(); }
+        function wordle_stop() { /* nothing to stop */ }
+
+        // Keyboard input for wordle
+        document.addEventListener('keydown', function(e) {
+            if (!document.getElementById('game-wordle') || document.getElementById('game-wordle').style.display !== 'block') return;
+            // Only intercept if not in a text input
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (e.key === 'Enter') { wordle.onKey('ENTER'); e.preventDefault(); }
+            else if (e.key === 'Backspace') { wordle.onKey('BACKSPACE'); e.preventDefault(); }
+            else if (/^[a-zA-Z]$/.test(e.key)) { wordle.onKey(e.key.toUpperCase()); e.preventDefault(); }
         });
 
     </script>
