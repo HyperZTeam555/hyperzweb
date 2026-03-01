@@ -7524,22 +7524,27 @@
 
             // Player - fixed screen X, moves only vertically
             px: 0,            // fixed screen x
-            py: 0,            // screen y (top of player)
+            py: 0,            // world y of ball center
             vy: 0,            // vertical velocity (positive = down)
             onGround: false,
             holding: false,
             airborne: false,
+            _uphillBoosting: false, // true from release-on-uphill until launch
+
+            // Camera
+            camY: 0,          // smooth camera Y offset applied to all terrain draws
+            _camTargetY: 0,
+
+            // Ball
+            RADIUS: 10,
+            PH: 20,           // kept for collision math (diameter)
+            PW: 20,
+            ballRot: 0,       // visual spin in radians
 
             // Physics constants
-            GRAVITY: 1800,    // px/s² downward
-            DIVE_BOOST: 900,  // extra down accel when holding
-            MAX_VY: 1100,
-            FRICTION: 0.92,   // speed multiplier each frame when on ground
-            LAUNCH_FACTOR: 0.85, // how much slope launches player upward
-
-            // Player size
-            PW: 18,
-            PH: 10,
+            GRAVITY: 1350,    // px/s² downward
+            DIVE_BOOST: 780,  // extra down accel when holding
+            MAX_VY: 1000,
 
             // Terrain: array of world-x,y points (y=0 is top)
             pts: [],
@@ -7577,9 +7582,16 @@
                 this.holding = false;
                 this.airborne = false;
                 this._wasHolding = false;
+                this._uphillBoosting = false;
+                this._holdTime = 0;
+                this._idleTime = 0;
+                this._holdTime = 0;      // seconds held continuously this press
                 this._valleyY = 0;
                 this.vy = 0;
                 this.onGround = false;
+                this.camY = 0;
+                this._camTargetY = 0;
+                this.ballRot = 0;
 
                 document.getElementById('dune-score').textContent = '0';
                 document.getElementById('dune-status').textContent = 'Hold ↓';
@@ -7675,104 +7687,133 @@
             },
 
             _update: function(dt) {
+                // ── HOLD TIME ─────────────────────────────────────────────
+                // Accumulate how long the player has held this current press.
+                // Used to scale release burst: longer hold = stronger spring.
+                if (this.holding) {
+                    this._holdTime = Math.min(3.5, (this._holdTime || 0) + dt);
+                } else {
+                    // Keep holdTime until we explicitly reset it after using it
+                }
+                // holdCharge: 0..1, reaches 0.7 after ~1.2s, saturates around 3s
+                var holdCharge = 1 - Math.exp(-(this._holdTime || 0) * 0.9);
+
+                // ── IDLE DECAY ────────────────────────────────────────────
+                if (this.holding) {
+                    this._idleTime = Math.max(0, this._idleTime - dt * 3.5);
+                } else {
+                    this._idleTime = Math.min(6, this._idleTime + dt);
+                }
+                var idleFriction = this._idleTime / 6 * 0.55;
+                var minSpeed = Math.max(28, 80 - this._idleTime / 6 * 52);
+
                 // Scroll world
                 this.scrollX += this.speed * dt;
-                this.speed = Math.min(700, this.speed + 12 * dt);
+                this.speed = Math.min(700, this.speed + 10 * dt);
+                if (idleFriction > 0) {
+                    this.speed = Math.max(minSpeed, this.speed * (1 - idleFriction * dt));
+                }
 
-                // Trim off-screen left pts
+                // Trim/extend terrain
                 while (this.pts.length > 0 && this._screenX(this.pts[0].wx) < -this.SEG * 3) {
                     this.pts.shift();
                 }
-                // Extend right
                 while (this.pts.length > 0 && this._screenX(this.pts[this.pts.length - 1].wx) < this.W + this.SEG * 20) {
                     this._extendTerrain();
                 }
 
                 var surfY = this._surfaceY(this.px);
                 var slope = this._slope(this.px);
-                // Lookahead slope — were we going uphill a moment ago?
                 var prevSlope = this._slope(this.px - this.SEG * 4);
 
-                // ── VALLEY TRACKING ──────────────────────────────────────────
-                // _valleyY = highest screen-Y value (deepest physical point) since last launch
-                // When descending (surfY increasing) update it
+                // ── VALLEY TRACKING ───────────────────────────────────────
                 if (!this._valleyY) this._valleyY = surfY;
                 if (surfY > this._valleyY) this._valleyY = surfY;
-
-                // hillHeight: how many px we've climbed up from the valley floor
                 var hillHeight = Math.max(0, this._valleyY - surfY);
 
-                // ── ON GROUND ────────────────────────────────────────────────
+                // ── ON GROUND ────────────────────────────────────────────
                 if (this.py + this.PH >= surfY - 1) {
                     this.onGround = true;
                     this.airborne = false;
                     this.py = surfY - this.PH;
 
-                    // Crest = was going uphill, now flat or starting to go down
                     var atCrest = prevSlope < -0.055 && slope > -0.03;
 
-                    if (atCrest && this.speed > 100 && hillHeight > 8) {
-                        // ── LAUNCH ───────────────────────────────────────────
-                        // Launch strength purely driven by hill height + speed
-                        // Normalize hill height against canvas (tall hill on small screen still feels big)
-                        var norm = Math.min(1.0, hillHeight / (this.H * 0.30));  // 0..1
-                        // Base launch from speed, scaled up by hill height
-                        var launchVy = -(this.speed * (0.30 + norm * 1.10));
+                    if (atCrest && this.speed > 100 && hillHeight > 8 && this._wasHolding) {
+                        // ── LAUNCH ────────────────────────────────────────
+                        // Quadratic hill-height curve: tall hills launch MUCH harder.
+                        // norm² means a half-height hill only gives 25% of peak power.
+                        var norm = Math.min(1.0, hillHeight / (this.H * 0.28));
+                        var heightPow = norm * norm;
+                        // holdCharge also scales launch: held longer = launched higher
+                        var launchVy = -(this.speed * (0.45 + heightPow * 2.2) * (0.8 + holdCharge * 0.2));
                         launchVy = Math.max(-this.MAX_VY, launchVy);
                         this.vy = launchVy;
-                        this.py -= 4;
+                        this.py -= 5;
                         this.onGround = false;
                         this.airborne = true;
-                        // Reset valley so next hill is measured fresh
                         this._valleyY = surfY;
+                        this._uphillBoosting = false;
+                        this._holdTime = 0; // reset after consuming
 
                     } else if (slope > 0.015) {
-                        // ── DOWNHILL ─────────────────────────────────────────
-                        // Holding dives hard and builds speed faster
-                        var downBoost = this.holding ? 1600 : 900;
+                        // ── DOWNHILL ──────────────────────────────────────
+                        var downBoost = this.holding ? 1700 : 950;
                         this.speed += slope * downBoost * dt;
                         this.vy = 0;
 
                     } else if (slope < -0.015) {
-                        // ── UPHILL ───────────────────────────────────────────
-                        // Drag slows you; holding adds more drag (pressing into slope)
-                        var drag = this.holding ? 1100 : 650;
-                        this.speed = Math.max(80, this.speed + slope * drag * dt);
+                        // ── UPHILL ────────────────────────────────────────
+                        var drag = this.holding ? 1100 : 600;
+                        this.speed = Math.max(minSpeed, this.speed + slope * drag * dt);
 
-                        // Releasing hold on uphill = speed burst (unweighting)
+                        // On release: immediate strong burst scaled by how long they held.
+                        // Short hold (~0.3s) = modest bump. Full hold (~2s+) = big surge.
                         if (!this.holding && this._wasHolding) {
-                            this.speed += 60 + Math.abs(slope) * 160;
+                            var burst = 90 + holdCharge * 280; // 90..370 px/s added
+                            this.speed += burst;
+                            this._uphillBoosting = true;
+                            // Don't reset holdTime yet — keep it so continuous boost uses same charge
+                        }
+
+                        // Continuous push while boosting (from release to crest)
+                        // Scales with holdCharge so a harder press = stronger sustained push
+                        if (this._uphillBoosting && !this.holding) {
+                            this.speed += (60 + holdCharge * 180) * dt;
                         }
                         this.vy = 0;
 
                     } else {
-                        // Flat — gentle deceleration
-                        this.speed = Math.max(80, this.speed * (1 - 0.4 * dt));
+                        // Flat
+                        this.speed = Math.max(minSpeed, this.speed * (1 - 0.35 * dt));
                         this.vy = 0;
                     }
 
                     this._wasHolding = this.holding;
 
                 } else {
-                    // ── IN THE AIR ───────────────────────────────────────────
+                    // ── IN THE AIR ────────────────────────────────────────
                     this.onGround = false;
                     this.airborne = true;
 
+                    // Glide: almost zero speed loss in flight
+                    this.speed = Math.max(minSpeed, this.speed * (1 - 0.012 * dt));
+
+                    // Very weak gravity on the way UP → long soaring arc
                     var grav = this.GRAVITY;
+                    if (this.vy < 0) grav *= 0.32;
                     if (this.holding) grav += this.DIVE_BOOST;
                     this.vy += grav * dt;
                     this.vy = Math.min(this.vy, this.MAX_VY);
                     this.py += this.vy * dt;
 
-                    // While airborne keep _valleyY tracking the terrain below
                     if (surfY > this._valleyY) this._valleyY = surfY;
 
                     // Land?
                     if (this.py + this.PH >= surfY) {
                         this.py = surfY - this.PH;
-                        // Crash penalty for very hard vertical landings
-                        if (this.vy > 550) {
-                            this.speed = Math.max(80, this.speed * 0.72);
+                        if (this.vy > 480) {
+                            this.speed = Math.max(minSpeed, this.speed * 0.82);
                         }
                         this.vy = 0;
                         this.onGround = true;
@@ -7781,14 +7822,14 @@
                     }
                 }
 
-                // Off top of screen = dead
+                // Off top of screen
                 if (this.py + this.PH < 0) {
                     this.py = -this.PH;
                     this.vy = 0;
                 }
 
-                // Off bottom = wipeout
-                if (this.py > this.H + 20) {
+                // Off bottom of screen = wipeout
+                if (this.py + this.RADIUS + this.camY > this.H + 30) {
                     this._wipeout();
                     return;
                 }
@@ -7801,6 +7842,21 @@
                     this.best = d;
                     document.getElementById('dune-best').textContent = d;
                 }
+
+                // ── CAMERA ────────────────────────────────────────────────
+                // Target: keep ball at ~45% of screen height
+                var targetPlayerScreenY = this.H * 0.45;
+                // Current player screen Y without camera = this.py + RADIUS
+                var currentScreenY = this.py + this.RADIUS;
+                // We want camY such that currentScreenY + camY == targetPlayerScreenY
+                var wantedCamY = targetPlayerScreenY - currentScreenY;
+                // Smooth towards target (faster when airborne, slower on ground)
+                var camSpeed = this.airborne ? 5.0 : 2.5;
+                this.camY += (wantedCamY - this.camY) * camSpeed * dt;
+
+                // ── BALL SPIN ─────────────────────────────────────────────
+                // Spin faster at higher speeds, roll backwards when going uphill
+                this.ballRot += (this.speed / 40) * dt * (slope < 0 ? 0.6 : 1.0);
             },
 
             _wipeout: function() {
@@ -7828,17 +7884,17 @@
                 ctx.fillStyle = sg;
                 ctx.fillRect(0, 0, W, H);
 
-                // Draw dunes
+                // Draw dunes (all Y coords shifted by camY)
                 if (this.pts.length > 1) {
+                    var camY = this.camY;
                     ctx.beginPath();
                     var first = true;
                     for (var i = 0; i < this.pts.length; i++) {
                         var sx = this._screenX(this.pts[i].wx);
                         if (sx < -this.SEG || sx > W + this.SEG) continue;
-                        if (first) { ctx.moveTo(sx, this.pts[i].y); first = false; }
-                        else ctx.lineTo(sx, this.pts[i].y);
+                        if (first) { ctx.moveTo(sx, this.pts[i].y + camY); first = false; }
+                        else ctx.lineTo(sx, this.pts[i].y + camY);
                     }
-                    // Close bottom
                     ctx.lineTo(W + this.SEG, H + 2);
                     ctx.lineTo(-this.SEG, H + 2);
                     ctx.closePath();
@@ -7857,8 +7913,8 @@
                     for (var j = 0; j < this.pts.length; j++) {
                         var sx2 = this._screenX(this.pts[j].wx);
                         if (sx2 < -this.SEG || sx2 > W + this.SEG) continue;
-                        if (first) { ctx.moveTo(sx2, this.pts[j].y); first = false; }
-                        else ctx.lineTo(sx2, this.pts[j].y);
+                        if (first) { ctx.moveTo(sx2, this.pts[j].y + camY); first = false; }
+                        else ctx.lineTo(sx2, this.pts[j].y + camY);
                     }
                     ctx.strokeStyle = 'rgba(255,230,140,0.5)';
                     ctx.lineWidth = 2;
@@ -7870,65 +7926,74 @@
                     for (var k = 0; k < this.pts.length; k++) {
                         var sx3 = this._screenX(this.pts[k].wx);
                         if (sx3 < -this.SEG || sx3 > W + this.SEG) continue;
-                        if (first) { ctx.moveTo(sx3, this.pts[k].y + 4); first = false; }
-                        else ctx.lineTo(sx3, this.pts[k].y + 4);
+                        if (first) { ctx.moveTo(sx3, this.pts[k].y + 4 + camY); first = false; }
+                        else ctx.lineTo(sx3, this.pts[k].y + 4 + camY);
                     }
                     ctx.strokeStyle = 'rgba(80,40,0,0.3)';
                     ctx.lineWidth = 3;
                     ctx.stroke();
                 }
 
-                // Player
-                var px = this.px;
-                var py = this.py + this.PH / 2;
-                var slope = this._slope(px);
-                var rot = this.airborne
-                    ? Math.atan2(this.vy, this.speed) * 0.5
-                    : Math.atan2(slope, 1) * 0.8;
+                // ── BALL ──────────────────────────────────────────────────
+                var bx = this.px;
+                var by = this.py + this.RADIUS + this.camY; // center of ball on screen
+                var R  = this.RADIUS;
 
+                // Shadow on sand
                 ctx.save();
-                ctx.translate(px, py);
-                ctx.rotate(rot);
-
-                // Board
-                ctx.fillStyle = '#40dfff';
+                ctx.globalAlpha = 0.25;
+                ctx.fillStyle = '#000';
                 ctx.beginPath();
-                ctx.moveTo(-this.PW / 2, 2);
-                ctx.quadraticCurveTo(0, -3, this.PW / 2, 2);
-                ctx.quadraticCurveTo(0, 6, -this.PW / 2, 2);
-                ctx.closePath();
+                ctx.ellipse(bx, by + R * 0.6, R * 1.1, R * 0.35, 0, 0, Math.PI * 2);
                 ctx.fill();
-                // Board gloss
-                ctx.fillStyle = 'rgba(255,255,255,0.25)';
-                ctx.beginPath();
-                ctx.ellipse(0, 0, this.PW * 0.3, 2, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Rider
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1.8;
-                ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(0, -10); ctx.stroke();
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.arc(0, -13, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, -5); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(-3, -1); ctx.lineTo(-5, 3); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(3, -1); ctx.lineTo(5, 3); ctx.stroke();
-
                 ctx.restore();
 
-                // Air trail
+                // Dust trail when airborne
                 if (this.airborne) {
-                    for (var t = 1; t <= 4; t++) {
+                    for (var t = 1; t <= 5; t++) {
                         ctx.save();
-                        ctx.globalAlpha = 0.07 * (5 - t);
-                        ctx.fillStyle = '#40dfff';
+                        ctx.globalAlpha = 0.055 * (6 - t);
+                        ctx.fillStyle = '#d4a843';
                         ctx.beginPath();
-                        ctx.ellipse(px - t * 10, py, 8, 4, rot, 0, Math.PI * 2);
+                        ctx.ellipse(bx - t * 11, by + R * 0.2, R * (0.9 - t * 0.12), R * 0.5, 0, 0, Math.PI * 2);
                         ctx.fill();
                         ctx.restore();
                     }
                 }
+
+                // Ball body
+                var ballGrad = ctx.createRadialGradient(bx - R * 0.3, by - R * 0.3, R * 0.1, bx, by, R);
+                ballGrad.addColorStop(0, '#ffffff');
+                ballGrad.addColorStop(0.35, '#40dfff');
+                ballGrad.addColorStop(1, '#0077aa');
+                ctx.fillStyle = ballGrad;
+                ctx.beginPath();
+                ctx.arc(bx, by, R, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Spinning stripe to show rotation
+                ctx.save();
+                ctx.translate(bx, by);
+                ctx.rotate(this.ballRot);
+                ctx.strokeStyle = 'rgba(0,80,140,0.55)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, R * 0.72, 0, Math.PI);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, R * 0.72, Math.PI, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.stroke();
+                ctx.restore();
+
+                // Shine
+                ctx.save();
+                ctx.globalAlpha = 0.55;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.ellipse(bx - R * 0.28, by - R * 0.32, R * 0.28, R * 0.18, -0.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
 
                 // Wipeout overlay
                 if (this.dead) {
@@ -7966,6 +8031,7 @@
             pressDown: function() {
                 if (this.dead) { this._startGame(); return; }
                 if (!this.started) this.started = true;
+                if (!this.holding) this._holdTime = 0; // fresh press = fresh charge
                 this.holding = true;
             },
 
