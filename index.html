@@ -5545,13 +5545,14 @@
         function chessBotMove(mode) {
             if (chessGameOver || chessCurrentPlayer !== "black") return;
 
+            // ── Collect all legal black moves ──────────────────────────────
             var validMoves = [];
             for (var i = 0; i < 8; i++) {
                 for (var j = 0; j < 8; j++) {
                     if (chessBoard[i][j] && chessBoard[i][j].color === "black") {
-                        var moves = chessGetValidMoves(i, j);
-                        for (var k = 0; k < moves.length; k++) {
-                            validMoves.push({from: [i, j], to: moves[k]});
+                        var mvs = chessGetValidMoves(i, j);
+                        for (var k = 0; k < mvs.length; k++) {
+                            validMoves.push({from: [i, j], to: mvs[k]});
                         }
                     }
                 }
@@ -5559,98 +5560,265 @@
 
             if (validMoves.length === 0) {
                 chessGameOver = true;
-                // Check if it's checkmate or stalemate
-                if (chessIsInCheck("black")) {
-                    chessStatusEl.innerHTML = "Checkmate! White wins!";
-                } else {
-                    chessStatusEl.innerHTML = "Stalemate! Draw!";
-                }
+                chessStatusEl.innerHTML = chessIsInCheck("black") ? "Checkmate! White wins!" : "Stalemate! Draw!";
                 return;
             }
 
-            var move;
-            if (mode === "easy") {
-                move = validMoves[Math.floor(Math.random() * validMoves.length)];
-            } else {
-                // Medium/Hard: prefer captures
-                var captures = [];
-                for (var i = 0; i < validMoves.length; i++) {
-                    if (chessBoard[validMoves[i].to[0]][validMoves[i].to[1]]) {
-                        captures.push(validMoves[i]);
+            // ── Piece values ───────────────────────────────────────────────
+            var PIECE_VAL = {P:100, N:320, B:330, R:500, Q:900, K:20000};
+
+            // ── Piece-square tables (from black's perspective, row 0 = black back rank) ──
+            var PST = {
+                P: [[ 0,  0,  0,  0,  0,  0,  0,  0],
+                    [50, 50, 50, 50, 50, 50, 50, 50],
+                    [10, 10, 20, 30, 30, 20, 10, 10],
+                    [ 5,  5, 10, 25, 25, 10,  5,  5],
+                    [ 0,  0,  0, 20, 20,  0,  0,  0],
+                    [ 5, -5,-10,  0,  0,-10, -5,  5],
+                    [ 5, 10, 10,-20,-20, 10, 10,  5],
+                    [ 0,  0,  0,  0,  0,  0,  0,  0]],
+                N: [[-50,-40,-30,-30,-30,-30,-40,-50],
+                    [-40,-20,  0,  0,  0,  0,-20,-40],
+                    [-30,  0, 10, 15, 15, 10,  0,-30],
+                    [-30,  5, 15, 20, 20, 15,  5,-30],
+                    [-30,  0, 15, 20, 20, 15,  0,-30],
+                    [-30,  5, 10, 15, 15, 10,  5,-30],
+                    [-40,-20,  0,  5,  5,  0,-20,-40],
+                    [-50,-40,-30,-30,-30,-30,-40,-50]],
+                B: [[-20,-10,-10,-10,-10,-10,-10,-20],
+                    [-10,  0,  0,  0,  0,  0,  0,-10],
+                    [-10,  0,  5, 10, 10,  5,  0,-10],
+                    [-10,  5,  5, 10, 10,  5,  5,-10],
+                    [-10,  0, 10, 10, 10, 10,  0,-10],
+                    [-10, 10, 10, 10, 10, 10, 10,-10],
+                    [-10,  5,  0,  0,  0,  0,  5,-10],
+                    [-20,-10,-10,-10,-10,-10,-10,-20]],
+                R: [[ 0,  0,  0,  0,  0,  0,  0,  0],
+                    [ 5, 10, 10, 10, 10, 10, 10,  5],
+                    [-5,  0,  0,  0,  0,  0,  0, -5],
+                    [-5,  0,  0,  0,  0,  0,  0, -5],
+                    [-5,  0,  0,  0,  0,  0,  0, -5],
+                    [-5,  0,  0,  0,  0,  0,  0, -5],
+                    [-5,  0,  0,  0,  0,  0,  0, -5],
+                    [ 0,  0,  0,  5,  5,  0,  0,  0]],
+                Q: [[-20,-10,-10, -5, -5,-10,-10,-20],
+                    [-10,  0,  0,  0,  0,  0,  0,-10],
+                    [-10,  0,  5,  5,  5,  5,  0,-10],
+                    [ -5,  0,  5,  5,  5,  5,  0, -5],
+                    [  0,  0,  5,  5,  5,  5,  0, -5],
+                    [-10,  5,  5,  5,  5,  5,  0,-10],
+                    [-10,  0,  5,  0,  0,  0,  0,-10],
+                    [-20,-10,-10, -5, -5,-10,-10,-20]],
+                K: [[-30,-40,-40,-50,-50,-40,-40,-30],
+                    [-30,-40,-40,-50,-50,-40,-40,-30],
+                    [-30,-40,-40,-50,-50,-40,-40,-30],
+                    [-30,-40,-40,-50,-50,-40,-40,-30],
+                    [-20,-30,-30,-40,-40,-30,-30,-20],
+                    [-10,-20,-20,-20,-20,-20,-20,-10],
+                    [ 20, 20,  0,  0,  0,  0, 20, 20],
+                    [ 20, 30, 10,  0,  0, 10, 30, 20]]
+            };
+
+            // ── Board copy helper ──────────────────────────────────────────
+            function copyBoard(b) {
+                var c = [];
+                for (var r = 0; r < 8; r++) {
+                    c[r] = [];
+                    for (var f = 0; f < 8; f++) {
+                        c[r][f] = b[r][f] ? {type: b[r][f].type, color: b[r][f].color} : null;
                     }
                 }
-                move = captures.length > 0 ? captures[Math.floor(Math.random() * captures.length)] : validMoves[Math.floor(Math.random() * validMoves.length)];
+                return c;
             }
 
+            // Apply a move to a copied board (no side-effects on chessBoard)
+            function applyMove(b, from, to) {
+                var piece = b[from[0]][from[1]];
+                b[to[0]][to[1]] = piece;
+                b[from[0]][from[1]] = null;
+                // Pawn promotion — always queen for bot
+                if (piece && piece.type === "P" && piece.color === "black" && to[0] === 7)
+                    b[to[0]][to[1]].type = "Q";
+                if (piece && piece.type === "P" && piece.color === "white" && to[0] === 0)
+                    b[to[0]][to[1]].type = "Q";
+            }
+
+            // Get all pseudo-legal moves for a color on a given board
+            function allMoves(b, color) {
+                var moves = [];
+                var saved = chessBoard;
+                chessBoard = b;
+                for (var r = 0; r < 8; r++) {
+                    for (var f2 = 0; f2 < 8; f2++) {
+                        if (b[r][f2] && b[r][f2].color === color) {
+                            var ms = chessGetValidMoves(r, f2);
+                            for (var m = 0; m < ms.length; m++)
+                                moves.push({from:[r,f2], to:ms[m]});
+                        }
+                    }
+                }
+                chessBoard = saved;
+                return moves;
+            }
+
+            // Static evaluation from black's perspective (positive = good for black)
+            function evaluate(b) {
+                var score = 0;
+                for (var r = 0; r < 8; r++) {
+                    for (var f2 = 0; f2 < 8; f2++) {
+                        var p = b[r][f2];
+                        if (!p) continue;
+                        var val = PIECE_VAL[p.type] || 0;
+                        // PST: black pieces use row as-is (0=back rank advancing down)
+                        // white pieces mirror vertically
+                        var pstRow = p.color === "black" ? r : (7 - r);
+                        var pst = PST[p.type] ? PST[p.type][pstRow][f2] : 0;
+                        if (p.color === "black") score += val + pst;
+                        else score -= val + pst;
+                    }
+                }
+                return score;
+            }
+
+            // Minimax with alpha-beta pruning
+            function minimax(b, depth, alpha, beta, maximizing) {
+                if (depth === 0) return evaluate(b);
+
+                var color = maximizing ? "black" : "white";
+                var moves = allMoves(b, color);
+
+                // MVV-LVA move ordering: captures first
+                moves.sort(function(a, b2) {
+                    var ac = b[a.to[0]][a.to[1]];
+                    var bc2 = b[b2.to[0]][b2.to[1]];
+                    var av = ac ? (PIECE_VAL[ac.type] || 0) : 0;
+                    var bv = bc2 ? (PIECE_VAL[bc2.type] || 0) : 0;
+                    return bv - av;
+                });
+
+                if (moves.length === 0) {
+                    // Checkmate or stalemate
+                    var saved2 = chessBoard;
+                    chessBoard = b;
+                    var inCheck = chessIsInCheck(color);
+                    chessBoard = saved2;
+                    return inCheck ? (maximizing ? -50000 : 50000) : 0;
+                }
+
+                if (maximizing) {
+                    var best = -Infinity;
+                    for (var i = 0; i < moves.length; i++) {
+                        var nb = copyBoard(b);
+                        applyMove(nb, moves[i].from, moves[i].to);
+                        var val = minimax(nb, depth - 1, alpha, beta, false);
+                        if (val > best) best = val;
+                        if (val > alpha) alpha = val;
+                        if (beta <= alpha) break;
+                    }
+                    return best;
+                } else {
+                    var best = Infinity;
+                    for (var i = 0; i < moves.length; i++) {
+                        var nb = copyBoard(b);
+                        applyMove(nb, moves[i].from, moves[i].to);
+                        var val = minimax(nb, depth - 1, alpha, beta, true);
+                        if (val < best) best = val;
+                        if (val < beta) beta = val;
+                        if (beta <= alpha) break;
+                    }
+                    return best;
+                }
+            }
+
+            // ── Pick move by difficulty ────────────────────────────────────
+            var move;
+
+            if (mode === "easy") {
+                // 0 ELO: fully random
+                move = validMoves[Math.floor(Math.random() * validMoves.length)];
+
+            } else if (mode === "medium") {
+                // ~500 ELO: depth-1 eval with heavy noise + 40% random blunders
+                if (Math.random() < 0.40) {
+                    move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    var bestScore = -Infinity, bestMove = null;
+                    for (var mi = 0; mi < validMoves.length; mi++) {
+                        var nb = copyBoard(chessBoard);
+                        applyMove(nb, validMoves[mi].from, validMoves[mi].to);
+                        var sc = evaluate(nb) + (Math.random() - 0.5) * 120;
+                        if (sc > bestScore) { bestScore = sc; bestMove = validMoves[mi]; }
+                    }
+                    move = bestMove || validMoves[0];
+                }
+
+            } else if (mode === "hard") {
+                // ~900 ELO: depth-2, 15% random blunders, some noise
+                if (Math.random() < 0.15) {
+                    move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    var bestScore = -Infinity, bestMove = null;
+                    for (var mi = 0; mi < validMoves.length; mi++) {
+                        var nb = copyBoard(chessBoard);
+                        applyMove(nb, validMoves[mi].from, validMoves[mi].to);
+                        var sc = minimax(nb, 1, -Infinity, Infinity, false) + (Math.random() - 0.5) * 40;
+                        if (sc > bestScore) { bestScore = sc; bestMove = validMoves[mi]; }
+                    }
+                    move = bestMove || validMoves[0];
+                }
+
+            } else {
+                // impossible — ~1800 ELO: depth-4 minimax, no randomness, full eval
+                var bestScore = -Infinity, bestMove = null;
+                // Sort root moves: captures first for better pruning
+                validMoves.sort(function(a, b2) {
+                    var ac = chessBoard[a.to[0]][a.to[1]];
+                    var bc2 = chessBoard[b2.to[0]][b2.to[1]];
+                    return ((bc2 ? (PIECE_VAL[bc2.type]||0) : 0) - (ac ? (PIECE_VAL[ac.type]||0) : 0));
+                });
+                for (var mi = 0; mi < validMoves.length; mi++) {
+                    var nb = copyBoard(chessBoard);
+                    applyMove(nb, validMoves[mi].from, validMoves[mi].to);
+                    var sc = minimax(nb, 3, -Infinity, Infinity, false);
+                    if (sc > bestScore) { bestScore = sc; bestMove = validMoves[mi]; }
+                }
+                move = bestMove || validMoves[0];
+            }
+
+            // ── Execute chosen move ────────────────────────────────────────
             var piece = chessBoard[move.from[0]][move.from[1]];
             var capturedPiece = chessBoard[move.to[0]][move.to[1]];
-            
-            // Check if pawn is promoting
+
             if (piece.type === "P" && move.to[0] === 7) {
                 chessMove(move.from[0], move.from[1], move.to[0], move.to[1]);
-                // Bot promotes to Queen (best piece)
                 chessBoard[move.to[0]][move.to[1]].type = "Q";
             } else {
                 chessMove(move.from[0], move.from[1], move.to[0], move.to[1]);
             }
-            
+
             chessRender();
-            
-            // Check if King was captured
+
             if (capturedPiece && capturedPiece.type === "K") {
                 chessGameOver = true;
                 chessStatusEl.innerHTML = "King captured! Black wins!";
                 return;
             }
-            
+
             chessCurrentPlayer = "white";
-            
-            // Check if opponent (white) has any pieces left
+
             var whiteHasPieces = false;
             for (var i = 0; i < 8; i++) {
                 for (var j = 0; j < 8; j++) {
-                    if (chessBoard[i][j] && chessBoard[i][j].color === "white") {
-                        whiteHasPieces = true;
-                        break;
-                    }
+                    if (chessBoard[i][j] && chessBoard[i][j].color === "white") { whiteHasPieces = true; break; }
                 }
                 if (whiteHasPieces) break;
             }
-            
-            // If white has no pieces, black wins
-            if (!whiteHasPieces) {
-                chessGameOver = true;
-                chessStatusEl.innerHTML = "Black wins! All white pieces captured!";
-                return;
-            }
-            
-            // Check for checkmate
-            if (chessIsCheckmate(chessCurrentPlayer)) {
-                chessGameOver = true;
-                chessStatusEl.innerHTML = "Checkmate! Black wins!";
-                return;
-            }
-            
-            // Check if only kings remain (insufficient material = draw)
-            if (chessOnlyKingsRemain()) {
-                chessGameOver = true;
-                chessStatusEl.innerHTML = "Draw! Only kings remaining (insufficient material)";
-                return;
-            }
-            
-            // Check for stalemate (only if white has pieces)
-            if (whiteHasPieces && chessIsStalemate(chessCurrentPlayer)) {
-                chessGameOver = true;
-                chessStatusEl.innerHTML = "Stalemate! Draw!";
-                return;
-            }
-            
-            // Check for check
-            if (chessIsInCheck(chessCurrentPlayer)) {
-                chessStatusEl.innerHTML = "White is in Check!";
-            } else {
-                chessStatusEl.innerHTML = "White to move";
-            }
+            if (!whiteHasPieces) { chessGameOver = true; chessStatusEl.innerHTML = "Black wins! All white pieces captured!"; return; }
+            if (chessIsCheckmate(chessCurrentPlayer)) { chessGameOver = true; chessStatusEl.innerHTML = "Checkmate! Black wins!"; return; }
+            if (chessOnlyKingsRemain()) { chessGameOver = true; chessStatusEl.innerHTML = "Draw! Insufficient material."; return; }
+            if (whiteHasPieces && chessIsStalemate(chessCurrentPlayer)) { chessGameOver = true; chessStatusEl.innerHTML = "Stalemate! Draw!"; return; }
+            if (chessIsInCheck(chessCurrentPlayer)) { chessStatusEl.innerHTML = "White is in Check!"; }
+            else { chessStatusEl.innerHTML = "White to move"; }
         }
 
         function chessReset() {
