@@ -680,166 +680,58 @@
             z-index: 1;
         }
         
-        /* Dynamic resize for mobile - scales game elements to fit viewport */
-        @media (max-width: 768px) {
-            .game-inner {
-                padding-top: 20px;
-                padding-bottom: 20px;
-            }
-            
-            /* Canvas games responsive sizing */
-            canvas {
-                max-width: 100% !important;
-                height: auto !important;
-            }
-            
-            /* Tetris responsive sizing */
-            #game-tetris > div:first-of-type {
-                flex-direction: column;
-                gap: 15px !important;
-            }
-            
-            #tetrisCanvas {
-                max-width: 100%;
-                height: auto;
-                width: auto !important;
-            }
-            
-            #tetrisNextCanvas {
-                width: 80px !important;
-                height: 80px !important;
-            }
-            
-            /* Grid game responsive sizing - scale down large boards */
-            .board {
-                max-width: 100% !important;
-                overflow-x: auto;
-                padding: 0 5px;
-            }
-            
-            /* Chess board - 8×8 with 50px cells = 400px, needs scaling */
-            .board.chess {
-                grid-template-columns: repeat(8, minmax(auto, 50px)) !important;
-            }
-            
-            .cell.chess-cell {
-                width: auto;
-                height: auto;
-                aspect-ratio: 1;
-                max-width: 100%;
-            }
-            
-            /* Checkers board - 8×8 with 40px cells = 320px, might need scaling */
-            .board.checkers {
-                grid-template-columns: repeat(8, minmax(auto, 40px)) !important;
-            }
-            
-            .checkers-square {
-                width: auto;
-                height: auto;
-                aspect-ratio: 1;
-                max-width: 100%;
-            }
-            
-            /* Reversi board - 8×8 with 40px cells = 320px */
-            .board.reversi {
-                grid-template-columns: repeat(8, minmax(auto, 40px)) !important;
-            }
-            
-            /* Minesweeper board - 10×10 with 32px cells = 320px */
-            .board.minesweeper {
-                grid-template-columns: repeat(10, minmax(auto, 32px)) !important;
-            }
-            
-            /* Connect 4 board - 7×6 with 50px cells = 350px */
-            .board.connect4 {
-                grid-template-columns: repeat(7, minmax(auto, 50px)) !important;
-                grid-template-rows: repeat(6, minmax(auto, 50px)) !important;
-            }
-            
-            .cell.connect4-cell {
-                width: auto;
-                height: auto;
-                aspect-ratio: 1;
-                max-width: 100%;
-            }
-            
-            /* Tictactoe - small, usually fine but add just in case */
-            .board.tictactoe {
-                grid-template-columns: repeat(3, minmax(auto, 80px)) !important;
-            }
-            
-            .cell {
-                aspect-ratio: 1;
-                width: auto;
-                height: auto;
-                max-width: 100%;
-            }
+        /* ── Responsive game scaling ────────────────────────────────────────
+           JS sets --game-w and --game-h CSS vars on resize.
+           Everything sizes off those vars — no fighting, no scrolling.
+        ──────────────────────────────────────────────────────────────────── */
+
+        /* Canvas games: letterbox inside available space, never distort */
+        #pong-canvas, #snake-canvas, #flappybird-canvas,
+        #tetrisCanvas, #dune-canvas, #gridmaze-canvas, #blockblast-canvas {
+            display: block;
+            margin: 0 auto;
+            max-width:  var(--game-w, 100%);
+            max-height: var(--game-h, 80vh);
+            width:  auto;
+            height: auto;
+            object-fit: contain;
         }
-        
-        @media (max-width: 480px) {
-            .game-inner {
-                padding-top: 15px;
-                padding-bottom: 15px;
-            }
-            
-            /* Small phone canvas scaling */
-            #tetrisCanvas {
-                max-width: 90vw;
-                height: auto;
-                width: auto !important;
-            }
-            
-            #tetrisNextCanvas {
-                width: 70px !important;
-                height: 70px !important;
-            }
-            
-            canvas {
-                max-width: 90vw !important;
-                height: auto !important;
-                max-height: 50vh;
-            }
-            
-            /* Aggressive grid scaling for small phones */
-            .board {
-                gap: 2px !important;
-                padding: 0 3px;
-            }
-            
-            .board.chess {
-                grid-template-columns: repeat(8, minmax(auto, 40px)) !important;
-            }
-            
-            .board.checkers {
-                grid-template-columns: repeat(8, minmax(auto, 32px)) !important;
-            }
-            
-            .board.reversi {
-                grid-template-columns: repeat(8, minmax(auto, 32px)) !important;
-            }
-            
-            .board.minesweeper {
-                grid-template-columns: repeat(10, minmax(auto, 26px)) !important;
-            }
-            
-            .board.connect4 {
-                grid-template-columns: repeat(7, minmax(auto, 40px)) !important;
-                grid-template-rows: repeat(6, minmax(auto, 40px)) !important;
-            }
-            
-            .board.tictactoe {
-                grid-template-columns: repeat(3, minmax(auto, 70px)) !important;
-            }
-            
-            .cell, .checkers-square, .cell.chess-cell, .cell.connect4-cell {
-                font-size: 14px !important;
-            }
-            
-            .cell.chess-cell {
-                font-size: 24px !important;
-            }
+
+        /* Board games: --cell-chess/checkers etc set by JS from --game-w/h */
+        .board.chess {
+            grid-template-columns: repeat(8, var(--cell-chess, 44px)) !important;
+            grid-template-rows:    repeat(8, var(--cell-chess, 44px)) !important;
         }
+        .board.checkers {
+            grid-template-columns: repeat(8, var(--cell-checkers, 38px)) !important;
+            grid-template-rows:    repeat(8, var(--cell-checkers, 38px)) !important;
+        }
+        .board.reversi {
+            grid-template-columns: repeat(8, var(--cell-reversi, 38px)) !important;
+            grid-template-rows:    repeat(8, var(--cell-reversi, 38px)) !important;
+        }
+        .board.minesweeper {
+            grid-template-columns: repeat(10, var(--cell-mine, 30px)) !important;
+            grid-template-rows:    repeat(10, var(--cell-mine, 30px)) !important;
+        }
+        .board.connect4 {
+            grid-template-columns: repeat(7, var(--cell-c4, 44px)) !important;
+            grid-template-rows:    repeat(6, var(--cell-c4, 44px)) !important;
+        }
+        .board.tictactoe {
+            grid-template-columns: repeat(3, var(--cell-ttt, 74px)) !important;
+            grid-template-rows:    repeat(3, var(--cell-ttt, 74px)) !important;
+        }
+
+        /* Cell contents fill their grid cell */
+        .cell, .checkers-square {
+            width: 100% !important;
+            height: 100% !important;
+            box-sizing: border-box;
+        }
+        .cell.chess-cell    { font-size: calc(var(--cell-chess,    44px) * 0.62) !important; }
+        .cell.connect4-cell { font-size: calc(var(--cell-c4,       44px) * 0.45) !important; }
+        .cell.minesweeper-cell { font-size: calc(var(--cell-mine,  30px) * 0.55) !important; }
 
         /* ===== GAME HEADER & OPTIONS ===== */
         .game-header {
@@ -1910,34 +1802,25 @@
 
         <div id="game-blockblast" class="game-inner">
             <div class="game-header"><h2>Block Blast</h2></div>
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; max-width: 500px; margin: 0 auto; padding: 0 10px;">
-                
-                <div style="display: flex; justify-content: space-around; width: 100%;">
-                    <div style="text-align: center;">
-                        <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Score</div>
-                        <div style="color: var(--accent); font-size: 24px; font-weight: 700;" id="blockblast-score">0</div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:10px; max-width:480px; margin:0 auto; padding:0 10px;">
+                <div style="display:flex; justify-content:space-around; width:100%; max-width:400px;">
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Score</div>
+                        <div style="color:var(--accent); font-size:24px; font-weight:700;" id="blockblast-score">0</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Lines</div>
-                        <div style="color: var(--accent); font-size: 24px; font-weight: 700;" id="blockblast-lines">0</div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Lines</div>
+                        <div style="color:var(--accent); font-size:24px; font-weight:700;" id="blockblast-lines">0</div>
                     </div>
-                    <div style="text-align: center;">
-                        <div style="color: var(--text-soft); font-size: 11px; text-transform: uppercase;">Status</div>
-                        <div style="color: var(--accent); font-size: 24px; font-weight: 700;" id="blockblast-status">Playing</div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Status</div>
+                        <div style="color:var(--accent); font-size:24px; font-weight:700;" id="blockblast-status">Playing</div>
                     </div>
                 </div>
-
-                <button class="btn-small" onclick="blockblast_reset()" style="width: 100%;">New Game</button>
-
-                <div id="blockblast-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; padding: 15px; background: var(--bg-elevated); border-radius: 4px; border: 1px solid var(--border-subtle); aspect-ratio: 1; width: 100%; max-width: 400px; user-select: none; touch-action: none;">
-                    <!-- Grid will be generated here (6×6) -->
-                </div>
-
-                <div style="width: 100%; text-align: center; color: var(--text-soft); font-size: 12px;">
-                    <div style="margin-bottom: 8px;">Coming blocks:</div>
-                    <div id="blockblast-preview" style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; min-height: 60px;">
-                        <!-- Next blocks will show here -->
-                    </div>
+                <button class="btn-small" onclick="blockblast_reset()" style="width:100%; max-width:400px;">New Game</button>
+                <canvas id="blockblast-canvas" style="display:block; border:1px solid #1e2d4a; border-radius:8px; touch-action:none; cursor:grab; max-width:400px; width:100%;"></canvas>
+                <div style="color:var(--text-soft); font-size:12px; text-align:center;">
+                    <span style="color:var(--accent-strong);">Drag</span> blocks from bottom onto the board &nbsp;|&nbsp; Clear full rows or columns
                 </div>
             </div>
         </div>
@@ -2402,131 +2285,90 @@
         }
         
         // Function to dynamically scale game elements to fit mobile screens
-        function scaleGameForMobile(gameId) {
-            if (window.innerWidth >= 768) return; // Only scale on mobile/tablet
-            
-            var canvasesToScale = [];
-            var boardsToScale = [];
-            
-            // Identify which canvases and boards to scale based on game
-            if (gameId === "tetris") {
-                canvasesToScale = ["tetrisCanvas"];
-            } else if (gameId === "flappybird") {
-                canvasesToScale = ["flappybird-canvas"];
-            } else if (gameId === "pong") {
-                canvasesToScale = ["pong-canvas"];
-            } else if (gameId === "snake") {
-                canvasesToScale = ["snake-canvas"];
-            } else if (gameId === "chess") {
-                boardsToScale = [{ type: "chess", cells: 8, cellSize: 50 }];
-            } else if (gameId === "checkers") {
-                boardsToScale = [{ type: "checkers", cells: 8, cellSize: 40 }];
-            } else if (gameId === "reversi") {
-                boardsToScale = [{ type: "reversi", cells: 8, cellSize: 40 }];
-            } else if (gameId === "minesweeper") {
-                boardsToScale = [{ type: "minesweeper", cells: 10, cellSize: 32 }];
-            } else if (gameId === "connect4") {
-                boardsToScale = [{ type: "connect4", cols: 7, rows: 6, cellSize: 50 }];
-            } else if (gameId === "ttt") {
-                boardsToScale = [{ type: "tictactoe", cells: 3, cellSize: 80 }];
-            }
-            
-            // Scale canvases
-            canvasesToScale.forEach(function(canvasId) {
-                var canvas = document.getElementById(canvasId);
-                if (!canvas) return;
-                
-                // Get original dimensions
-                var originalWidth = parseInt(canvas.getAttribute("width"));
-                var originalHeight = parseInt(canvas.getAttribute("height"));
-                var aspectRatio = originalWidth / originalHeight;
-                
-                // Calculate max available space
-                var maxWidth = window.innerWidth - 30;
-                var maxHeight = (window.innerHeight - 200);
-                
-                var newWidth = maxWidth;
-                var newHeight = newWidth / aspectRatio;
-                
-                // If height exceeds max, scale down from height
-                if (newHeight > maxHeight) {
-                    newHeight = maxHeight;
-                    newWidth = newHeight * aspectRatio;
-                }
-                
-                // Apply the scaled dimensions
-                canvas.style.width = newWidth + "px";
-                canvas.style.height = newHeight + "px";
-                canvas.style.display = "block";
-                canvas.style.margin = "0 auto";
-            });
-            
-            // Scale grid boards
-            boardsToScale.forEach(function(boardConfig) {
-                var boardElement = document.querySelector(".board." + boardConfig.type);
-                if (!boardElement) return;
-                
-                // Calculate board dimensions
-                var cellsPerSide = boardConfig.cells || boardConfig.cols;
-                var originalCellSize = boardConfig.cellSize;
-                var originalBoardWidth = (originalCellSize * cellsPerSide) + (4 * (cellsPerSide - 1)); // +gap
-                
-                // Calculate available space
-                var maxWidth = window.innerWidth - 30;
-                
-                // ONLY scale if the original board would overflow
-                if (originalBoardWidth > maxWidth) {
-                    // Board would overflow - need to scale
-                    var newCellSize = Math.floor((maxWidth - (4 * (cellsPerSide - 1))) / cellsPerSide);
-                    
-                    // For very small screens, be more aggressive
-                    if (window.innerWidth < 380) {
-                        newCellSize = Math.floor((window.innerWidth - 20 - (4 * (cellsPerSide - 1))) / cellsPerSide);
-                    }
-                    
-                    // Don't scale down too much
-                    newCellSize = Math.max(newCellSize, 24);
-                    
-                    // Apply grid template only if scaling is needed
-                    if (boardConfig.cells) {
-                        // Square boards (chess, checkers, reversi, tictactoe)
-                        boardElement.style.gridTemplateColumns = "repeat(" + boardConfig.cells + ", " + newCellSize + "px)";
-                        boardElement.style.gridTemplateRows = "repeat(" + boardConfig.cells + ", " + newCellSize + "px)";
-                    } else if (boardConfig.cols && boardConfig.rows) {
-                        // Rectangular boards (connect4)
-                        boardElement.style.gridTemplateColumns = "repeat(" + boardConfig.cols + ", " + newCellSize + "px)";
-                        boardElement.style.gridTemplateRows = "repeat(" + boardConfig.rows + ", " + newCellSize + "px)";
-                    }
-                    
-                    // Center the board
-                    boardElement.style.margin = "0 auto";
-                    boardElement.style.justifyContent = "center";
-                } else {
-                    // Board fits fine - use CSS defaults, just center it
-                    boardElement.style.margin = "0 auto";
-                    boardElement.style.justifyContent = "center";
-                    // Don't override grid template - let CSS handle it
-                }
-            });
+        // ── Game resize: sets CSS vars so everything fits exactly in the window ──
+        // Overlay area = 100vh - topbar(64) - overlay padding(28)
+        // Board area   = overlay - game-inner padding-top(44) - header(42) - options(42)
+        var TOPBAR = 64, OVERLAY_PAD = 28, INNER_PAD = 44, CHROME = 84; // header+options
+
+        function computeGameSpace() {
+            var availW = window.innerWidth  - 32;   // overlay horiz padding
+            var availH = window.innerHeight - TOPBAR - OVERLAY_PAD;
+            var boardH = availH - INNER_PAD - CHROME;
+            var boardW = availW;
+            return { w: boardW, h: boardH, cw: availW, ch: availH };
         }
-        
-        // Rescale on window resize for mobile
-        window.addEventListener("orientationchange", function() {
-            setTimeout(function() {
-                var gameOverlay = document.getElementById("game-overlay");
-                if (gameOverlay && gameOverlay.style.display === "block") {
-                    // Find which game is currently open
-                    var games = ["ttt", "rev", "pong", "snake", "minesweeper", "2048", "flappybird", "checkers", "connect4", "chess", "tetris", "codebreaker", "gridgame", "hackersim", "blockblast", "gridmaze", "dune", "wordle"];
-                    for (var i = 0; i < games.length; i++) {
-                        var gameEl = document.getElementById("game-" + games[i]);
-                        if (gameEl && gameEl.style.display === "block") {
-                            scaleGameForMobile(games[i]);
-                            break;
-                        }
-                    }
+
+        function setCSSVar(name, value) {
+            document.documentElement.style.setProperty(name, value);
+        }
+
+        function cellSize(cols, rows, maxW, maxH, maxCell, minCell, gap) {
+            gap = gap || 4;
+            var byW = Math.floor((maxW - gap * (cols - 1)) / cols);
+            var byH = Math.floor((maxH - gap * (rows - 1)) / rows);
+            return Math.max(minCell, Math.min(maxCell, byW, byH));
+        }
+
+        function scaleGameForMobile(gameId) {
+            var sp = computeGameSpace();
+
+            // ── CSS vars for canvas letterboxing ──
+            setCSSVar('--game-w', sp.cw + 'px');
+            setCSSVar('--game-h', sp.ch + 'px');
+
+            // ── Canvas games: scale inline so aspect ratio is preserved exactly ──
+            var canvasMap = {
+                pong:       { id: 'pong-canvas',       nw: 640, nh: 360 },
+                snake:      { id: 'snake-canvas',      nw: 400, nh: 400 },
+                flappybird: { id: 'flappybird-canvas', nw: 320, nh: 480 },
+                tetris:     { id: 'tetrisCanvas',      nw: 300, nh: 600 },
+                dune:       { id: 'dune-canvas',       nw: null, nh: null }, // dynamic
+                gridmaze:   { id: 'gridmaze-canvas',   nw: null, nh: null }, // dynamic
+                blockblast: { id: 'blockblast-canvas', nw: null, nh: null }  // self-managed
+            };
+            var cm = canvasMap[gameId];
+            if (cm && cm.nw) {
+                var cv = document.getElementById(cm.id);
+                if (cv) {
+                    var aspect = cm.nw / cm.nh;
+                    var w = Math.min(cm.nw, sp.cw);
+                    var h = w / aspect;
+                    if (h > sp.ch) { h = sp.ch; w = h * aspect; }
+                    cv.style.width  = Math.floor(w) + 'px';
+                    cv.style.height = Math.floor(h) + 'px';
                 }
-            }, 100);
-        });
+            }
+
+            // ── Board games: compute cell size fitting both axes ──
+            if (gameId === 'chess') {
+                setCSSVar('--cell-chess',    cellSize(8, 8, sp.w, sp.h, 50, 24) + 'px');
+            } else if (gameId === 'checkers') {
+                setCSSVar('--cell-checkers', cellSize(8, 8, sp.w, sp.h, 40, 22) + 'px');
+            } else if (gameId === 'rev') {
+                setCSSVar('--cell-reversi',  cellSize(8, 8, sp.w, sp.h, 40, 22) + 'px');
+            } else if (gameId === 'minesweeper') {
+                setCSSVar('--cell-mine',     cellSize(10,10, sp.w, sp.h, 32, 18) + 'px');
+            } else if (gameId === 'connect4') {
+                setCSSVar('--cell-c4',       cellSize(7, 6, sp.w, sp.h, 50, 24) + 'px');
+            } else if (gameId === 'ttt') {
+                setCSSVar('--cell-ttt',      cellSize(3, 3, sp.w, sp.h, 80, 40) + 'px');
+            }
+        }
+
+        function rescaleCurrentGame() {
+            var games = ['ttt','rev','pong','snake','minesweeper','2048','flappybird','checkers',
+                         'connect4','chess','tetris','codebreaker','gridgame','hackersim',
+                         'blockblast','gridmaze','dune','wordle'];
+            var overlay = document.getElementById('game-overlay');
+            if (!overlay || overlay.style.display !== 'block') return;
+            for (var i = 0; i < games.length; i++) {
+                var el = document.getElementById('game-' + games[i]);
+                if (el && el.style.display === 'block') { scaleGameForMobile(games[i]); break; }
+            }
+        }
+
+        window.addEventListener('resize',            function() { setTimeout(rescaleCurrentGame, 30); });
+        window.addEventListener('orientationchange', function() { setTimeout(rescaleCurrentGame, 120); });
 
         function closeGame() {
             document.getElementById("game-overlay").style.display = "none";
@@ -6384,14 +6226,38 @@
 
         function gridgame_generateItem() {
             let validPosition = false;
-            while (!validPosition) {
+            let attempts = 0;
+            while (!validPosition && attempts < 200) {
                 gridgame_item = { 
                     x: Math.floor(Math.random() * 8), 
                     y: Math.floor(Math.random() * 8) 
                 };
                 if ((gridgame_item.x !== gridgame_player.x || gridgame_item.y !== gridgame_player.y) &&
-                    !gridgame_hazards.some(h => h.x === gridgame_item.x && h.y === gridgame_item.y)) {
+                    !gridgame_hazards.some(h => h.x === gridgame_item.x && h.y === gridgame_item.y) &&
+                    gridgame_isItemReachable(gridgame_hazards)) {
                     validPosition = true;
+                }
+                attempts++;
+            }
+            // Fallback: if no valid random position found, do a full scan of all cells
+            if (!validPosition) {
+                let candidates = [];
+                for (let y = 0; y < 8; y++) {
+                    for (let x = 0; x < 8; x++) {
+                        if ((x !== gridgame_player.x || y !== gridgame_player.y) &&
+                            !gridgame_hazards.some(h => h.x === x && h.y === y)) {
+                            candidates.push({x, y});
+                        }
+                    }
+                }
+                // Shuffle and pick first reachable one
+                candidates.sort(() => Math.random() - 0.5);
+                for (let c of candidates) {
+                    gridgame_item = c;
+                    if (gridgame_isItemReachable(gridgame_hazards)) {
+                        validPosition = true;
+                        break;
+                    }
                 }
             }
         }
@@ -6459,10 +6325,12 @@
                 // Check if hitting hazard
                 if (gridgame_hazards.some(h => h.x === newX && h.y === newY)) {
                     gridgame_gameOver = true;
+                    gridgame_player.x = newX;  // move @ into # so player shows inside hazard
+                    gridgame_player.y = newY;
                     document.getElementById('gridgame-status').textContent = 'LOST';
                     document.getElementById('gridgame-status').style.color = '#ff6b6b';
+                    gridgame_render();          // render first so @ appears inside #
                     alert('💀 Hit a hazard! Game Over!');
-                    gridgame_render();
                     return;
                 }
                 
@@ -6521,6 +6389,7 @@
                 for (let j = 0; j < 8; j++) {
                     let cell = document.createElement('div');
                     let char = gridgame_grid[i][j];
+                    let isCollision = gridgame_gameOver && gridgame_player.x === j && gridgame_player.y === i && gridgame_hazards.some(h => h.x === j && h.y === i);
                     cell.textContent = char;
                     cell.style.cssText = `
                         aspect-ratio: 1;
@@ -6529,12 +6398,12 @@
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        background: ${char === '@' ? 'rgba(0, 180, 255, 0.2)' : (char === '$' ? 'rgba(255, 200, 0, 0.2)' : (char === '#' ? 'rgba(255, 75, 129, 0.2)' : 'rgba(255,255,255,0.05)'))};
-                        border: 1px solid var(--border-subtle);
+                        background: ${isCollision ? 'rgba(255,75,129,0.55)' : (char === '@' ? 'rgba(0, 180, 255, 0.2)' : (char === '$' ? 'rgba(255, 200, 0, 0.2)' : (char === '#' ? 'rgba(255, 75, 129, 0.2)' : 'rgba(255,255,255,0.05)')))};
+                        border: 1px solid ${isCollision ? '#ff4b81' : 'var(--border-subtle)'};
                         border-radius: 2px;
                         font-weight: 700;
                         font-size: 16px;
-                        color: ${char === '@' ? '#00b4ff' : (char === '$' ? '#ffc800' : (char === '#' ? '#ff4b81' : 'transparent'))};
+                        color: ${isCollision ? '#fff' : (char === '@' ? '#00b4ff' : (char === '$' ? '#ffc800' : (char === '#' ? '#ff4b81' : 'transparent')))};
                     `;
                     gridEl.appendChild(cell);
                 }
@@ -6837,526 +6706,453 @@
         });
 
         // ==================== BLOCK BLAST GAME ====================
-        let BB = {
-            grid: [],
-            score: 0,
-            lines: 0,
-            gameOver: false,
-            SIZE: 6,
-            nextBlocks: [],
-            draggedBlockIdx: null,
-            previewCells: [],
-            
-            SHAPES: [
-                { blocks: [[0,0]], color: '#00e0ff', name: 'Single' },
-                { blocks: [[0,0],[0,1]], color: '#00ff88', name: 'H2' },
-                { blocks: [[0,0],[0,1],[0,2]], color: '#ffff00', name: 'H3' },
-                { blocks: [[0,0],[1,0]], color: '#ff6b6b', name: 'V2' },
-                { blocks: [[0,0],[1,0],[2,0]], color: '#ff1744', name: 'V3' },
-                { blocks: [[0,0],[0,1],[1,0],[1,1]], color: '#00b4ff', name: 'Sq' }
-            ],
-            
-            init: function() {
-                this.grid = [];
-                for (let i = 0; i < this.SIZE; i++) {
-                    this.grid[i] = new Array(this.SIZE).fill(null);
-                }
-                this.score = 0;
-                this.lines = 0;
-                this.gameOver = false;
-                this.generateNextBlocks();
-                this.render();
-                this.renderPreview();
-            },
-            
-            generateNextBlocks: function() {
-                this.nextBlocks = [];
-                for (let i = 0; i < 3; i++) {
-                    let shape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
-                    this.nextBlocks.push(JSON.parse(JSON.stringify(shape)));
-                }
-            },
-            
-            canPlace: function(shape, row, col) {
-                for (let b of shape.blocks) {
-                    let r = row + b[0], c = col + b[1];
-                    if (r < 0 || r >= this.SIZE || c < 0 || c >= this.SIZE) return false;
-                    if (this.grid[r][c] !== null) return false;
-                }
-                return true;
-            },
-            
-            place: function(shape, row, col) {
-                for (let b of shape.blocks) {
-                    let r = row + b[0], c = col + b[1];
-                    this.grid[r][c] = shape.color;
-                }
-            },
-            
-            checkClear: function() {
-                let cleared = [];
-                
-                // Check rows
-                for (let i = 0; i < this.SIZE; i++) {
-                    if (this.grid[i].every(c => c !== null)) {
-                        cleared.push(...this.grid[i].map((_, j) => [i, j]));
+        (function() {
+            var BB = {
+                SIZE: 8,          // 8x8 board
+                CELL: 0,          // computed cell size in px
+                BOARD_PX: 0,      // board pixel height (same as width)
+                TRAY_H: 0,        // tray area height below board
+                PIECE_CELL: 0,    // mini cell size in tray
+                grid: [],
+                score: 0,
+                lines: 0,
+                gameOver: false,
+                nextBlocks: [],
+                previewCells: [],  // [{r,c}] highlight
+                dragging: null,    // {blockIdx, offsetX, offsetY, curX, curY}
+                canvas: null,
+                ctx: null,
+                clearAnim: [],     // [{r,c,t}] flash cells
+
+                SHAPES: [
+                    // ─── Simple ───────────────────────────────────────────
+                    { b:[[0,0]],                         color:'#00e0ff', name:'Dot'   },
+                    { b:[[0,0],[0,1]],                   color:'#00ff88', name:'H2'    },
+                    { b:[[0,0],[0,1],[0,2]],             color:'#ffff00', name:'H3'    },
+                    { b:[[0,0],[1,0]],                   color:'#ff6b6b', name:'V2'    },
+                    { b:[[0,0],[1,0],[2,0]],             color:'#ff1744', name:'V3'    },
+                    { b:[[0,0],[0,1],[1,0],[1,1]],       color:'#00b4ff', name:'Sq2'   },
+                    { b:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], color:'#c8a0ff', name:'Sq3' },
+                    // ─── Tetris I ─────────────────────────────────────────
+                    { b:[[0,0],[0,1],[0,2],[0,3]],       color:'#00d4ff', name:'I-H'   },
+                    { b:[[0,0],[1,0],[2,0],[3,0]],       color:'#00d4ff', name:'I-V'   },
+                    // ─── Tetris O ─────────────────────────────────────────
+                    { b:[[0,0],[0,1],[1,0],[1,1]],       color:'#f0f000', name:'O'     },
+                    // ─── Tetris T ─────────────────────────────────────────
+                    { b:[[0,1],[1,0],[1,1],[1,2]],       color:'#a000f0', name:'T-D'   },
+                    { b:[[0,0],[1,0],[1,1],[2,0]],       color:'#a000f0', name:'T-R'   },
+                    { b:[[0,0],[0,1],[0,2],[1,1]],       color:'#a000f0', name:'T-U'   },
+                    { b:[[0,1],[1,0],[1,1],[2,1]],       color:'#a000f0', name:'T-L'   },
+                    // ─── Tetris S ─────────────────────────────────────────
+                    { b:[[0,1],[0,2],[1,0],[1,1]],       color:'#00f000', name:'S-H'   },
+                    { b:[[0,0],[1,0],[1,1],[2,1]],       color:'#00f000', name:'S-V'   },
+                    // ─── Tetris Z ─────────────────────────────────────────
+                    { b:[[0,0],[0,1],[1,1],[1,2]],       color:'#f00000', name:'Z-H'   },
+                    { b:[[0,1],[1,0],[1,1],[2,0]],       color:'#f00000', name:'Z-V'   },
+                    // ─── Tetris J ─────────────────────────────────────────
+                    { b:[[0,0],[1,0],[1,1],[1,2]],       color:'#0000f0', name:'J-D'   },
+                    { b:[[0,0],[0,1],[1,0],[2,0]],       color:'#0000f0', name:'J-R'   },
+                    { b:[[0,0],[0,1],[0,2],[1,2]],       color:'#0000f0', name:'J-U'   },
+                    { b:[[0,2],[1,2],[2,1],[2,2]],       color:'#0000f0', name:'J-L'   },
+                    // ─── Tetris L ─────────────────────────────────────────
+                    { b:[[0,2],[1,0],[1,1],[1,2]],       color:'#f0a000', name:'L-D'   },
+                    { b:[[0,0],[1,0],[2,0],[2,1]],       color:'#f0a000', name:'L-R'   },
+                    { b:[[0,0],[0,1],[0,2],[1,0]],       color:'#f0a000', name:'L-U'   },
+                    { b:[[0,0],[0,1],[1,1],[2,1]],       color:'#f0a000', name:'L-L'   },
+                    // ─── Corner L 2×2 ─────────────────────────────────────
+                    { b:[[0,0],[1,0],[1,1]],             color:'#ff8c00', name:'cL'    },
+                    { b:[[0,1],[1,0],[1,1]],             color:'#ff8c00', name:'cR'    },
+                    { b:[[0,0],[0,1],[1,0]],             color:'#ff8c00', name:'cU'    },
+                    { b:[[0,0],[0,1],[1,1]],             color:'#ff8c00', name:'cD'    },
+                ],
+
+                init: function() {
+                    this.canvas = document.getElementById('blockblast-canvas');
+                    if (!this.canvas) return;
+                    this.ctx = this.canvas.getContext('2d');
+                    this.grid = [];
+                    for (var i = 0; i < this.SIZE; i++) {
                         this.grid[i] = new Array(this.SIZE).fill(null);
                     }
-                }
-                
-                // Check columns
-                for (let j = 0; j < this.SIZE; j++) {
-                    if (this.grid.every(row => row[j] !== null)) {
-                        for (let i = 0; i < this.SIZE; i++) {
-                            if (!cleared.some(c => c[0] === i && c[1] === j)) {
-                                cleared.push([i, j]);
+                    this.score = 0; this.lines = 0; this.gameOver = false;
+                    this.dragging = null; this.clearAnim = [];
+                    this.generateNextBlocks();
+                    this.resize();
+                    this.setupEvents();
+                    this.render();
+                },
+
+                resize: function() {
+                    if (!this.canvas) return;
+                    var w = Math.min(this.canvas.parentElement.clientWidth - 20, 400);
+                    this.CELL = Math.floor(w / this.SIZE);
+                    this.BOARD_PX = this.CELL * this.SIZE;
+                    this.PIECE_CELL = Math.max(14, Math.floor(this.CELL * 0.55));
+                    // Tray: 3 pieces, each up to 4 cells wide + padding
+                    this.TRAY_H = this.PIECE_CELL * 5 + 24;
+                    this.canvas.width  = this.BOARD_PX;
+                    this.canvas.height = this.BOARD_PX + this.TRAY_H;
+                    this.canvas.style.width  = this.BOARD_PX + 'px';
+                    this.canvas.style.height = (this.BOARD_PX + this.TRAY_H) + 'px';
+                },
+
+                generateNextBlocks: function() {
+                    this.nextBlocks = [];
+                    for (var i = 0; i < 3; i++) {
+                        var s = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
+                        this.nextBlocks.push(JSON.parse(JSON.stringify(s)));
+                    }
+                },
+
+                canPlace: function(shape, row, col) {
+                    for (var k = 0; k < shape.b.length; k++) {
+                        var r = row + shape.b[k][0], c = col + shape.b[k][1];
+                        if (r < 0 || r >= this.SIZE || c < 0 || c >= this.SIZE) return false;
+                        if (this.grid[r][c] !== null) return false;
+                    }
+                    return true;
+                },
+
+                place: function(shape, row, col) {
+                    for (var k = 0; k < shape.b.length; k++) {
+                        this.grid[row + shape.b[k][0]][col + shape.b[k][1]] = shape.color;
+                    }
+                },
+
+                checkClear: function() {
+                    var self = this, cleared = [], i, j;
+                    for (i = 0; i < this.SIZE; i++) {
+                        if (this.grid[i].every(function(c){ return c !== null; })) {
+                            for (j = 0; j < this.SIZE; j++) cleared.push([i,j]);
+                            this.grid[i] = new Array(this.SIZE).fill(null);
+                        }
+                    }
+                    for (j = 0; j < this.SIZE; j++) {
+                        if (this.grid.every(function(row){ return row[j] !== null; })) {
+                            for (i = 0; i < this.SIZE; i++) {
+                                if (!cleared.some(function(c){ return c[0]===i && c[1]===j; })) cleared.push([i,j]);
+                                this.grid[i][j] = null;
                             }
-                            this.grid[i][j] = null;
+                        }
+                    }
+                    if (cleared.length > 0) {
+                        this.score += cleared.length * 10;
+                        this.lines++;
+                        for (var k = 0; k < cleared.length; k++) {
+                            this.clearAnim.push({r: cleared[k][0], c: cleared[k][1], t: 1.0});
+                        }
+                        document.getElementById('blockblast-score').textContent = this.score;
+                        document.getElementById('blockblast-lines').textContent = this.lines;
+                    }
+                    return cleared.length > 0;
+                },
+
+                tryPlace: function(idx, row, col) {
+                    if (this.gameOver || idx >= this.nextBlocks.length) return false;
+                    var shape = this.nextBlocks[idx];
+                    if (!this.canPlace(shape, row, col)) return false;
+                    this.place(shape, row, col);
+                    this.nextBlocks.splice(idx, 1);
+                    var newShape = this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)];
+                    this.nextBlocks.push(JSON.parse(JSON.stringify(newShape)));
+                    while (this.checkClear()) {}
+                    // Check game over
+                    var canMove = false;
+                    outer: for (var bi = 0; bi < this.nextBlocks.length; bi++) {
+                        for (var r = 0; r < this.SIZE; r++) {
+                            for (var c = 0; c < this.SIZE; c++) {
+                                if (this.canPlace(this.nextBlocks[bi], r, c)) { canMove = true; break outer; }
+                            }
+                        }
+                    }
+                    if (!canMove) {
+                        this.gameOver = true;
+                        document.getElementById('blockblast-status').textContent = 'Game Over!';
+                        document.getElementById('blockblast-status').style.color = '#ff1744';
+                    }
+                    this.previewCells = [];
+                    this.render();
+                    return true;
+                },
+
+                // Convert canvas coords to board cell (returns null if outside board)
+                canvasToBoardCell: function(cx, cy) {
+                    if (cx < 0 || cy < 0 || cx >= this.BOARD_PX || cy >= this.BOARD_PX) return null;
+                    return { r: Math.floor(cy / this.CELL), c: Math.floor(cx / this.CELL) };
+                },
+
+                // Which tray slot is at canvas coord?
+                canvasToTraySlot: function(cx, cy) {
+                    if (cy < this.BOARD_PX) return null;
+                    var trayY = cy - this.BOARD_PX;
+                    var slotW = this.BOARD_PX / 3;
+                    var slot = Math.floor(cx / slotW);
+                    return slot >= 0 && slot < 3 ? slot : null;
+                },
+
+                // Top-left board coord (r,c) where piece should land when dragged to canvas (cx,cy)
+                dragTargetCell: function(shape, cx, cy) {
+                    if (!shape) return null;
+                    var maxR = 0, maxC = 0;
+                    for (var k = 0; k < shape.b.length; k++) {
+                        if (shape.b[k][0] > maxR) maxR = shape.b[k][0];
+                        if (shape.b[k][1] > maxC) maxC = shape.b[k][1];
+                    }
+                    // Centre the piece under the cursor
+                    var r = Math.round(cy / this.CELL - maxR / 2);
+                    var c = Math.round(cx / this.CELL - maxC / 2);
+                    return { r: r, c: c };
+                },
+
+                // ── Rendering ──────────────────────────────────────────────
+                render: function() {
+                    if (!this.ctx) return;
+                    var ctx = this.ctx;
+                    var W = this.BOARD_PX, H = this.canvas.height;
+                    var C = this.CELL, S = this.SIZE;
+
+                    // Background
+                    ctx.fillStyle = '#060e22';
+                    ctx.fillRect(0, 0, W, H);
+
+                    // Grid cells
+                    for (var i = 0; i < S; i++) {
+                        for (var j = 0; j < S; j++) {
+                            var x = j * C, y = i * C;
+                            var color = this.grid[i][j];
+                            // Clear anim flash
+                            var anim = null;
+                            for (var a = 0; a < this.clearAnim.length; a++) {
+                                if (this.clearAnim[a].r === i && this.clearAnim[a].c === j) { anim = this.clearAnim[a]; break; }
+                            }
+                            // Preview highlight
+                            var isPrev = false;
+                            for (var p = 0; p < this.previewCells.length; p++) {
+                                if (this.previewCells[p].r === i && this.previewCells[p].c === j) { isPrev = true; break; }
+                            }
+
+                            if (anim) {
+                                ctx.fillStyle = 'rgba(255,255,160,' + anim.t + ')';
+                                ctx.fillRect(x+1, y+1, C-2, C-2);
+                            } else if (color) {
+                                ctx.fillStyle = color;
+                                ctx.fillRect(x+2, y+2, C-4, C-4);
+                                ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+                                ctx.lineWidth = 1.5;
+                                ctx.strokeRect(x+2.75, y+2.75, C-5.5, C-5.5);
+                                // Shine
+                                ctx.fillStyle = 'rgba(255,255,255,0.18)';
+                                ctx.fillRect(x+4, y+4, C*0.4, C*0.22);
+                            } else if (isPrev) {
+                                ctx.fillStyle = 'rgba(0,224,255,0.22)';
+                                ctx.fillRect(x+2, y+2, C-4, C-4);
+                                ctx.strokeStyle = '#00e0ff';
+                                ctx.lineWidth = 1.5;
+                                ctx.strokeRect(x+2.75, y+2.75, C-5.5, C-5.5);
+                            } else {
+                                ctx.fillStyle = 'rgba(0,224,255,0.04)';
+                                ctx.fillRect(x+1, y+1, C-2, C-2);
+                                ctx.strokeStyle = 'rgba(0,224,255,0.15)';
+                                ctx.lineWidth = 1;
+                                ctx.strokeRect(x+0.5, y+0.5, C-1, C-1);
+                            }
+                        }
+                    }
+
+                    // Tick clear animations
+                    var still = [];
+                    for (var a = 0; a < this.clearAnim.length; a++) {
+                        this.clearAnim[a].t -= 0.07;
+                        if (this.clearAnim[a].t > 0) still.push(this.clearAnim[a]);
+                    }
+                    this.clearAnim = still;
+                    if (still.length > 0) { var self = this; requestAnimationFrame(function(){ self.render(); }); }
+
+                    // Tray area
+                    var TY = W;
+                    ctx.fillStyle = '#0a1428';
+                    ctx.fillRect(0, TY, W, this.TRAY_H);
+                    ctx.strokeStyle = 'rgba(0,224,255,0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(0, TY); ctx.lineTo(W, TY); ctx.stroke();
+
+                    // Draw the 3 tray pieces
+                    var slotW = W / 3;
+                    for (var bi = 0; bi < this.nextBlocks.length; bi++) {
+                        // Skip the one being dragged
+                        if (this.dragging && this.dragging.blockIdx === bi) continue;
+                        this._drawTrayPiece(ctx, this.nextBlocks[bi], bi, slotW, TY, false);
+                    }
+
+                    // Draw dragging piece on top (follows cursor)
+                    if (this.dragging) {
+                        var dp = this.nextBlocks[this.dragging.blockIdx];
+                        if (dp) this._drawFloatingPiece(ctx, dp, this.dragging.curX, this.dragging.curY);
+                    }
+
+                    // Game over overlay
+                    if (this.gameOver) {
+                        ctx.fillStyle = 'rgba(3,4,14,0.75)';
+                        ctx.fillRect(0, 0, W, H);
+                        ctx.fillStyle = '#ff1744';
+                        ctx.font = 'bold ' + Math.floor(C*1.2) + 'px Segoe UI,sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('GAME OVER', W/2, H/2 - C*0.5);
+                        ctx.fillStyle = '#40dfff';
+                        ctx.font = Math.floor(C*0.7) + 'px Segoe UI,sans-serif';
+                        ctx.fillText('Score: ' + this.score, W/2, H/2 + C*0.5);
+                        ctx.textAlign = 'left';
+                    }
+                },
+
+                _drawTrayPiece: function(ctx, shape, idx, slotW, TY, highlight) {
+                    var PC = this.PIECE_CELL;
+                    var maxR = 0, maxC = 0;
+                    for (var k = 0; k < shape.b.length; k++) {
+                        if (shape.b[k][0] > maxR) maxR = shape.b[k][0];
+                        if (shape.b[k][1] > maxC) maxC = shape.b[k][1];
+                    }
+                    var pw = (maxC+1) * PC, ph = (maxR+1) * PC;
+                    var ox = slotW * idx + (slotW - pw) / 2;
+                    var oy = TY + (this.TRAY_H - ph) / 2;
+
+                    // Slot highlight
+                    if (highlight) {
+                        ctx.fillStyle = 'rgba(0,224,255,0.1)';
+                        ctx.fillRect(slotW*idx+4, TY+4, slotW-8, this.TRAY_H-8);
+                    }
+
+                    for (var k = 0; k < shape.b.length; k++) {
+                        var bx = ox + shape.b[k][1]*PC, by = oy + shape.b[k][0]*PC;
+                        ctx.fillStyle = shape.color;
+                        ctx.fillRect(bx+1, by+1, PC-2, PC-2);
+                        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(bx+1.5, by+1.5, PC-3, PC-3);
+                    }
+                },
+
+                _drawFloatingPiece: function(ctx, shape, cx, cy) {
+                    var PC = this.PIECE_CELL * 1.35; // slightly larger when dragging
+                    var maxR = 0, maxC = 0;
+                    for (var k = 0; k < shape.b.length; k++) {
+                        if (shape.b[k][0] > maxR) maxR = shape.b[k][0];
+                        if (shape.b[k][1] > maxC) maxC = shape.b[k][1];
+                    }
+                    var ox = cx - (maxC+1)*PC/2;
+                    var oy = cy - (maxR+1)*PC/2;
+                    ctx.globalAlpha = 0.85;
+                    for (var k = 0; k < shape.b.length; k++) {
+                        var bx = ox + shape.b[k][1]*PC, by = oy + shape.b[k][0]*PC;
+                        ctx.fillStyle = shape.color;
+                        ctx.shadowColor = shape.color;
+                        ctx.shadowBlur = 12;
+                        ctx.fillRect(bx+1, by+1, PC-2, PC-2);
+                        ctx.shadowBlur = 0;
+                        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                        ctx.lineWidth = 1.5;
+                        ctx.strokeRect(bx+1.5, by+1.5, PC-3, PC-3);
+                    }
+                    ctx.globalAlpha = 1.0;
+                },
+
+                // ── Events ─────────────────────────────────────────────────
+                setupEvents: function() {
+                    var self = this;
+                    var cv = this.canvas;
+
+                    function getPos(e) {
+                        var rect = cv.getBoundingClientRect();
+                        var scaleX = cv.width / rect.width;
+                        var scaleY = cv.height / rect.height;
+                        var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                        var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                        return {
+                            x: (clientX - rect.left) * scaleX,
+                            y: (clientY - rect.top)  * scaleY
+                        };
+                    }
+
+                    function onDown(e) {
+                        if (self.gameOver) return;
+                        e.preventDefault();
+                        var pos = getPos(e);
+                        var slot = self.canvasToTraySlot(pos.x, pos.y);
+                        if (slot !== null && slot < self.nextBlocks.length) {
+                            self.dragging = { blockIdx: slot, curX: pos.x, curY: pos.y };
+                            cv.style.cursor = 'grabbing';
+                            // Immediately update preview
+                            self._updatePreviewFromDrag(pos.x, pos.y);
+                            self.render();
+                        }
+                    }
+
+                    function onMove(e) {
+                        if (!self.dragging) return;
+                        e.preventDefault();
+                        var pos = getPos(e);
+                        self.dragging.curX = pos.x;
+                        self.dragging.curY = pos.y;
+                        self._updatePreviewFromDrag(pos.x, pos.y);
+                        self.render();
+                    }
+
+                    function onUp(e) {
+                        if (!self.dragging) return;
+                        e.preventDefault();
+                        var pos;
+                        if (e.changedTouches) {
+                            var rect = cv.getBoundingClientRect();
+                            var scaleX = cv.width / rect.width;
+                            var scaleY = cv.height / rect.height;
+                            pos = {
+                                x: (e.changedTouches[0].clientX - rect.left) * scaleX,
+                                y: (e.changedTouches[0].clientY - rect.top)  * scaleY
+                            };
+                        } else {
+                            pos = { x: self.dragging.curX, y: self.dragging.curY };
+                        }
+
+                        var shape = self.nextBlocks[self.dragging.blockIdx];
+                        var tc = self.dragTargetCell(shape, pos.x, pos.y);
+                        if (tc && pos.y < self.BOARD_PX) {
+                            self.tryPlace(self.dragging.blockIdx, tc.r, tc.c);
+                        }
+
+                        self.dragging = null;
+                        self.previewCells = [];
+                        cv.style.cursor = 'grab';
+                        self.render();
+                    }
+
+                    cv.addEventListener('mousedown',  onDown);
+                    cv.addEventListener('mousemove',  onMove);
+                    cv.addEventListener('mouseup',    onUp);
+                    cv.addEventListener('mouseleave', onUp);
+                    cv.addEventListener('touchstart', onDown, {passive:false});
+                    cv.addEventListener('touchmove',  onMove, {passive:false});
+                    cv.addEventListener('touchend',   onUp,   {passive:false});
+                },
+
+                _updatePreviewFromDrag: function(cx, cy) {
+                    this.previewCells = [];
+                    if (!this.dragging) return;
+                    var shape = this.nextBlocks[this.dragging.blockIdx];
+                    if (!shape || cy >= this.BOARD_PX) return;
+                    var tc = this.dragTargetCell(shape, cx, cy);
+                    if (!tc) return;
+                    if (this.canPlace(shape, tc.r, tc.c)) {
+                        for (var k = 0; k < shape.b.length; k++) {
+                            this.previewCells.push({r: tc.r + shape.b[k][0], c: tc.c + shape.b[k][1]});
                         }
                     }
                 }
-                
-                if (cleared.length > 0) {
-                    this.score += cleared.length * 10;
-                    this.lines++;
-                    cleared.forEach(([r, c]) => {
-                        let el = document.getElementById(`bb-${r}-${c}`);
-                        if (el) el.style.animation = 'bb-pop 0.4s ease-out forwards';
-                    });
-                }
-                
-                return cleared.length > 0;
-            },
-            
-            blockPreview: function(shape, row, col) {
-                this.previewCells = [];
-                if (this.canPlace(shape, row, col)) {
-                    for (let b of shape.blocks) {
-                        this.previewCells.push([row + b[0], col + b[1]]);
-                    }
-                }
-            },
-            
-            tryPlace: function(idx, row, col) {
-                if (this.gameOver || idx >= this.nextBlocks.length) return false;
-                
-                let shape = this.nextBlocks[idx];
-                if (!this.canPlace(shape, row, col)) return false;
-                
-                this.place(shape, row, col);
-                this.nextBlocks.splice(idx, 1);
-                this.nextBlocks.push(JSON.parse(JSON.stringify(this.SHAPES[Math.floor(Math.random() * this.SHAPES.length)])));
-                
-                while (this.checkClear()) {}
-                
-                // Check game over
-                let canMove = false;
-                for (let block of this.nextBlocks) {
-                    for (let i = 0; i < this.SIZE && !canMove; i++) {
-                        for (let j = 0; j < this.SIZE && !canMove; j++) {
-                            if (this.canPlace(block, i, j)) canMove = true;
-                        }
-                    }
-                    if (canMove) break;
-                }
-                
-                if (!canMove) {
-                    this.gameOver = true;
-                    document.getElementById('blockblast-status').textContent = 'Game Over!';
-                    document.getElementById('blockblast-status').style.color = '#ff1744';
-                    setTimeout(() => alert(`Game Over!\nScore: ${this.score}\nLines: ${this.lines}`), 100);
-                }
-                
-                this.previewCells = [];
-                this.render();
-                this.renderPreview();
-                return true;
-            },
-            
-            render: function() {
-                let grid = document.getElementById('blockblast-grid');
-                grid.innerHTML = '';
-                
-                if (!document.getElementById('bb-styles')) {
-                    let style = document.createElement('style');
-                    style.id = 'bb-styles';
-                    style.textContent = `
-                        @keyframes bb-pop {
-                            0% { transform: scale(1) rotate(0deg); opacity: 1; }
-                            100% { transform: scale(0) rotate(90deg); opacity: 0; }
-                        }
-                    `;
-                    document.head.appendChild(style);
-                }
-                
-                for (let i = 0; i < this.SIZE; i++) {
-                    for (let j = 0; j < this.SIZE; j++) {
-                        let cell = document.createElement('div');
-                        let color = this.grid[i][j];
-                        let isPreview = this.previewCells.some(c => c[0] === i && c[1] === j);
-                        
-                        cell.id = `bb-${i}-${j}`;
-                        cell.style.cssText = `
-                            aspect-ratio: 1;
-                            background: ${color ? color : 'rgba(0, 224, 255, 0.05)'};
-                            border: 2px solid ${color ? 'rgba(255,255,255,0.4)' : (isPreview ? '#00e0ff' : 'rgba(0,224,255,0.2)')};
-                            border-radius: 8px;
-                            cursor: grab;
-                            transition: all 0.15s ease;
-                            box-shadow: ${isPreview ? '0 0 16px rgba(0,224,255,0.6) inset' : 'none'};
-                            ${isPreview ? 'background: rgba(0,224,255,0.2);' : ''}
-                        `;
-                        
-                        cell.addEventListener('dragover', e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            cell.style.transform = 'scale(1.05)';
-                        });
-                        
-                        cell.addEventListener('dragleave', e => {
-                            cell.style.transform = 'scale(1)';
-                        });
-                        
-                        cell.addEventListener('drop', e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            cell.style.transform = 'scale(1)';
-                            let idx = parseInt(e.dataTransfer.getData('idx'));
-                            
-                            // Calculate position from drop event (same as preview!)
-                            let grid = document.getElementById('blockblast-grid');
-                            let rect = grid.getBoundingClientRect();
-                            let x = e.clientX - rect.left;
-                            let y = e.clientY - rect.top;
-                            let cellSize = rect.width / this.SIZE;
-                            
-                            // Use same center-rounded calculation as preview
-                            let col = Math.round((x - cellSize / 2) / cellSize);
-                            let row = Math.round((y - cellSize / 2) / cellSize);
-                            
-                            // Clamp to grid bounds
-                            col = Math.max(0, Math.min(col, this.SIZE - 1));
-                            row = Math.max(0, Math.min(row, this.SIZE - 1));
-                            
-                            this.tryPlace(idx, row, col);
-                        });
-                        
-                        grid.appendChild(cell);
-                    }
-                }
-                
-                document.getElementById('blockblast-score').textContent = this.score;
-                document.getElementById('blockblast-lines').textContent = this.lines;
-            },
-            
-            renderPreview: function() {
-                let prev = document.getElementById('blockblast-preview');
-                prev.innerHTML = '';
-                
-                this.nextBlocks.forEach((shape, idx) => {
-                    let container = document.createElement('div');
-                    container.draggable = true;
-                    container.id = 'blockblast-preview-' + idx;
-                    container.dataset.blockIndex = idx;
-                    container.style.cssText = `
-                        padding: 12px;
-                        background: linear-gradient(135deg, rgba(0,224,255,0.2), rgba(0,180,255,0.15));
-                        border: 2px solid rgba(0,224,255,0.5);
-                        border-radius: 8px;
-                        cursor: grab;
-                        transition: all 0.2s ease;
-                        min-width: 75px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        touch-action: none;
-                    `;
-                    
-                    let preview = document.createElement('div');
-                    let maxR = Math.max(...shape.blocks.map(b => b[0])) + 1;
-                    let maxC = Math.max(...shape.blocks.map(b => b[1])) + 1;
-                    preview.style.cssText = `
-                        display: grid;
-                        grid-template-columns: repeat(${maxC}, 20px);
-                        grid-template-rows: repeat(${maxR}, 20px);
-                        gap: 3px;
-                    `;
-                    
-                    for (let i = 0; i < maxR; i++) {
-                        for (let j = 0; j < maxC; j++) {
-                            let cell = document.createElement('div');
-                            let isBlock = shape.blocks.some(b => b[0] === i && b[1] === j);
-                            cell.style.cssText = `
-                                width: 20px;
-                                height: 20px;
-                                background: ${isBlock ? shape.color : 'transparent'};
-                                border: ${isBlock ? '2px solid rgba(255,255,255,0.5)' : 'none'};
-                                border-radius: ${isBlock ? '4px' : '0'};
-                                box-shadow: ${isBlock ? `0 0 8px ${shape.color}80` : 'none'};
-                            `;
-                            preview.appendChild(cell);
-                        }
-                    }
-                    
-                    container.appendChild(preview);
-                    
-                    container.addEventListener('dragstart', e => {
-                        e.dataTransfer.effectAllowed = 'copy';
-                        e.dataTransfer.setData('idx', idx);
-                        BB_currentDragIdx = idx;  // Track current drag index
-                        
-                        // Create custom drag image showing the actual block
-                        let dragImage = document.createElement('canvas');
-                        let maxR = Math.max(...shape.blocks.map(b => b[0])) + 1;
-                        let maxC = Math.max(...shape.blocks.map(b => b[1])) + 1;
-                        let cellSize = 32;
-                        dragImage.width = maxC * cellSize;
-                        dragImage.height = maxR * cellSize;
-                        
-                        let ctx = dragImage.getContext('2d');
-                        ctx.fillStyle = 'rgba(0,0,0,0)';
-                        ctx.fillRect(0, 0, dragImage.width, dragImage.height);
-                        
-                        // Draw the actual blocks
-                        shape.blocks.forEach(b => {
-                            ctx.fillStyle = shape.color;
-                            ctx.shadowColor = shape.color + '80';
-                            ctx.shadowBlur = 10;
-                            ctx.fillRect(b[1] * cellSize + 2, b[0] * cellSize + 2, cellSize - 4, cellSize - 4);
-                            ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-                            ctx.lineWidth = 2;
-                            ctx.strokeRect(b[1] * cellSize + 2, b[0] * cellSize + 2, cellSize - 4, cellSize - 4);
-                        });
-                        
-                        e.dataTransfer.setDragImage(dragImage, dragImage.width / 2, dragImage.height / 2);
-                        container.style.opacity = '0.6';
-                    });
-                    
-                    container.addEventListener('dragend', e => {
-                        container.style.opacity = '1';
-                        BB_currentDragIdx = null;  // Clear drag index
-                    });
-                    
-                    container.addEventListener('mouseenter', () => {
-                        container.style.transform = 'scale(1.1)';
-                        container.style.boxShadow = '0 8px 24px rgba(0,224,255,0.4)';
-                    });
-                    
-                    container.addEventListener('mouseleave', () => {
-                        container.style.transform = 'scale(1)';
-                        container.style.boxShadow = 'none';
-                    });
-                    
-                    prev.appendChild(container);
-                });
-            }
-        };
-        
-        function blockblast_reset() {
-            BB.init();
-        }
-        
-        // Drag preview on grid with GUARANTEED updates on every move
-        let BB_currentDragIdx = null;
-        let BB_draggedIdx = null;
-        let BB_touchStartBlock = null;
-        
-        // Update on dragover - ALWAYS render on every movement
-        document.addEventListener('dragover', e => {
-            if (BB_currentDragIdx === null) return;
-            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-            
-            let grid = document.getElementById('blockblast-grid');
-            if (!grid) return;
-            
-            let rect = grid.getBoundingClientRect();
-            if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-                BB.previewCells = [];
-                BB.render();
-                return;
-            }
-            
-            let x = e.clientX - rect.left;
-            let y = e.clientY - rect.top;
-            let cellSize = rect.width / BB.SIZE;
-            
-            // Round to nearest cell center for accurate placement
-            let col = Math.round((x - cellSize / 2) / cellSize);
-            let row = Math.round((y - cellSize / 2) / cellSize);
-            
-            // Clamp to grid bounds
-            col = Math.max(0, Math.min(col, BB.SIZE - 1));
-            row = Math.max(0, Math.min(row, BB.SIZE - 1));
-            
-            // ALWAYS update - no position checking
-            if (BB_currentDragIdx >= 0 && BB_currentDragIdx < BB.nextBlocks.length) {
-                BB.blockPreview(BB.nextBlocks[BB_currentDragIdx], row, col);
-                BB.render();
-            }
-        });
-        
-        // BACKUP: Also track mousemove for consistent updates
-        document.addEventListener('mousemove', e => {
-            if (BB_currentDragIdx === null) return;
-            if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-            
-            let grid = document.getElementById('blockblast-grid');
-            if (!grid) return;
-            
-            let rect = grid.getBoundingClientRect();
-            if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
-                BB.previewCells = [];
-                BB.render();
-                return;
-            }
-            
-            let x = e.clientX - rect.left;
-            let y = e.clientY - rect.top;
-            let cellSize = rect.width / BB.SIZE;
-            
-            // Round to nearest cell center
-            let col = Math.round((x - cellSize / 2) / cellSize);
-            let row = Math.round((y - cellSize / 2) / cellSize);
-            
-            // Clamp to grid bounds
-            col = Math.max(0, Math.min(col, BB.SIZE - 1));
-            row = Math.max(0, Math.min(row, BB.SIZE - 1));
-            
-            // ALWAYS update
-            if (BB_currentDragIdx >= 0 && BB_currentDragIdx < BB.nextBlocks.length) {
-                BB.blockPreview(BB.nextBlocks[BB_currentDragIdx], row, col);
-                BB.render();
-            }
-        });
-        
-        // ==================== MOBILE TAP-AND-TAP INTERFACE ====================
-        let BB_selectedBlockIdx = null;
-        
-        // Update preview blocks to handle taps
-        let originalRenderPreview = BB.renderPreview;
-        BB.renderPreview = function() {
-            originalRenderPreview.call(this);
-            setupMobileBlockTaps();
-        };
-        
-        // Update grid to handle taps
-        let originalRender = BB.render;
-        BB.render = function() {
-            originalRender.call(this);
-            setupMobileGridTaps();
-        };
-        
-        function setupMobileBlockTaps() {
-            document.querySelectorAll('[data-block-index]').forEach((container) => {
-                container.style.cursor = 'pointer';
-                
-                // Click handler for desktop too
-                container.onclick = (e) => {
-                    e.stopPropagation();
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-                    
-                    let blockIdx = parseInt(container.dataset.blockIndex);
-                    if (blockIdx >= 0 && blockIdx < BB.nextBlocks.length) {
-                        BB_selectedBlockIdx = blockIdx;
-                        // Highlight selected block
-                        document.querySelectorAll('[data-block-index]').forEach(c => {
-                            c.style.boxShadow = 'none';
-                            c.style.opacity = '1';
-                        });
-                        container.style.boxShadow = '0 0 20px #00e0ff, 0 0 40px #00e0ff80';
-                        container.style.opacity = '0.9';
-                    }
-                };
-                
-                // Touch handler for mobile
-                container.ontouchstart = (e) => {
-                    e.stopPropagation();
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-                    
-                    let blockIdx = parseInt(container.dataset.blockIndex);
-                    if (blockIdx >= 0 && blockIdx < BB.nextBlocks.length) {
-                        BB_selectedBlockIdx = blockIdx;
-                        // Highlight selected block
-                        document.querySelectorAll('[data-block-index]').forEach(c => {
-                            c.style.boxShadow = 'none';
-                            c.style.opacity = '1';
-                        });
-                        container.style.boxShadow = '0 0 20px #00e0ff, 0 0 40px #00e0ff80';
-                        container.style.opacity = '0.9';
-                    }
-                };
-            });
-        }
-        
-        function setupMobileGridTaps() {
-            let grid = document.getElementById('blockblast-grid');
-            if (!grid) return;
-            
-            document.querySelectorAll('[id^="bb-"]').forEach((cell) => {
-                cell.style.cursor = 'pointer';
-                
-                // Click handler
-                cell.onclick = (e) => {
-                    e.stopPropagation();
-                    if (BB_selectedBlockIdx === null) return;
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-                    
-                    // Parse cell coordinates from ID
-                    let coords = cell.id.match(/bb-(\d+)-(\d+)/);
-                    if (!coords) return;
-                    let row = parseInt(coords[1]);
-                    let col = parseInt(coords[2]);
-                    
-                    // Place block
-                    BB.tryPlace(BB_selectedBlockIdx, row, col);
-                    
-                    // Deselect
-                    BB_selectedBlockIdx = null;
-                    document.querySelectorAll('[data-block-index]').forEach(c => {
-                        c.style.boxShadow = 'none';
-                        c.style.opacity = '1';
-                    });
-                };
-                
-                // Touch handler - show preview
-                cell.ontouchstart = (e) => {
-                    e.stopPropagation();
-                    if (BB_selectedBlockIdx === null) return;
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-                    
-                    let coords = cell.id.match(/bb-(\d+)-(\d+)/);
-                    if (!coords) return;
-                    let row = parseInt(coords[1]);
-                    let col = parseInt(coords[2]);
-                    
-                    // Show preview
-                    BB.blockPreview(BB.nextBlocks[BB_selectedBlockIdx], row, col);
-                    BB.render();
-                };
-                
-                // Touch handler - place on release
-                cell.ontouchend = (e) => {
-                    e.stopPropagation();
-                    if (BB_selectedBlockIdx === null) return;
-                    if (!document.getElementById('game-blockblast') || document.getElementById('game-blockblast').style.display !== 'block') return;
-                    
-                    let coords = cell.id.match(/bb-(\d+)-(\d+)/);
-                    if (!coords) return;
-                    let row = parseInt(coords[1]);
-                    let col = parseInt(coords[2]);
-                    
-                    // Place block
-                    BB.tryPlace(BB_selectedBlockIdx, row, col);
-                    
-                    // Deselect
-                    BB_selectedBlockIdx = null;
-                    document.querySelectorAll('[data-block-index]').forEach(c => {
-                        c.style.boxShadow = 'none';
-                        c.style.opacity = '1';
-                    });
-                };
-            });
-        }
+            };
+
+            window.BB = BB;
+            window.blockblast_reset = function() { BB.init(); };
+        })();
+
         // ==================== GRID MAZE GAME ====================
         var gridmaze = {
             cols: 0,
@@ -7489,8 +7285,7 @@
 
                 this.canvas.width = this.cols * this.cellSize;
                 this.canvas.height = this.rows * this.cellSize;
-                this.canvas.style.width = this.canvas.width + 'px';
-                this.canvas.style.height = this.canvas.height + 'px';
+                // CSS handles display scaling (max-width:100%; height:auto)
             },
 
             render: function() {
@@ -7766,8 +7561,7 @@
                 this.H = h;
                 this.canvas.width = this.W;
                 this.canvas.height = this.H;
-                this.canvas.style.width = this.W + 'px';
-                this.canvas.style.height = this.H + 'px';
+                // CSS handles display scaling (max-width:100%; height:auto)
                 this.px = Math.floor(this.W * 0.25);
             },
 
