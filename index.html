@@ -674,8 +674,7 @@
             -webkit-box-sizing: border-box;
             box-sizing: border-box;
             padding-top: 44px;
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             position: relative;
             z-index: 1;
         }
@@ -690,11 +689,7 @@
         #tetrisCanvas, #dune-canvas, #gridmaze-canvas, #blockblast-canvas {
             display: block;
             margin: 0 auto;
-            max-width:  var(--game-w, 100%);
-            max-height: var(--game-h, 80vh);
-            width:  auto;
-            height: auto;
-            object-fit: contain;
+            /* JS sets exact px width/height — no CSS overrides */
         }
 
         /* Board games: --cell-chess/checkers etc set by JS from --game-w/h */
@@ -1818,7 +1813,7 @@
                     </div>
                 </div>
                 <button class="btn-small" onclick="blockblast_reset()" style="width:100%; max-width:400px;">New Game</button>
-                <canvas id="blockblast-canvas" style="display:block; border:1px solid #1e2d4a; border-radius:8px; touch-action:none; cursor:grab; max-width:400px; width:100%;"></canvas>
+                <canvas id="blockblast-canvas" style="display:block; border:1px solid #1e2d4a; border-radius:8px; touch-action:none; cursor:grab;"></canvas>
                 <div style="color:var(--text-soft); font-size:12px; text-align:center;">
                     <span style="color:var(--accent-strong);">Drag</span> blocks from bottom onto the board &nbsp;|&nbsp; Clear full rows or columns
                 </div>
@@ -1915,6 +1910,146 @@
     </div>
 
     <script>
+
+        // ── Minimax Engine (runs inline, no workers — maximum compatibility) ──────
+        // setTimeout(0) yields to the browser so the UI can paint "thinking" before
+        // the synchronous search begins. No Blob/Worker needed.
+
+        // ── Chess engine (self-contained, no chessBoard global) ───────────────────
+        function _chessRawMoves(b, row, col) {
+            var piece = b[row][col]; if (!piece) return [];
+            var moves = [];
+            if (piece.type==='P') {
+                var dir=piece.color==='white'?-1:1, startRow=piece.color==='white'?6:1;
+                if (row+dir>=0&&row+dir<8&&!b[row+dir][col]) { moves.push([row+dir,col]); if (row===startRow&&!b[row+dir*2][col]) moves.push([row+dir*2,col]); }
+                if (col>0&&row+dir>=0&&row+dir<8&&b[row+dir][col-1]&&b[row+dir][col-1].color!==piece.color) moves.push([row+dir,col-1]);
+                if (col<7&&row+dir>=0&&row+dir<8&&b[row+dir][col+1]&&b[row+dir][col+1].color!==piece.color) moves.push([row+dir,col+1]);
+            } else if (piece.type==='N') {
+                [[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].forEach(function(k){var nr=row+k[0],nc=col+k[1];if(nr>=0&&nr<8&&nc>=0&&nc<8&&(!b[nr][nc]||b[nr][nc].color!==piece.color))moves.push([nr,nc]);});
+            } else if (piece.type==='B'||piece.type==='R'||piece.type==='Q') {
+                var dirs=[];
+                if(piece.type==='R'||piece.type==='Q')dirs=dirs.concat([[1,0],[-1,0],[0,1],[0,-1]]);
+                if(piece.type==='B'||piece.type==='Q')dirs=dirs.concat([[1,1],[1,-1],[-1,1],[-1,-1]]);
+                dirs.forEach(function(d){for(var dist=1;dist<8;dist++){var nr=row+d[0]*dist,nc=col+d[1]*dist;if(nr<0||nr>=8||nc<0||nc>=8)break;if(!b[nr][nc]){moves.push([nr,nc]);}else{if(b[nr][nc].color!==piece.color)moves.push([nr,nc]);break;}}});
+            } else if (piece.type==='K') {
+                for(var i=-1;i<=1;i++)for(var j=-1;j<=1;j++){if(i===0&&j===0)continue;var nr=row+i,nc=col+j;if(nr>=0&&nr<8&&nc>=0&&nc<8&&(!b[nr][nc]||b[nr][nc].color!==piece.color))moves.push([nr,nc]);}
+            }
+            return moves;
+        }
+        function _chessInCheck(b, color) {
+            var kr=-1,kc=-1;
+            for(var r=0;r<8;r++)for(var f=0;f<8;f++)if(b[r][f]&&b[r][f].type==='K'&&b[r][f].color===color){kr=r;kc=f;}
+            if(kr<0)return true;
+            var opp=color==='white'?'black':'white';
+            for(var r=0;r<8;r++)for(var f=0;f<8;f++)if(b[r][f]&&b[r][f].color===opp){var ms=_chessRawMoves(b,r,f);for(var m=0;m<ms.length;m++)if(ms[m][0]===kr&&ms[m][1]===kc)return true;}
+            return false;
+        }
+        function _chessCopy(b){var c=[];for(var r=0;r<8;r++){c[r]=[];for(var f=0;f<8;f++)c[r][f]=b[r][f]?{type:b[r][f].type,color:b[r][f].color}:null;}return c;}
+        function _chessApply(b,from,to){var p=b[from[0]][from[1]];b[to[0]][to[1]]=p;b[from[0]][from[1]]=null;if(p&&p.type==='P'&&p.color==='black'&&to[0]===7)b[to[0]][to[1]].type='Q';if(p&&p.type==='P'&&p.color==='white'&&to[0]===0)b[to[0]][to[1]].type='Q';}
+        function _chessAllMoves(b,color){
+            var moves=[];
+            for(var r=0;r<8;r++)for(var f=0;f<8;f++)if(b[r][f]&&b[r][f].color===color){
+                var raw=_chessRawMoves(b,r,f),legal=[];
+                for(var m=0;m<raw.length;m++){var nb=_chessCopy(b);_chessApply(nb,[r,f],raw[m]);if(!_chessInCheck(nb,color))legal.push(raw[m]);}
+                for(var m=0;m<legal.length;m++)moves.push({from:[r,f],to:legal[m]});
+            }
+            return moves;
+        }
+        var _CVAL={P:100,N:320,B:330,R:500,Q:900,K:20000};
+        var _CPST={P:[[0,0,0,0,0,0,0,0],[50,50,50,50,50,50,50,50],[10,10,20,30,30,20,10,10],[5,5,10,25,25,10,5,5],[0,0,0,20,20,0,0,0],[5,-5,-10,0,0,-10,-5,5],[5,10,10,-20,-20,10,10,5],[0,0,0,0,0,0,0,0]],N:[[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,0,0,0,-20,-40],[-30,0,10,15,15,10,0,-30],[-30,5,15,20,20,15,5,-30],[-30,0,15,20,20,15,0,-30],[-30,5,10,15,15,10,5,-30],[-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]],B:[[-20,-10,-10,-10,-10,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,10,10,5,0,-10],[-10,5,5,10,10,5,5,-10],[-10,0,10,10,10,10,0,-10],[-10,10,10,10,10,10,10,-10],[-10,5,0,0,0,0,5,-10],[-20,-10,-10,-10,-10,-10,-10,-20]],R:[[0,0,0,0,0,0,0,0],[5,10,10,10,10,10,10,5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[-5,0,0,0,0,0,0,-5],[0,0,0,5,5,0,0,0]],Q:[[-20,-10,-10,-5,-5,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,5,5,5,0,-10],[-5,0,5,5,5,5,0,-5],[0,0,5,5,5,5,0,-5],[-10,5,5,5,5,5,0,-10],[-10,0,5,0,0,0,0,-10],[-20,-10,-10,-5,-5,-10,-10,-20]],K:[[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-20,-30,-30,-40,-40,-30,-30,-20],[-10,-20,-20,-20,-20,-20,-20,-10],[20,20,0,0,0,0,20,20],[20,30,10,0,0,10,30,20]]};
+        function _chessEval(b){var s=0;for(var r=0;r<8;r++)for(var f=0;f<8;f++){var p=b[r][f];if(!p)continue;var v=_CVAL[p.type]||0,pr=p.color==='black'?r:(7-r),ps=_CPST[p.type]?_CPST[p.type][pr][f]:0;if(p.color==='black')s+=v+ps;else s-=v+ps;}return s;}
+        function _chessQuiesce(b,alpha,beta,max){
+            var sp=_chessEval(b);
+            if(max){if(sp>=beta)return beta;if(sp>alpha)alpha=sp;}else{if(sp<=alpha)return alpha;if(sp<beta)beta=sp;}
+            var color=max?'black':'white',moves=_chessAllMoves(b,color);
+            var caps=moves.filter(function(m){return b[m.to[0]][m.to[1]]!==null;});
+            caps.sort(function(a,x){return (_CVAL[b[x.to[0]][x.to[1]].type]||0)-(_CVAL[b[a.to[0]][a.to[1]].type]||0);});
+            if(max){for(var i=0;i<caps.length;i++){var nb=_chessCopy(b);_chessApply(nb,caps[i].from,caps[i].to);var v=_chessQuiesce(nb,alpha,beta,false);if(v>=beta)return beta;if(v>alpha)alpha=v;}return alpha;}
+            else{for(var i=0;i<caps.length;i++){var nb=_chessCopy(b);_chessApply(nb,caps[i].from,caps[i].to);var v=_chessQuiesce(nb,alpha,beta,true);if(v<=alpha)return alpha;if(v<beta)beta=v;}return beta;}
+        }
+        function _chessMMQ(b,depth,alpha,beta,max){
+            if(depth===0)return _chessQuiesce(b,alpha,beta,max);
+            var color=max?'black':'white',moves=_chessAllMoves(b,color);
+            moves.sort(function(a,x){var av=b[a.to[0]][a.to[1]]?(_CVAL[b[a.to[0]][a.to[1]].type]||0):0,xv=b[x.to[0]][x.to[1]]?(_CVAL[b[x.to[0]][x.to[1]].type]||0):0;return xv-av;});
+            if(!moves.length)return _chessInCheck(b,color)?(max?-90000:90000):0;
+            if(max){var best=-Infinity;for(var i=0;i<moves.length;i++){var nb=_chessCopy(b);_chessApply(nb,moves[i].from,moves[i].to);var v=_chessMMQ(nb,depth-1,alpha,beta,false);if(v>best)best=v;if(v>alpha)alpha=v;if(beta<=alpha)break;}return best;}
+            else{var best=Infinity;for(var i=0;i<moves.length;i++){var nb=_chessCopy(b);_chessApply(nb,moves[i].from,moves[i].to);var v=_chessMMQ(nb,depth-1,alpha,beta,true);if(v<best)best=v;if(v<beta)beta=v;if(beta<=alpha)break;}return best;}
+        }
+
+        // ── Checkers engine ───────────────────────────────────────────────────────
+        function _checkersMovesOn(b,row,col){var piece=b[row][col];if(!piece)return[];var moves=[],caps=[],dirs=[[1,1],[1,-1],[-1,1],[-1,-1]];for(var i=0;i<4;i++){var dr=dirs[i][0],dc=dirs[i][1];if(!piece.isKing){if(piece.color==='red'&&dr!==-1)continue;if(piece.color==='black'&&dr!==1)continue;}var nr=row+dr,nc=col+dc;if(nr>=0&&nr<8&&nc>=0&&nc<8&&!b[nr][nc])moves.push([nr,nc]);var cr=row+dr,cc=col+dc,jr=row+dr*2,jc=col+dc*2;if(cr>=0&&cr<8&&cc>=0&&cc<8&&jr>=0&&jr<8&&jc>=0&&jc<8&&b[cr][cc]&&b[cr][cc].color!==piece.color&&!b[jr][jc])caps.push([jr,jc]);}return caps.length?caps:moves;}
+        function _checkersAllMoves(b,color){var mv=[],caps=[];for(var r=0;r<8;r++)for(var c=0;c<8;c++){if(!b[r][c]||b[r][c].color!==color)continue;var ms=_checkersMovesOn(b,r,c);for(var i=0;i<ms.length;i++){var m={from:[r,c],to:ms[i]};if(Math.abs(ms[i][0]-r)===2)caps.push(m);else mv.push(m);}}return caps.length?caps:mv;}
+        function _checkersCopy(b){var c=[];for(var r=0;r<8;r++){c[r]=[];for(var f=0;f<8;f++)c[r][f]=b[r][f]?{color:b[r][f].color,isKing:b[r][f].isKing}:null;}return c;}
+        function _checkersApply(b,from,to){var p=b[from[0]][from[1]];if(Math.abs(to[0]-from[0])===2)b[(from[0]+to[0])>>1][(from[1]+to[1])>>1]=null;b[to[0]][to[1]]={color:p.color,isKing:p.isKing};b[from[0]][from[1]]=null;if(p.color==='red'&&to[0]===7)b[to[0]][to[1]].isKing=true;if(p.color==='black'&&to[0]===0)b[to[0]][to[1]].isKing=true;}
+        function _checkersEval(b){var s=0;for(var r=0;r<8;r++)for(var c=0;c<8;c++){var p=b[r][c];if(!p)continue;var v=p.isKing?3:1;if(!p.isKing)v+=p.color==='black'?(7-r)*0.1:r*0.1;if(p.color==='black')s+=v;else s-=v;}return s;}
+        function _checkersMM(b,depth,alpha,beta,max){var color=max?'black':'red',mvs=_checkersAllMoves(b,color);if(depth===0||!mvs.length)return _checkersEval(b);if(max){var best=-Infinity;for(var i=0;i<mvs.length;i++){var nb=_checkersCopy(b);_checkersApply(nb,mvs[i].from,mvs[i].to);var v=_checkersMM(nb,depth-1,alpha,beta,false);if(v>best)best=v;if(v>alpha)alpha=v;if(beta<=alpha)break;}return best;}else{var best=Infinity;for(var i=0;i<mvs.length;i++){var nb=_checkersCopy(b);_checkersApply(nb,mvs[i].from,mvs[i].to);var v=_checkersMM(nb,depth-1,alpha,beta,true);if(v<best)best=v;if(v<beta)beta=v;if(beta<=alpha)break;}return best;}}
+
+        // ── Connect4 engine ───────────────────────────────────────────────────────
+        function _c4Copy(b){var c=[];for(var i=0;i<6;i++)c[i]=b[i].slice();return c;}
+        function _c4Drop(b,col,color){for(var r=5;r>=0;r--){if(!b[r][col]){b[r][col]=color;return r;}}return -1;}
+        function _c4Win(b,row,col,color){var dirs=[[0,1],[1,0],[1,1],[1,-1]];for(var d=0;d<4;d++){var cnt=1;for(var s=1;s<4;s++){var r=row+dirs[d][0]*s,c=col+dirs[d][1]*s;if(r>=0&&r<6&&c>=0&&c<7&&b[r][c]===color)cnt++;else break;}for(var s=1;s<4;s++){var r=row-dirs[d][0]*s,c=col-dirs[d][1]*s;if(r>=0&&r<6&&c>=0&&c<7&&b[r][c]===color)cnt++;else break;}if(cnt>=4)return true;}return false;}
+        function _c4Eval(b){var s=0,dirs=[[0,1],[1,0],[1,1],[1,-1]];for(var r=0;r<6;r++)for(var c=0;c<7;c++){if(!b[r][c])continue;var color=b[r][c],mult=color==='yellow'?1:-1;for(var d=0;d<4;d++){var cnt=0,empty=0;for(var k=0;k<4;k++){var r2=r+dirs[d][0]*k,c2=c+dirs[d][1]*k;if(r2<0||r2>=6||c2<0||c2>=7)break;if(b[r2][c2]===color)cnt++;else if(!b[r2][c2])empty++;else{cnt=-1;break;}}if(cnt>0&&cnt+empty===4)s+=mult*(cnt===3?100:cnt===2?10:1);}s+=mult*(c===3?3:c===2||c===4?2:c===1||c===5?1:0);}return s;}
+        function _c4MM(b,depth,alpha,beta,max){for(var c2=0;c2<7;c2++)for(var r2=5;r2>=0;r2--){if(b[r2][c2]){if(_c4Win(b,r2,c2,b[r2][c2]))return b[r2][c2]==='yellow'?100000:-100000;break;}}if(depth===0)return _c4Eval(b);var cols=[];for(var c3=0;c3<7;c3++)if(!b[0][c3])cols.push(c3);if(!cols.length)return 0;var color=max?'yellow':'red';if(max){var best=-Infinity;for(var i=0;i<cols.length;i++){var nb=_c4Copy(b);_c4Drop(nb,cols[i],color);var v=_c4MM(nb,depth-1,alpha,beta,false);if(v>best)best=v;if(v>alpha)alpha=v;if(beta<=alpha)break;}return best;}else{var best=Infinity;for(var i=0;i<cols.length;i++){var nb=_c4Copy(b);_c4Drop(nb,cols[i],color);var v=_c4MM(nb,depth-1,alpha,beta,true);if(v<best)best=v;if(v<beta)beta=v;if(beta<=alpha)break;}return best;}}
+
+        // ── Reversi engine ────────────────────────────────────────────────────────
+        var _REV_POS=[[100,-20,10,5,5,10,-20,100],[-20,-50,-2,-2,-2,-2,-50,-20],[10,-2,4,2,2,4,-2,10],[5,-2,2,1,1,2,-2,5],[5,-2,2,1,1,2,-2,5],[10,-2,4,2,2,4,-2,10],[-20,-50,-2,-2,-2,-2,-50,-20],[100,-20,10,5,5,10,-20,100]];
+        function _revCopy(b){var c=[];for(var r=0;r<8;r++){c[r]=[];for(var f=0;f<8;f++)c[r][f]=b[r][f];}return c;}
+        function _revFlips(b,r,c,player){var opp=player==='W'?'B':'W',flips=[];if(b[r][c])return flips;for(var dr=-1;dr<=1;dr++)for(var dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;var rr=r+dr,cc=c+dc,line=[];while(rr>=0&&rr<8&&cc>=0&&cc<8&&b[rr][cc]===opp){line.push([rr,cc]);rr+=dr;cc+=dc;}if(line.length&&rr>=0&&rr<8&&cc>=0&&cc<8&&b[rr][cc]===player)flips=flips.concat(line);}return flips;}
+        function _revMoves(b,player){var mv=[];for(var r=0;r<8;r++)for(var c=0;c<8;c++)if(_revFlips(b,r,c,player).length)mv.push([r,c]);return mv;}
+        function _revApply(b,r,c,player){var fl=_revFlips(b,r,c,player);b[r][c]=player;for(var i=0;i<fl.length;i++)b[fl[i][0]][fl[i][1]]=player;}
+        function _revEval(b,player){var opp=player==='W'?'B':'W',s=0;for(var r=0;r<8;r++)for(var c=0;c<8;c++){if(b[r][c]===player)s+=_REV_POS[r][c];else if(b[r][c]===opp)s-=_REV_POS[r][c];}s+=(_revMoves(b,player).length-_revMoves(b,opp).length)*3;return s;}
+        function _revMM(b,player,rootPlayer,d,alpha,beta){var opp=player==='W'?'B':'W',mvs=_revMoves(b,player);if(d===0||(!mvs.length&&!_revMoves(b,opp).length))return _revEval(b,rootPlayer);if(!mvs.length)return _revMM(b,opp,rootPlayer,d-1,alpha,beta);var max=(player===rootPlayer);if(max){var best=-Infinity;for(var i=0;i<mvs.length;i++){var nb=_revCopy(b);_revApply(nb,mvs[i][0],mvs[i][1],player);var v=_revMM(nb,opp,rootPlayer,d-1,alpha,beta);if(v>best)best=v;if(v>alpha)alpha=v;if(beta<=alpha)break;}return best;}else{var best=Infinity;for(var i=0;i<mvs.length;i++){var nb=_revCopy(b);_revApply(nb,mvs[i][0],mvs[i][1],player);var v=_revMM(nb,opp,rootPlayer,d-1,alpha,beta);if(v<best)best=v;if(v<beta)beta=v;if(beta<=alpha)break;}return best;}}
+
+        // ── mmParallel: runs search inline via setTimeout so UI stays responsive ──
+        // "parallel" in the sense that it yields to the browser before computing.
+        function mmParallel(game, board, moves, depth, extra) {
+            return new Promise(function(resolve) {
+                if (!moves || moves.length === 0) { resolve({bestMove: moves&&moves[0]||null, bestScore: -Infinity}); return; }
+                setTimeout(function() {
+                    var bestMove = moves[0], bestScore = -Infinity;
+                    try {
+                        if (game === 'chess') {
+                            moves.sort(function(a,x){var av=board[a.to[0]][a.to[1]]?(_CVAL[board[a.to[0]][a.to[1]].type]||0):0,xv=board[x.to[0]][x.to[1]]?(_CVAL[board[x.to[0]][x.to[1]].type]||0):0;return xv-av;});
+                            var alpha = -Infinity;
+                            for (var i = 0; i < moves.length; i++) {
+                                var nb = _chessCopy(board);
+                                _chessApply(nb, moves[i].from, moves[i].to);
+                                var sc = _chessMMQ(nb, depth-1, alpha, Infinity, false);
+                                if (sc > bestScore) { bestScore = sc; bestMove = moves[i]; }
+                                if (sc > alpha) alpha = sc;
+                            }
+                        } else if (game === 'checkers') {
+                            for (var i = 0; i < moves.length; i++) {
+                                var nb = _checkersCopy(board);
+                                _checkersApply(nb, moves[i].from, moves[i].to);
+                                var sc = _checkersMM(nb, depth-1, -Infinity, Infinity, false);
+                                if (sc > bestScore) { bestScore = sc; bestMove = moves[i]; }
+                            }
+                        } else if (game === 'connect4') {
+                            for (var i = 0; i < moves.length; i++) {
+                                var nb = _c4Copy(board);
+                                _c4Drop(nb, moves[i], 'yellow');
+                                var sc = _c4MM(nb, depth-1, -Infinity, Infinity, false);
+                                if (sc > bestScore) { bestScore = sc; bestMove = moves[i]; }
+                            }
+                        } else if (game === 'reversi') {
+                            var player = extra && extra.player ? extra.player : 'W';
+                            var opp = player==='W'?'B':'W';
+                            for (var i = 0; i < moves.length; i++) {
+                                var nb = _revCopy(board);
+                                _revApply(nb, moves[i][0], moves[i][1], player);
+                                var sc = _revMM(nb, opp, player, depth-1, -Infinity, Infinity);
+                                if (sc > bestScore) { bestScore = sc; bestMove = moves[i]; }
+                            }
+                        }
+                    } catch(e) {
+                        console.error('mmParallel error:', e);
+                    }
+                    resolve({ bestMove: bestMove, bestScore: bestScore });
+                }, 0);
+            });
+        }
+
         function showSection(id) {
             document.getElementById("zweb").style.display = "none";
             document.getElementById("games").style.display = "none";
@@ -2267,6 +2402,42 @@
             } else if (gameId === "blockblast") {
                 document.getElementById("game-blockblast").style.display = "block";
                 blockblast_reset();
+                // BB.init() calls resize() before layout is ready; re-resize after paint
+                setTimeout(function() {
+                    if (window.blockblast_instance) {
+                        var gameEl = document.getElementById('game-blockblast');
+                        if (gameEl) {
+                            var TOPBAR=64,OV_PT=12,OV_PB=16,OV_PH=24,GI_PT=44,MARGIN=12;
+                            var totalW = window.innerWidth  - OV_PH - MARGIN;
+                            var totalH = window.innerHeight - TOPBAR - OV_PT - OV_PB - GI_PT - MARGIN;
+                            // measure chrome (score bar + button + hint)
+                            var cv = document.getElementById('blockblast-canvas');
+                            var chrome = 0;
+                            if (cv) {
+                                var all = gameEl.querySelectorAll('*');
+                                // sum heights of direct children of game-inner that aren't ancestors of canvas
+                                var kids = gameEl.children;
+                                for (var ki = 0; ki < kids.length; ki++) {
+                                    if (!kids[ki].contains(cv)) {
+                                        chrome += kids[ki].getBoundingClientRect().height;
+                                    } else {
+                                        // ancestor of canvas — sum its other children
+                                        var gkids = kids[ki].children;
+                                        for (var gki = 0; gki < gkids.length; gki++) {
+                                            if (!gkids[gki].contains(cv) && gkids[gki] !== cv) {
+                                                chrome += gkids[gki].getBoundingClientRect().height;
+                                                var st = window.getComputedStyle(gkids[gki]);
+                                                chrome += (parseFloat(st.marginTop)||0) + (parseFloat(st.marginBottom)||0);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            window.blockblast_instance.resize(totalW, totalH - chrome);
+                            window.blockblast_instance.render();
+                        }
+                    }
+                }, 120);
             } else if (gameId === "gridmaze") {
                 document.getElementById("game-gridmaze").style.display = "block";
                 gridmaze_reset();
@@ -2284,74 +2455,146 @@
             }, 100);
         }
         
-        // Function to dynamically scale game elements to fit mobile screens
-        // ── Game resize: sets CSS vars so everything fits exactly in the window ──
-        // Overlay area = 100vh - topbar(64) - overlay padding(28)
-        // Board area   = overlay - game-inner padding-top(44) - header(42) - options(42)
-        var TOPBAR = 64, OVERLAY_PAD = 28, INNER_PAD = 44, CHROME = 84; // header+options
-
-        function computeGameSpace() {
-            var availW = window.innerWidth  - 32;   // overlay horiz padding
-            var availH = window.innerHeight - TOPBAR - OVERLAY_PAD;
-            var boardH = availH - INNER_PAD - CHROME;
-            var boardW = availW;
-            return { w: boardW, h: boardH, cw: availW, ch: availH };
-        }
-
-        function setCSSVar(name, value) {
-            document.documentElement.style.setProperty(name, value);
-        }
-
-        function cellSize(cols, rows, maxW, maxH, maxCell, minCell, gap) {
-            gap = gap || 4;
-            var byW = Math.floor((maxW - gap * (cols - 1)) / cols);
-            var byH = Math.floor((maxH - gap * (rows - 1)) / rows);
-            return Math.max(minCell, Math.min(maxCell, byW, byH));
-        }
+        // ── Game resize ──────────────────────────────────────────────────────────
+        // Measures the actual game-inner element's pixel rect at runtime — no
+        // guessing of chrome heights.  Works for any window size, orientation,
+        // zoom level, or browser chrome layout.
+        // ─────────────────────────────────────────────────────────────────────────
 
         function scaleGameForMobile(gameId) {
-            var sp = computeGameSpace();
+            var gameEl = document.getElementById('game-' + gameId);
+            if (!gameEl || gameEl.style.display === 'none') return;
 
-            // ── CSS vars for canvas letterboxing ──
-            setCSSVar('--game-w', sp.cw + 'px');
-            setCSSVar('--game-h', sp.ch + 'px');
+            // ── True available space ─────────────────────────────────────────
+            // overlay sits at top:64px and fills the rest of the viewport.
+            // game-inner has padding-top:44px (close button clearance).
+            // overlay padding: 12px top + 16px bottom = 28px vertical,
+            //                  12px left + 12px right = 24px horizontal.
+            var TOPBAR    = 64;   // fixed topbar height
+            var OV_PT     = 12;   // overlay padding-top
+            var OV_PB     = 16;   // overlay padding-bottom
+            var OV_PH     = 24;   // overlay horiz padding (12 each side)
+            var GI_PT     = 44;   // game-inner padding-top (close button)
+            var MARGIN    = 12;   // extra breathing room
 
-            // ── Canvas games: scale inline so aspect ratio is preserved exactly ──
+            var totalW = window.innerWidth  - OV_PH;
+            var totalH = window.innerHeight - TOPBAR - OV_PT - OV_PB - GI_PT;
+
+            // ── Helper: sum heights of all elements inside gameEl EXCEPT target ──
+            function chromeHeight(targetEl) {
+                var h = 0;
+                // Walk every direct child of game-inner that is NOT an ancestor of target
+                function walk(node) {
+                    var ch = node.children;
+                    for (var i = 0; i < ch.length; i++) {
+                        if (ch[i] === targetEl) continue;
+                        if (ch[i].contains(targetEl)) {
+                            // Recurse into this ancestor — don't count its full height
+                            walk(ch[i]);
+                        } else {
+                            // Not related to target — count its full rendered height
+                            var r = ch[i].getBoundingClientRect();
+                            h += r.height;
+                            // Add any bottom margin
+                            var st = window.getComputedStyle(ch[i]);
+                            h += parseFloat(st.marginBottom) || 0;
+                            h += parseFloat(st.marginTop)    || 0;
+                        }
+                    }
+                }
+                walk(gameEl);
+                return h;
+            }
+
+            // ── Tetris: special layout (canvas + sidebar), size independently ──
+            if (gameId === 'tetris') {
+                var cv = document.getElementById('tetrisCanvas');
+                if (cv) {
+                    // Only chrome above the flex row is the game-header
+                    var headerEl = gameEl.querySelector('.game-header');
+                    var headerH  = headerEl ? headerEl.getBoundingClientRect().height +
+                                              (parseFloat(window.getComputedStyle(headerEl).marginBottom)||0) : 0;
+                    // Right sidebar is ~160px wide + 20px gap
+                    var SIDEBAR  = 180;
+                    var maxW = totalW - MARGIN - SIDEBAR;
+                    var maxH = totalH - headerH - MARGIN;
+                    if (maxH < 100) maxH = 100;
+                    if (maxW <  80) maxW =  80;
+                    // Tetris canvas native ratio is 300:600 = 1:2
+                    var aspect = 300 / 600;
+                    var w = maxW, h = w / aspect;
+                    if (h > maxH) { h = maxH; w = h * aspect; }
+                    w = Math.floor(Math.min(w, 300));
+                    h = Math.floor(Math.min(h, 600));
+                    cv.style.width  = w + 'px';
+                    cv.style.height = h + 'px';
+                }
+                return;
+            }
+
+            // ── Canvas games ─────────────────────────────────────────────────
             var canvasMap = {
                 pong:       { id: 'pong-canvas',       nw: 640, nh: 360 },
                 snake:      { id: 'snake-canvas',      nw: 400, nh: 400 },
-                flappybird: { id: 'flappybird-canvas', nw: 320, nh: 480 },
-                tetris:     { id: 'tetrisCanvas',      nw: 300, nh: 600 },
-                dune:       { id: 'dune-canvas',       nw: null, nh: null }, // dynamic
-                gridmaze:   { id: 'gridmaze-canvas',   nw: null, nh: null }, // dynamic
-                blockblast: { id: 'blockblast-canvas', nw: null, nh: null }  // self-managed
+                flappybird: { id: 'flappybird-canvas', nw: 320, nh: 480 }
             };
             var cm = canvasMap[gameId];
-            if (cm && cm.nw) {
+            if (cm) {
                 var cv = document.getElementById(cm.id);
                 if (cv) {
+                    var chrome = chromeHeight(cv);
+                    var maxW   = totalW - MARGIN;
+                    var maxH   = totalH - chrome - MARGIN;
+                    if (maxH < 40) maxH = 40;
                     var aspect = cm.nw / cm.nh;
-                    var w = Math.min(cm.nw, sp.cw);
-                    var h = w / aspect;
-                    if (h > sp.ch) { h = sp.ch; w = h * aspect; }
-                    cv.style.width  = Math.floor(w) + 'px';
-                    cv.style.height = Math.floor(h) + 'px';
+                    var w = maxW, h = w / aspect;
+                    if (h > maxH) { h = maxH; w = h * aspect; }
+                    w = Math.floor(Math.min(w, cm.nw));
+                    h = Math.floor(Math.min(h, cm.nh));
+                    cv.style.width  = w + 'px';
+                    cv.style.height = h + 'px';
                 }
+                return;
             }
 
-            // ── Board games: compute cell size fitting both axes ──
-            if (gameId === 'chess') {
-                setCSSVar('--cell-chess',    cellSize(8, 8, sp.w, sp.h, 50, 24) + 'px');
-            } else if (gameId === 'checkers') {
-                setCSSVar('--cell-checkers', cellSize(8, 8, sp.w, sp.h, 40, 22) + 'px');
-            } else if (gameId === 'rev') {
-                setCSSVar('--cell-reversi',  cellSize(8, 8, sp.w, sp.h, 40, 22) + 'px');
-            } else if (gameId === 'minesweeper') {
-                setCSSVar('--cell-mine',     cellSize(10,10, sp.w, sp.h, 32, 18) + 'px');
-            } else if (gameId === 'connect4') {
-                setCSSVar('--cell-c4',       cellSize(7, 6, sp.w, sp.h, 50, 24) + 'px');
-            } else if (gameId === 'ttt') {
-                setCSSVar('--cell-ttt',      cellSize(3, 3, sp.w, sp.h, 80, 40) + 'px');
+            // ── Board games ──────────────────────────────────────────────────
+            var boardConfigs = {
+                chess:      { sel: '.board.chess',       cols: 8,  rows: 8,  maxCell: 50, minCell: 22, cssVar: '--cell-chess' },
+                checkers:   { sel: '.board.checkers',    cols: 8,  rows: 8,  maxCell: 40, minCell: 20, cssVar: '--cell-checkers' },
+                rev:        { sel: '.board.reversi',     cols: 8,  rows: 8,  maxCell: 40, minCell: 20, cssVar: '--cell-reversi' },
+                minesweeper:{ sel: '.board.minesweeper', cols: 10, rows: 10, maxCell: 32, minCell: 16, cssVar: '--cell-mine' },
+                connect4:   { sel: '.board.connect4',    cols: 7,  rows: 6,  maxCell: 50, minCell: 22, cssVar: '--cell-c4' },
+                ttt:        { sel: '.board.tictactoe',   cols: 3,  rows: 3,  maxCell: 80, minCell: 40, cssVar: '--cell-ttt' }
+            };
+            var bc = boardConfigs[gameId];
+            if (bc) {
+                var boardEl = document.querySelector(bc.sel);
+                if (!boardEl) return;
+                var chrome = chromeHeight(boardEl);
+                var gap    = 4;
+                var maxBW  = totalW - MARGIN;
+                var maxBH  = totalH - chrome - MARGIN;
+                if (maxBH < 40) maxBH = 40;
+                var byW  = Math.floor((maxBW - gap * (bc.cols - 1)) / bc.cols);
+                var byH  = Math.floor((maxBH - gap * (bc.rows - 1)) / bc.rows);
+                var cell = Math.max(bc.minCell, Math.min(bc.maxCell, byW, byH));
+                document.documentElement.style.setProperty(bc.cssVar, cell + 'px');
+                return;
+            }
+
+            // ── Block Blast (self-managed canvas) ────────────────────────────
+            if (gameId === 'blockblast') {
+                var bbCanvas = document.getElementById('blockblast-canvas');
+                if (!bbCanvas) return;
+                var chrome = chromeHeight(bbCanvas);
+                var maxW = totalW - MARGIN;
+                var maxH = totalH - chrome - MARGIN;
+                if (maxH < 100) maxH = 100;
+                // Tell blockblast to resize itself to these exact pixel bounds
+                if (window.blockblast_instance) {
+                    window.blockblast_instance.resize(maxW, maxH);
+                }
+                return;
             }
         }
 
@@ -2368,7 +2611,7 @@
         }
 
         window.addEventListener('resize',            function() { setTimeout(rescaleCurrentGame, 30); });
-        window.addEventListener('orientationchange', function() { setTimeout(rescaleCurrentGame, 120); });
+        window.addEventListener('orientationchange', function() { setTimeout(rescaleCurrentGame, 150); });
 
         function closeGame() {
             document.getElementById("game-overlay").style.display = "none";
@@ -2785,19 +3028,12 @@
         function revBotMove(mode) {
             if (revGameOver || revAnimating) return;
             var move = revBotChooseMove(mode, "W");
-            if (!move) {
-                revNextTurn(mode);
-                return;
-            }
-            var r = move[0];
-            var c = move[1];
+            if (!move) { revNextTurn(mode); return; }
+            var r = move[0], c = move[1];
             var flips = revGetFlips(r, c, "W");
-            if (!flips.length) {
-                revNextTurn(mode);
-                return;
-            }
+            if (!flips.length) { revNextTurn(mode); return; }
             revAnimating = true;
-            revPlayMoveAnimated(r, c, "W", flips, function () {
+            revPlayMoveAnimated(r, c, "W", flips, function() {
                 revAnimating = false;
                 revNextTurn(mode);
             });
@@ -2807,86 +3043,61 @@
             var moves = revValidMoves(player);
             if (!moves.length) return null;
 
-            var i, r, c, flips, best, bestScore, boardCopy, opp, oppMoves;
+            var opp = player === "W" ? "B" : "W";
 
-            if (mode === "easy") {
-                return moves[Math.floor(Math.random() * moves.length)];
-            }
+            // ── Positional weights (corners=high, edges=medium, near-corner=bad) ──
+            var POS = [
+                [100,-20, 10,  5,  5, 10,-20,100],
+                [-20,-50, -2, -2, -2, -2,-50,-20],
+                [ 10, -2,  4,  2,  2,  4, -2, 10],
+                [  5, -2,  2,  1,  1,  2, -2,  5],
+                [  5, -2,  2,  1,  1,  2, -2,  5],
+                [ 10, -2,  4,  2,  2,  4, -2, 10],
+                [-20,-50, -2, -2, -2, -2,-50,-20],
+                [100,-20, 10,  5,  5, 10,-20,100]
+            ];
 
-            if (mode === "medium") {
-                best = null;
-                bestScore = -1;
-                for (i = 0; i < moves.length; i++) {
-                    r = moves[i][0];
-                    c = moves[i][1];
-                    flips = revGetFlips(r, c, player);
-                    if (flips.length > bestScore) {
-                        bestScore = flips.length;
-                        best = [r, c];
-                    }
-                }
-                return best;
-            }
-
-            if (mode === "hard") {
-                best = null;
-                bestScore = 9999;
-                for (i = 0; i < moves.length; i++) {
-                    r = moves[i][0];
-                    c = moves[i][1];
-                    boardCopy = revCopyBoard(revBoard);
-                    revApplyMove(r, c, player, boardCopy);
-                    opp = (player === "B" ? "W" : "B");
-                    oppMoves = revValidMoves(opp, boardCopy).length;
-                    if (oppMoves < bestScore) {
-                        bestScore = oppMoves;
-                        best = [r, c];
-                    }
-                }
-                return best;
-            }
-
-            var depth = 3;
-            opp = (player === "B" ? "W" : "B");
-
-            function scoreBoard(board) {
-                var b = 0, w = 0, r2, c2;
+            function evaluate(board) {
+                var score = 0, r2, c2;
                 for (r2 = 0; r2 < 8; r2++) {
                     for (c2 = 0; c2 < 8; c2++) {
-                        if (board[r2][c2] === "B") b++;
-                        if (board[r2][c2] === "W") w++;
+                        if (board[r2][c2] === player) score += POS[r2][c2];
+                        else if (board[r2][c2] === opp) score -= POS[r2][c2];
                     }
                 }
-                return (player === "B" ? (b - w) : (w - b));
+                // Mobility bonus
+                var myMoves  = revValidMoves(player, board).length;
+                var oppMoves = revValidMoves(opp, board).length;
+                score += (myMoves - oppMoves) * 3;
+                return score;
             }
 
             function minimax(board, curPlayer, d, alpha, beta) {
-                if (d === 0) return scoreBoard(board);
+                var curOpp = curPlayer === "W" ? "B" : "W";
                 var curMoves = revValidMoves(curPlayer, board);
-                if (!curMoves.length) return scoreBoard(board);
+                if (d === 0 || (!curMoves.length && !revValidMoves(curOpp, board).length)) {
+                    return evaluate(board);
+                }
+                if (!curMoves.length) return minimax(board, curOpp, d-1, alpha, beta);
 
-                var bestVal, i2, r3, c3, copy, val;
+                var i2, r3, c3, copy, val;
                 if (curPlayer === player) {
-                    bestVal = -9999;
+                    var bestVal = -Infinity;
                     for (i2 = 0; i2 < curMoves.length; i2++) {
-                        r3 = curMoves[i2][0];
-                        c3 = curMoves[i2][1];
                         copy = revCopyBoard(board);
-                        revApplyMove(r3, c3, curPlayer, copy);
-                        val = minimax(copy, opp, d - 1, alpha, beta);
+                        revApplyMove(curMoves[i2][0], curMoves[i2][1], curPlayer, copy);
+                        val = minimax(copy, curOpp, d-1, alpha, beta);
                         if (val > bestVal) bestVal = val;
                         if (val > alpha) alpha = val;
                         if (beta <= alpha) break;
                     }
                     return bestVal;
                 } else {
-                    bestVal = 9999;
+                    var bestVal = Infinity;
                     for (i2 = 0; i2 < curMoves.length; i2++) {
-                        r3 = curMoves[i2][0];
-                        c3 = curMoves[i2][1];
                         copy = revCopyBoard(board);
-                        revApplyMove(r3, c3, curPlayer, copy);
-                        val = minimax(copy, player, d - 1, alpha, beta);
+                        revApplyMove(curMoves[i2][0], curMoves[i2][1], curPlayer, copy);
+                        val = minimax(copy, curOpp, d-1, alpha, beta);
                         if (val < bestVal) bestVal = val;
                         if (val < beta) beta = val;
                         if (beta <= alpha) break;
@@ -2895,22 +3106,49 @@
                 }
             }
 
-            var bestMove = null;
-            var bestVal = -9999;
-            var val2;
-            for (i = 0; i < moves.length; i++) {
-                r = moves[i][0];
-                c = moves[i][1];
-                boardCopy = revCopyBoard(revBoard);
-                revApplyMove(r, c, player, boardCopy);
-                val2 = minimax(boardCopy, opp, depth - 1, -9999, 9999);
-                if (val2 > bestVal) {
-                    bestVal = val2;
-                    bestMove = [r, c];
-                }
+            var i, r, c, flips, best, bestScore, boardCopy, val;
+
+            if (mode === "easy") {
+                // ~0 ELO: fully random
+                return moves[Math.floor(Math.random() * moves.length)];
             }
-            if (!bestMove) bestMove = moves[0];
-            return bestMove;
+
+            if (mode === "medium") {
+                // ~500 ELO: greedy flip-count, 35% random, no positional awareness
+                if (Math.random() < 0.35) return moves[Math.floor(Math.random() * moves.length)];
+                best = null; bestScore = -Infinity;
+                for (i = 0; i < moves.length; i++) {
+                    flips = revGetFlips(moves[i][0], moves[i][1], player);
+                    var s = flips.length + (Math.random()-0.5)*2;
+                    if (s > bestScore) { bestScore = s; best = moves[i]; }
+                }
+                return best;
+            }
+
+            if (mode === "hard") {
+                // ~900 ELO: depth-4 positional minimax, 12% blunder
+                if (Math.random() < 0.12) return moves[Math.floor(Math.random() * moves.length)];
+                best = null; bestScore = -Infinity;
+                var snap = _revCopy(revBoard);
+                for (i = 0; i < moves.length; i++) {
+                    var nb = _revCopy(snap);
+                    _revApply(nb, moves[i][0], moves[i][1], player);
+                    val = _revMM(nb, opp, player, 3, -Infinity, Infinity) + (Math.random()-0.5)*8;
+                    if (val > bestScore) { bestScore = val; best = moves[i]; }
+                }
+                return best || moves[0];
+            }
+
+            // ~1800 ELO: depth-6 positional minimax, no randomness
+            best = null; bestScore = -Infinity;
+            var snap = _revCopy(revBoard);
+            for (i = 0; i < moves.length; i++) {
+                var nb = _revCopy(snap);
+                _revApply(nb, moves[i][0], moves[i][1], player);
+                val = _revMM(nb, opp, player, 5, -Infinity, Infinity);
+                if (val > bestScore) { bestScore = val; best = moves[i]; }
+            }
+            return best || moves[0];
         }
 
         function revCopyBoard(board) {
@@ -4371,14 +4609,12 @@
             if (checkersGameOver || checkersCurrentPlayer !== "black") return;
 
             var validMoves = [];
-            var i, j, moves;
-
-            // Find all valid moves for black
+            var i, j, k, moves;
             for (i = 0; i < 8; i++) {
                 for (j = 0; j < 8; j++) {
                     if (checkersBoard[i][j] && checkersBoard[i][j].color === "black") {
                         moves = checkersGetValidMoves(i, j);
-                        for (var k = 0; k < moves.length; k++) {
+                        for (k = 0; k < moves.length; k++) {
                             validMoves.push({ from: [i, j], to: moves[k] });
                         }
                     }
@@ -4391,30 +4627,142 @@
                 return;
             }
 
+            // ── Board copy / apply for minimax ───────────────────────────
+            function copyBoard(b) {
+                var c = [], r, f;
+                for (r = 0; r < 8; r++) {
+                    c[r] = [];
+                    for (f = 0; f < 8; f++) {
+                        c[r][f] = b[r][f] ? { color: b[r][f].color, isKing: b[r][f].isKing } : null;
+                    }
+                }
+                return c;
+            }
+
+            function applyMove(b, from, to) {
+                var piece = b[from[0]][from[1]];
+                if (Math.abs(to[0] - from[0]) === 2) {
+                    b[(from[0]+to[0])>>1][(from[1]+to[1])>>1] = null;
+                }
+                b[to[0]][to[1]] = { color: piece.color, isKing: piece.isKing };
+                b[from[0]][from[1]] = null;
+                if (piece.color === "red"   && to[0] === 7) b[to[0]][to[1]].isKing = true;
+                if (piece.color === "black" && to[0] === 0) b[to[0]][to[1]].isKing = true;
+            }
+
+            function allMoves(b, color) {
+                var mv = [], ri, ci, ms, mi;
+                // Must capture if possible
+                var caps = [];
+                for (ri = 0; ri < 8; ri++) {
+                    for (ci = 0; ci < 8; ci++) {
+                        if (!b[ri][ci] || b[ri][ci].color !== color) continue;
+                        // temporarily swap global board
+                        var saved = checkersBoard;
+                        checkersBoard = b;
+                        ms = checkersGetValidMoves(ri, ci);
+                        checkersBoard = saved;
+                        for (mi = 0; mi < ms.length; mi++) {
+                            var m = { from: [ri,ci], to: ms[mi] };
+                            if (Math.abs(ms[mi][0]-ri) === 2) caps.push(m);
+                            else mv.push(m);
+                        }
+                    }
+                }
+                return caps.length ? caps : mv;
+            }
+
+            function evaluate(b) {
+                // Material + king bonus + advancement
+                var score = 0;
+                for (var ri = 0; ri < 8; ri++) {
+                    for (var ci = 0; ci < 8; ci++) {
+                        var p = b[ri][ci];
+                        if (!p) continue;
+                        var val = p.isKing ? 3 : 1;
+                        // Advancement bonus for non-kings
+                        if (!p.isKing) {
+                            val += p.color === "black" ? (7 - ri) * 0.1 : ri * 0.1;
+                        }
+                        if (p.color === "black") score += val;
+                        else score -= val;
+                    }
+                }
+                return score;
+            }
+
+            function minimax(b, depth, alpha, beta, maxing) {
+                var color = maxing ? "black" : "red";
+                var mvs = allMoves(b, color);
+                if (depth === 0 || mvs.length === 0) return evaluate(b);
+                if (maxing) {
+                    var best = -Infinity;
+                    for (var mi = 0; mi < mvs.length; mi++) {
+                        var nb = copyBoard(b);
+                        applyMove(nb, mvs[mi].from, mvs[mi].to);
+                        var v = minimax(nb, depth-1, alpha, beta, false);
+                        if (v > best) best = v;
+                        if (v > alpha) alpha = v;
+                        if (beta <= alpha) break;
+                    }
+                    return best;
+                } else {
+                    var best = Infinity;
+                    for (var mi = 0; mi < mvs.length; mi++) {
+                        var nb = copyBoard(b);
+                        applyMove(nb, mvs[mi].from, mvs[mi].to);
+                        var v = minimax(nb, depth-1, alpha, beta, true);
+                        if (v < best) best = v;
+                        if (v < beta) beta = v;
+                        if (beta <= alpha) break;
+                    }
+                    return best;
+                }
+            }
+
             var move;
+
             if (mode === "easy") {
+                // ~0 ELO: fully random
                 move = validMoves[Math.floor(Math.random() * validMoves.length)];
+
             } else if (mode === "medium") {
-                // Prefer capture moves
-                var captureMoves = [];
-                for (i = 0; i < validMoves.length; i++) {
-                    if (Math.abs(validMoves[i].to[0] - validMoves[i].from[0]) === 2) {
-                        captureMoves.push(validMoves[i]);
-                    }
+                // ~500 ELO: prefer captures, 35% random blunder, no lookahead
+                if (Math.random() < 0.35) {
+                    move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    var caps = validMoves.filter(function(m){ return Math.abs(m.to[0]-m.from[0])===2; });
+                    move = caps.length ? caps[Math.floor(Math.random() * caps.length)]
+                                       : validMoves[Math.floor(Math.random() * validMoves.length)];
                 }
-                move = captureMoves.length > 0 ? captureMoves[Math.floor(Math.random() * captureMoves.length)] : validMoves[Math.floor(Math.random() * validMoves.length)];
+
+            } else if (mode === "hard") {
+                // ~900 ELO: depth-3 minimax, 15% blunder
+                if (Math.random() < 0.15) {
+                    move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    var best = -Infinity, bestMove = validMoves[0];
+                    var snap = _checkersCopy(checkersBoard);
+                    for (var mi = 0; mi < validMoves.length; mi++) {
+                        var nb = _checkersCopy(snap);
+                        _checkersApply(nb, validMoves[mi].from, validMoves[mi].to);
+                        var v = _checkersMM(nb, 2, -Infinity, Infinity, false) + (Math.random()-0.5)*0.3;
+                        if (v > best) { best = v; bestMove = validMoves[mi]; }
+                    }
+                    move = bestMove;
+                }
+
             } else {
-                // Hard/Impossible: prefer captures with random variation
-                var bestScore = -9999;
-                for (i = 0; i < validMoves.length; i++) {
-                    var score = 0;
-                    if (Math.abs(validMoves[i].to[0] - validMoves[i].from[0]) === 2) score += 10;
-                    score += Math.random() * 5;
-                    if (score > bestScore) {
-                        bestScore = score;
-                        move = validMoves[i];
-                    }
+                // ~1800 ELO: depth-5 minimax, no randomness
+                var best = -Infinity, bestMove = validMoves[0];
+                var snap = _checkersCopy(checkersBoard);
+                for (var mi = 0; mi < validMoves.length; mi++) {
+                    var nb = _checkersCopy(snap);
+                    _checkersApply(nb, validMoves[mi].from, validMoves[mi].to);
+                    var v = _checkersMM(nb, 4, -Infinity, Infinity, false);
+                    if (v > best) { best = v; bestMove = validMoves[mi]; }
                 }
+                move = bestMove;
             }
 
             checkersMove(move.from[0], move.from[1], move.to[0], move.to[1]);
@@ -4603,137 +4951,192 @@
 
             var validMoves = [];
             for (var col = 0; col < 7; col++) {
-                if (!connect4Board[0][col]) {
-                    validMoves.push(col);
+                if (!connect4Board[0][col]) validMoves.push(col);
+            }
+            if (validMoves.length === 0) return;
+
+            // ── Helpers ───────────────────────────────────────────────────
+            function copyBoard(b) {
+                var c = [], i;
+                for (i = 0; i < 6; i++) c[i] = b[i].slice();
+                return c;
+            }
+
+            function dropCol(b, col, color) {
+                for (var r = 5; r >= 0; r--) {
+                    if (!b[r][col]) { b[r][col] = color; return r; }
+                }
+                return -1;
+            }
+
+            function checkWinAt(b, row, col, color) {
+                var dirs = [[0,1],[1,0],[1,1],[1,-1]];
+                for (var d = 0; d < 4; d++) {
+                    var cnt = 1;
+                    for (var s = 1; s < 4; s++) {
+                        var r2 = row+dirs[d][0]*s, c2 = col+dirs[d][1]*s;
+                        if (r2>=0&&r2<6&&c2>=0&&c2<7&&b[r2][c2]===color) cnt++; else break;
+                    }
+                    for (var s = 1; s < 4; s++) {
+                        var r2 = row-dirs[d][0]*s, c2 = col-dirs[d][1]*s;
+                        if (r2>=0&&r2<6&&c2>=0&&c2<7&&b[r2][c2]===color) cnt++; else break;
+                    }
+                    if (cnt >= 4) return true;
+                }
+                return false;
+            }
+
+            function evaluate(b) {
+                // Score the board from yellow's perspective
+                var score = 0;
+                var dirs = [[0,1],[1,0],[1,1],[1,-1]];
+                for (var r = 0; r < 6; r++) {
+                    for (var c = 0; c < 7; c++) {
+                        if (!b[r][c]) continue;
+                        var color = b[r][c];
+                        var mult = color === "yellow" ? 1 : -1;
+                        for (var d = 0; d < 4; d++) {
+                            var cnt = 0, empty = 0;
+                            for (var s = 0; s < 4; s++) {
+                                var r2 = r+dirs[d][0]*s, c2 = c+dirs[d][1]*s;
+                                if (r2<0||r2>=6||c2<0||c2>=7) break;
+                                if (b[r2][c2]===color) cnt++;
+                                else if (!b[r2][c2]) empty++;
+                                else { cnt=-1; break; }
+                            }
+                            if (cnt > 0 && cnt+empty === 4) {
+                                score += mult * (cnt===3 ? 100 : cnt===2 ? 10 : 1);
+                            }
+                        }
+                        // Center column bonus
+                        score += mult * (c===3 ? 3 : c===2||c===4 ? 2 : c===1||c===5 ? 1 : 0);
+                    }
+                }
+                return score;
+            }
+
+            function minimax(b, depth, alpha, beta, maxing) {
+                // Check terminal
+                for (var c2 = 0; c2 < 7; c2++) {
+                    for (var r2 = 5; r2 >= 0; r2--) {
+                        if (b[r2][c2]) {
+                            if (checkWinAt(b, r2, c2, b[r2][c2]))
+                                return b[r2][c2]==="yellow" ? 100000 : -100000;
+                            break;
+                        }
+                    }
+                }
+                if (depth === 0) return evaluate(b);
+                var cols = [];
+                for (var c3 = 0; c3 < 7; c3++) if (!b[0][c3]) cols.push(c3);
+                if (!cols.length) return 0;
+                var color = maxing ? "yellow" : "red";
+                if (maxing) {
+                    var best = -Infinity;
+                    for (var i = 0; i < cols.length; i++) {
+                        var nb = copyBoard(b);
+                        dropCol(nb, cols[i], color);
+                        var v = minimax(nb, depth-1, alpha, beta, false);
+                        if (v > best) best = v;
+                        if (v > alpha) alpha = v;
+                        if (beta <= alpha) break;
+                    }
+                    return best;
+                } else {
+                    var best = Infinity;
+                    for (var i = 0; i < cols.length; i++) {
+                        var nb = copyBoard(b);
+                        dropCol(nb, cols[i], color);
+                        var v = minimax(nb, depth-1, alpha, beta, true);
+                        if (v < best) best = v;
+                        if (v < beta) beta = v;
+                        if (beta <= alpha) break;
+                    }
+                    return best;
                 }
             }
 
-            if (validMoves.length === 0) return;
+            // ── Instant win / block check (used by all difficulties) ──────
+            function findWinOrBlock(color) {
+                for (var i = 0; i < validMoves.length; i++) {
+                    var col = validMoves[i];
+                    for (var r = 5; r >= 0; r--) {
+                        if (!connect4Board[r][col]) {
+                            connect4Board[r][col] = color;
+                            var wins = connect4CheckWinBoard(connect4Board, r, col, color);
+                            connect4Board[r][col] = null;
+                            if (wins) return col;
+                            break;
+                        }
+                    }
+                }
+                return null;
+            }
 
             var move;
-            
+
             if (mode === "easy") {
+                // ~0 ELO: fully random, doesn't even take wins
                 move = validMoves[Math.floor(Math.random() * validMoves.length)];
-            } else if (mode === "medium" || mode === "hard" || mode === "impossible") {
-                // Smart bot: Check for winning moves first, then blocking moves, then strategic
-                move = connect4EvaluateBotMove(validMoves, mode);
+
+            } else if (mode === "medium") {
+                // ~500 ELO: takes wins, 40% random otherwise (misses blocks)
+                var win = findWinOrBlock("yellow");
+                if (win !== null) { move = win; }
+                else if (Math.random() < 0.40) {
+                    move = validMoves[Math.floor(Math.random() * validMoves.length)];
+                } else {
+                    // Simple center-preference heuristic, no blocking
+                    var best = -Infinity, bestCol = validMoves[0];
+                    for (var i = 0; i < validMoves.length; i++) {
+                        var s = (3 - Math.abs(validMoves[i] - 3)) + (Math.random()-0.5)*2;
+                        if (s > best) { best = s; bestCol = validMoves[i]; }
+                    }
+                    move = bestCol;
+                }
+
+            } else if (mode === "hard") {
+                // ~900 ELO: wins + blocks + depth-4 minimax, 10% blunder
+                var win = findWinOrBlock("yellow");
+                var blk = findWinOrBlock("red");
+                if (win !== null) { move = win; }
+                else if (blk !== null && Math.random() > 0.10) { move = blk; }
+                else if (Math.random() < 0.10) { move = validMoves[Math.floor(Math.random()*validMoves.length)]; }
+                else {
+                    var best = -Infinity, bestCol = validMoves[0];
+                    var snap = _c4Copy(connect4Board);
+                    for (var i = 0; i < validMoves.length; i++) {
+                        var nb = _c4Copy(snap); _c4Drop(nb, validMoves[i], 'yellow');
+                        var v = _c4MM(nb, 3, -Infinity, Infinity, false) + (Math.random()-0.5)*15;
+                        if (v > best) { best = v; bestCol = validMoves[i]; }
+                    }
+                    move = bestCol;
+                }
+
+            } else {
+                // ~1800 ELO: depth-6 minimax, center-ordered, no randomness
+                var win = findWinOrBlock("yellow");
+                var blk = findWinOrBlock("red");
+                if (win !== null) { move = win; }
+                else if (blk !== null) { move = blk; }
+                else {
+                    validMoves.sort(function(a,b){ return Math.abs(a-3)-Math.abs(b-3); });
+                    var best = -Infinity, bestCol = validMoves[0];
+                    var snap = _c4Copy(connect4Board);
+                    for (var i = 0; i < validMoves.length; i++) {
+                        var nb = _c4Copy(snap); _c4Drop(nb, validMoves[i], 'yellow');
+                        var v = _c4MM(nb, 5, -Infinity, Infinity, false);
+                        if (v > best) { best = v; bestCol = validMoves[i]; }
+                    }
+                    move = bestCol;
+                }
             }
-            
+
             connect4DropPiece(move);
         }
 
-        function connect4EvaluateBotMove(validMoves, mode) {
-            // First priority: Check if yellow can win
-            for (var i = 0; i < validMoves.length; i++) {
-                var col = validMoves[i];
-                var row = -1;
-                for (var r = 5; r >= 0; r--) {
-                    if (!connect4Board[r][col]) {
-                        row = r;
-                        break;
-                    }
-                }
-                
-                if (row === -1) continue;
-                
-                connect4Board[row][col] = "yellow";
-                if (connect4CheckWinBoard(connect4Board, row, col, "yellow")) {
-                    connect4Board[row][col] = null;
-                    return col; // Instant win - always take it
-                }
-                connect4Board[row][col] = null;
-            }
-            
-            // Second priority: Block opponent from winning
-            for (var i = 0; i < validMoves.length; i++) {
-                var col = validMoves[i];
-                var row = -1;
-                for (var r = 5; r >= 0; r--) {
-                    if (!connect4Board[r][col]) {
-                        row = r;
-                        break;
-                    }
-                }
-                
-                if (row === -1) continue;
-                
-                connect4Board[row][col] = "red";
-                if (connect4CheckWinBoard(connect4Board, row, col, "red")) {
-                    connect4Board[row][col] = null;
-                    return col; // Must block
-                }
-                connect4Board[row][col] = null;
-            }
-            
-            // Third priority: Strategic moves
-            var bestMove = validMoves[0];
-            var bestScore = -999;
-            
-            for (var i = 0; i < validMoves.length; i++) {
-                var col = validMoves[i];
-                var row = -1;
-                for (var r = 5; r >= 0; r--) {
-                    if (!connect4Board[r][col]) {
-                        row = r;
-                        break;
-                    }
-                }
-                
-                if (row === -1) continue;
-                
-                var score = 0;
-                
-                // Count pieces in lines (4 directions)
-                var directions = [[0,1], [1,0], [1,1], [1,-1]];
-                for (var d = 0; d < directions.length; d++) {
-                    var count = 1;
-                    
-                    // Check positive direction
-                    for (var dist = 1; dist < 4; dist++) {
-                        var nr = row + directions[d][0] * dist;
-                        var nc = col + directions[d][1] * dist;
-                        if (nr >= 0 && nr < 6 && nc >= 0 && nc < 7) {
-                            if (connect4Board[nr][nc] === "yellow") count++;
-                            else if (connect4Board[nr][nc] === "red") break;
-                            else if (connect4Board[nr][nc] === null) break;
-                        } else break;
-                    }
-                    
-                    // Check negative direction
-                    for (var dist = 1; dist < 4; dist++) {
-                        var nr = row - directions[d][0] * dist;
-                        var nc = col - directions[d][1] * dist;
-                        if (nr >= 0 && nr < 6 && nc >= 0 && nc < 7) {
-                            if (connect4Board[nr][nc] === "yellow") count++;
-                            else if (connect4Board[nr][nc] === "red") break;
-                            else if (connect4Board[nr][nc] === null) break;
-                        } else break;
-                    }
-                    
-                    // Higher score for more pieces in a line
-                    if (count === 3) score += 500;
-                    else if (count === 2) score += 100;
-                }
-                
-                // Prefer center columns for control
-                score += (3 - Math.abs(col - 3)) * 10;
-                
-                // Add randomness based on difficulty
-                if (mode === "medium") {
-                    score += Math.random() * 100;
-                } else if (mode === "hard") {
-                    score += Math.random() * 30;
-                }
-                // impossible has no randomness - pure strategy
-                
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestMove = col;
-                }
-            }
-            
-            return bestMove;
-        }
+        // Legacy stub so any remaining references don't error
+        function connect4EvaluateBotMove(validMoves, mode) { return validMoves[0]; }
 
         function connect4CheckWinBoard(board, row, col, player) {
             var directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
@@ -5580,7 +5983,7 @@
                 move = validMoves[Math.floor(Math.random() * validMoves.length)];
 
             } else if (mode === "medium") {
-                // ~500 ELO: depth-1 eval with heavy noise + 40% random blunders
+                // ~500 ELO: depth-1 eval + 40% random blunders
                 if (Math.random() < 0.40) {
                     move = validMoves[Math.floor(Math.random() * validMoves.length)];
                 } else {
@@ -5595,7 +5998,7 @@
                 }
 
             } else if (mode === "hard") {
-                // ~900 ELO: depth-2, 15% random blunders, some noise
+                // ~900 ELO: depth-2, 15% random blunders
                 if (Math.random() < 0.15) {
                     move = validMoves[Math.floor(Math.random() * validMoves.length)];
                 } else {
@@ -5610,25 +6013,37 @@
                 }
 
             } else {
-                // impossible — ~1800 ELO: depth-4 minimax, no randomness, full eval
-                var bestScore = -Infinity, bestMove = null;
-                // Sort root moves: captures first for better pruning
+                // ~2200 ELO: depth-5 minimax + quiescence + alpha-beta (synchronous)
+                // Uses the global inline engine (_chessMMQ) which has no global board deps
+
+                // Order root moves captures-first for better pruning
                 validMoves.sort(function(a, b2) {
-                    var ac = chessBoard[a.to[0]][a.to[1]];
-                    var bc2 = chessBoard[b2.to[0]][b2.to[1]];
-                    return ((bc2 ? (PIECE_VAL[bc2.type]||0) : 0) - (ac ? (PIECE_VAL[ac.type]||0) : 0));
+                    var av = chessBoard[a.to[0]][a.to[1]] ? (PIECE_VAL[chessBoard[a.to[0]][a.to[1]].type]||0) : 0;
+                    var bv = chessBoard[b2.to[0]][b2.to[1]] ? (PIECE_VAL[chessBoard[b2.to[0]][b2.to[1]].type]||0) : 0;
+                    return bv - av;
                 });
+
+                var bestScore = -Infinity, bestMove = null, rootAlpha = -Infinity;
+                var snapBoard = _chessCopy(chessBoard);
                 for (var mi = 0; mi < validMoves.length; mi++) {
-                    var nb = copyBoard(chessBoard);
-                    applyMove(nb, validMoves[mi].from, validMoves[mi].to);
-                    var sc = minimax(nb, 3, -Infinity, Infinity, false);
+                    var nb = _chessCopy(snapBoard);
+                    _chessApply(nb, validMoves[mi].from, validMoves[mi].to);
+                    var sc = _chessMMQ(nb, 4, rootAlpha, Infinity, false);
                     if (sc > bestScore) { bestScore = sc; bestMove = validMoves[mi]; }
+                    if (sc > rootAlpha) rootAlpha = sc;
                 }
                 move = bestMove || validMoves[0];
             }
 
-            // ── Execute chosen move ────────────────────────────────────────
+            // ── Execute move ───────────────────────────────────────────────
+            chessExecuteMove(move, mode);
+        }
+
+        // Shared move-execution used by both sync and async (worker) paths
+        function chessExecuteMove(move, mode) {
+            if (!move || chessGameOver) return;
             var piece = chessBoard[move.from[0]][move.from[1]];
+            if (!piece) return;
             var capturedPiece = chessBoard[move.to[0]][move.to[1]];
 
             if (piece.type === "P" && move.to[0] === 7) {
@@ -5674,20 +6089,20 @@
         const TETRIS_ROWS = 20;
         const BLOCK_SIZE = 30;
 
-        let tetrisGrid = [];
-        let tetrisScore = 0;
-        let tetrisLevel = 1;
-        let tetrisLines = 0;
-        let tetrisPaused = false;
-        let tetrisGameOver = false;
-        let tetrisCurrentPiece = null;
-        let tetrisNextPiece = null;
-        let tetrisDropSpeed = 1200;
-        let tetrisDropTimer = null;
-        let tetrisCanvas = document.getElementById('tetrisCanvas');
-        let tetrisCtx = tetrisCanvas.getContext('2d');
-        let tetrisNextCanvas = document.getElementById('tetrisNextCanvas');
-        let tetrisNextCtx = tetrisNextCanvas.getContext('2d');
+        var tetrisGrid = [];
+        var tetrisScore = 0;
+        var tetrisLevel = 1;
+        var tetrisLines = 0;
+        var tetrisPaused = false;
+        var tetrisGameOver = false;
+        var tetrisCurrentPiece = null;
+        var tetrisNextPiece = null;
+        var tetrisDropSpeed = 1200;
+        var tetrisDropTimer = null;
+        var tetrisCanvas = document.getElementById('tetrisCanvas');
+        var tetrisCtx = tetrisCanvas.getContext('2d');
+        var tetrisNextCanvas = document.getElementById('tetrisNextCanvas');
+        var tetrisNextCtx = tetrisNextCanvas.getContext('2d');
 
         const TETRIS_PIECES = [
             { name: 'I', shape: [[1,1,1,1]], color: '#00d4ff' },
@@ -5955,17 +6370,17 @@
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             if (tetrisPaused) return;
             
-            if (e.key === 'ArrowLeft') {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
                 if (tetrisCanMovePiece(tetrisCurrentPiece, -1, 0)) tetrisCurrentPiece.x--;
                 tetrisRender();
                 tetrisRenderNext();
-            } else if (e.key === 'ArrowRight') {
+            } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
                 if (tetrisCanMovePiece(tetrisCurrentPiece, 1, 0)) tetrisCurrentPiece.x++;
                 tetrisRender();
                 tetrisRenderNext();
-            } else if (e.key === 'ArrowDown') {
+            } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
                 tetrisMovePieceDown(true);
-            } else if (e.key === 'ArrowUp') {
+            } else if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
                 tetrisRotatePiece();
             }
         });
@@ -6782,18 +7197,39 @@
                     this.render();
                 },
 
-                resize: function() {
+                resize: function(maxW, maxH) {
                     if (!this.canvas) return;
-                    var w = Math.min(this.canvas.parentElement.clientWidth - 20, 400);
-                    this.CELL = Math.floor(w / this.SIZE);
-                    this.BOARD_PX = this.CELL * this.SIZE;
-                    this.PIECE_CELL = Math.max(14, Math.floor(this.CELL * 0.55));
-                    // Tray: 3 pieces, each up to 4 cells wide + padding
-                    this.TRAY_H = this.PIECE_CELL * 5 + 24;
+                    // If called from scaleGameForMobile, explicit bounds are passed.
+                    // Otherwise fall back to parent width.
+                    if (maxW === undefined) {
+                        maxW = this.canvas.parentElement ? this.canvas.parentElement.clientWidth - 20 : 380;
+                    }
+                    if (maxH === undefined) maxH = Infinity;
+
+                    // Board cell size: fit both width and total height (board + tray)
+                    // Tray is ~5 piece-cells tall. Iterate to find largest CELL that fits.
+                    var SIZE = this.SIZE;
+                    var cell = Math.floor(maxW / SIZE);
+                    // Clamp: tray height = PIECE_CELL*5+24 where PIECE_CELL = max(14,cell*0.55)
+                    for (var tries = 0; tries < 20; tries++) {
+                        var pc   = Math.max(14, Math.floor(cell * 0.55));
+                        var tray = pc * 5 + 24;
+                        var totalH = cell * SIZE + tray;
+                        if (totalH <= maxH || cell <= 8) break;
+                        cell--;
+                    }
+                    cell = Math.max(8, cell);
+
+                    this.CELL       = cell;
+                    this.BOARD_PX   = cell * SIZE;
+                    this.PIECE_CELL = Math.max(14, Math.floor(cell * 0.55));
+                    this.TRAY_H     = this.PIECE_CELL * 5 + 24;
+
+                    var totalPx = this.BOARD_PX + this.TRAY_H;
                     this.canvas.width  = this.BOARD_PX;
-                    this.canvas.height = this.BOARD_PX + this.TRAY_H;
+                    this.canvas.height = totalPx;
                     this.canvas.style.width  = this.BOARD_PX + 'px';
-                    this.canvas.style.height = (this.BOARD_PX + this.TRAY_H) + 'px';
+                    this.canvas.style.height = totalPx + 'px';
                 },
 
                 generateNextBlocks: function() {
@@ -7150,6 +7586,7 @@
             };
 
             window.BB = BB;
+            window.blockblast_instance = BB;
             window.blockblast_reset = function() { BB.init(); };
         })();
 
