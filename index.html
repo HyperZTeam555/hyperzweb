@@ -902,6 +902,9 @@
             color: var(--text-soft);
         }
 
+        /* ===== TAB FRAME WRAPPERS ===== */
+        @keyframes zweb-spin { to { transform: rotate(360deg); } }
+
         /* ===== CHATBOT ===== */
         #chatbot {
             display: -webkit-box;
@@ -1337,15 +1340,7 @@
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
         </div>
 
-        <!-- Loading spinner shown while proxy-fetching pages -->
-        <div id="zweb-loading" style="display:none;position:absolute;top:88px;left:0;right:0;bottom:0;background:var(--bg-main);z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
-            <div style="width:38px;height:38px;border:3px solid var(--border-mid);border-top-color:var(--accent);border-radius:50%;animation:zweb-spin 0.7s linear infinite;"></div>
-            <span id="zweb-loading-url" style="color:var(--text-soft);font-size:12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-        </div>
-        <style>@keyframes zweb-spin{to{transform:rotate(360deg);}}</style>
-
-        <!-- Main content frame — srcdoc bypasses X-Frame-Options entirely -->
-        <iframe id="zweb-frame" srcdoc="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" style="width:100%;height:calc(100% - 88px);border:none;background:#02030a;display:block;"></iframe>
+        <!-- Tab frames are created dynamically per-tab by _makeTabFrame() -->
 
         <!-- Hidden GoGuardian keepalive iframe — never shown to user -->
         <iframe id="gg-decoy" src="about:blank" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;" tabindex="-1" aria-hidden="true"></iframe>
@@ -2085,7 +2080,6 @@
             }
 
             if (id === "zweb") {
-                document.getElementById("zweb-frame").style.display = "block";
                 document.getElementById("hyperzsearch").style.display = "none";
             }
         }
@@ -2188,37 +2182,64 @@
         var tabs = [];
         var currentTab = null;
 
+        /* Each tab gets its own iframe + loading overlay wrapper div,
+           stored on the tab object itself. Show/hide on switch, destroy on close. */
+
+        function _makeTabFrame(id) {
+            var wrapper = document.createElement("div");
+            wrapper.setAttribute("data-tab-frame", id);
+            wrapper.style.cssText = "position:absolute;top:88px;left:0;right:0;bottom:0;display:none;flex-direction:column;";
+
+            /* Loading spinner */
+            var loader = document.createElement("div");
+            loader.className = "tab-loader";
+            loader.setAttribute("data-loader", id);
+            loader.style.cssText = "display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg-main);z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
+            loader.innerHTML = '<div style="width:38px;height:38px;border:3px solid var(--border-mid);border-top-color:var(--accent);border-radius:50%;animation:zweb-spin 0.7s linear infinite;"></div>' +
+                '<span class="loader-url-text" style="color:var(--text-soft);font-size:12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>';
+
+            /* The actual iframe */
+            var frame = document.createElement("iframe");
+            frame.setAttribute("data-frame", id);
+            frame.srcdoc = "";
+            frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals";
+            frame.style.cssText = "width:100%;flex:1;border:none;background:#02030a;display:block;";
+
+            wrapper.appendChild(loader);
+            wrapper.appendChild(frame);
+
+            /* Attach to #zweb container */
+            document.getElementById("zweb").appendChild(wrapper);
+            return { wrapper: wrapper, frame: frame, loader: loader };
+        }
+
         function createTab(url) {
             if (!url) url = "New Tab";
-            var id = new Date().getTime();
-            var tab = { id: id, url: url };
+            var id = Date.now();
+            var els = _makeTabFrame(id);
+            var tab = { id: id, url: url, frame: els.frame, loader: els.loader, wrapper: els.wrapper };
             tabs.push(tab);
 
+            /* Tab bar button */
             var tabEl = document.createElement("div");
             tabEl.className = "tab";
             tabEl.setAttribute("data-id", id);
 
             var title = document.createElement("span");
-            title.innerHTML = url;
+            var short = url === "New Tab" ? "New Tab" : url.replace(/^https?:\/\//, "");
+            if (short.length > 22) short = short.substring(0, 19) + "...";
+            title.textContent = short;
 
             var close = document.createElement("span");
             close.className = "close-btn";
             close.innerHTML = "&times;";
-            close.onclick = (function (tid) {
-                return function (e) {
-                    if (e && e.stopPropagation) e.stopPropagation();
-                    closeTab(tid);
-                };
+            close.onclick = (function(tid) {
+                return function(e) { if (e && e.stopPropagation) e.stopPropagation(); closeTab(tid); };
             })(id);
 
             tabEl.appendChild(title);
             tabEl.appendChild(close);
-
-            tabEl.onclick = (function (tid) {
-                return function () {
-                    switchTab(tid);
-                };
-            })(id);
+            tabEl.onclick = (function(tid) { return function() { switchTab(tid); }; })(id);
 
             var tabsBar = document.getElementById("tabs");
             tabsBar.insertBefore(tabEl, tabsBar.querySelector(".new-tab-btn"));
@@ -2229,51 +2250,51 @@
         function switchTab(id) {
             var i;
             currentTab = null;
+
+            /* Hide all tab frames */
             for (i = 0; i < tabs.length; i++) {
-                if (tabs[i].id === id) {
-                    currentTab = tabs[i];
-                    break;
-                }
+                tabs[i].wrapper.style.display = "none";
+                if (tabs[i].id === id) currentTab = tabs[i];
             }
+
+            /* Update tab bar active state */
             var tabEls = document.getElementsByClassName("tab");
             for (i = 0; i < tabEls.length; i++) {
                 var el = tabEls[i];
                 var tid = parseInt(el.getAttribute("data-id"), 10);
-                if (tid === id) {
-                    if (el.className.indexOf("active") === -1) {
-                        el.className += " active";
-                    }
-                } else {
-                    el.className = el.className.replace(" active", "");
-                }
+                el.className = tid === id ? "tab active" : "tab";
             }
 
             if (!currentTab) return;
 
-            document.getElementById("hyperzsearch").style.display = "none";
-            document.getElementById("zweb-frame").style.display = "block";
+            /* Show this tab's frame wrapper */
+            currentTab.wrapper.style.display = "flex";
 
-            if (currentTab.url === "New Tab") {
-                document.getElementById("zweb-frame").src = "about:blank";
-                document.getElementById("zweb-url").value = "";
-            } else {
+            document.getElementById("hyperzsearch").style.display = "none";
+            document.getElementById("zweb-url").value = currentTab.url === "New Tab" ? "" : currentTab.url;
+
+            /* If the frame is empty (new tab just created), load the URL.
+               If it already has content (switching back), just show it — don't reload. */
+            if (currentTab.url !== "New Tab" && !currentTab.loaded) {
                 loadTab(currentTab.url);
             }
         }
 
         function closeTab(id) {
-            var i;
-            var index = -1;
+            var i, index = -1;
             for (i = 0; i < tabs.length; i++) {
-                if (tabs[i].id === id) {
-                    index = i;
-                    break;
-                }
+                if (tabs[i].id === id) { index = i; break; }
             }
             if (index === -1) return;
 
+            /* Destroy this tab's iframe wrapper from the DOM entirely */
+            var dying = tabs[index];
+            dying.frame.srcdoc = "";  /* stop any active load */
+            dying.wrapper.parentNode.removeChild(dying.wrapper);
+
             tabs.splice(index, 1);
 
+            /* Remove tab bar button */
             var tabEls = document.getElementsByClassName("tab");
             for (i = tabEls.length - 1; i >= 0; i--) {
                 if (parseInt(tabEls[i].getAttribute("data-id"), 10) === id) {
@@ -2284,10 +2305,11 @@
 
             if (currentTab && currentTab.id === id) {
                 if (tabs.length > 0) {
-                    var newIndex = index - 1;
+                    var newIndex = Math.min(index, tabs.length - 1);
                     if (newIndex < 0) newIndex = 0;
                     switchTab(tabs[newIndex].id);
                 } else {
+                    currentTab = null;
                     createTab();
                 }
             }
@@ -2350,10 +2372,8 @@
         }
 
         /* --- STATE --- */
-        var _currentPageUrl = "";   /* canonical URL of what's shown */
-        var _lastGoodUrl    = "";
-        var _ggCheckTimer   = null;
-        var _intercepting   = false;
+        var _ggCheckTimer  = null;
+        var _intercepting  = false;
 
         /* --- URL BAR + TAB SYNC --- */
         function syncUrlBar(url) {
@@ -2366,22 +2386,25 @@
                     var span = tabEls[i].getElementsByTagName("span")[0];
                     var short = url.replace(/^https?:\/\//, "");
                     if (short.length > 24) short = short.substring(0, 21) + "...";
-                    span.innerHTML = short;
+                    span.textContent = short;
                     break;
                 }
             }
         }
 
-        /* --- LOADING INDICATOR --- */
-        function showLoading(url) {
-            var el = document.getElementById("zweb-loading");
-            el.style.display = "flex";
-            document.getElementById("zweb-loading-url").textContent = url;
-            document.getElementById("zweb-frame").style.opacity = "0";
+        /* --- LOADING INDICATOR — per-tab --- */
+        function showLoading(url, tab) {
+            tab = tab || currentTab;
+            if (!tab) return;
+            tab.loader.style.display = "flex";
+            tab.loader.querySelector(".loader-url-text").textContent = url;
+            tab.frame.style.opacity = "0";
         }
-        function hideLoading() {
-            document.getElementById("zweb-loading").style.display = "none";
-            document.getElementById("zweb-frame").style.opacity = "1";
+        function hideLoading(tab) {
+            tab = tab || currentTab;
+            if (!tab) return;
+            tab.loader.style.display = "none";
+            tab.frame.style.opacity = "1";
         }
 
         /* --- HTML REWRITER ---
@@ -2446,122 +2469,95 @@
         }
 
         /* --- MAIN FETCH ENGINE --- */
-        function loadTab(url, _retryCount) {
-            if (!url) return;
+        function loadTab(url, _retryCount, _targetTab) {
+            var tab = _targetTab || currentTab;
+            if (!tab || !url) return;
             _retryCount = _retryCount || 0;
 
             if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
                 url = "https://" + url;
             }
 
-            /* Pre-flight GG check */
             if (isGoGuardianBlock(url)) {
                 feedDecoy(url);
                 return;
             }
 
-            showLoading(url);
-            syncUrlBar(url);
-            _currentPageUrl = url;
+            tab.url = url;
+            tab.loaded = false;
+            showLoading(url, tab);
+            if (currentTab && currentTab.id === tab.id) syncUrlBar(url);
 
             var fetchUrl = proxyUrl(url);
+            var capturedTab = tab;
 
             fetch(fetchUrl)
                 .then(function(res) {
-                    /* Try next proxy on failure */
                     if (!res.ok && _retryCount < PROXY_LIST.length - 1) {
                         _proxyIndex = (_proxyIndex + 1) % PROXY_LIST.length;
-                        loadTab(url, _retryCount + 1);
+                        loadTab(url, _retryCount + 1, capturedTab);
                         return null;
                     }
                     var ct = res.headers.get("content-type") || "";
-                    /* For non-HTML (images, PDFs, etc.) just show a download link */
                     if (ct && ct.indexOf("text/html") === -1 && ct.indexOf("text/plain") === -1 && ct.indexOf("application/xhtml") === -1) {
-                        hideLoading();
-                        var frame = document.getElementById("zweb-frame");
-                        frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">' +
-                            '<div style="font-size:48px;">📄</div>' +
-                            '<div>Non-HTML content</div>' +
-                            '<a href="' + url + '" target="_blank" style="color:#00c8ff;">Open directly ↗</a>' +
-                            '</body></html>';
+                        hideLoading(capturedTab);
+                        capturedTab.frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">' +
+                            '<div style="font-size:48px;">📄</div><div>Non-HTML content</div>' +
+                            '<a href="' + url + '" target="_blank" style="color:#00c8ff;">Open directly ↗</a></body></html>';
+                        capturedTab.loaded = true;
                         return null;
                     }
                     return res.text();
                 })
                 .then(function(html) {
                     if (html === null || html === undefined) return;
-
-                    /* Check if GoGuardian snuck its content into the fetched HTML */
                     if (isGoGuardianBlock(html.substring(0, 2000))) {
                         feedDecoy(url);
-                        hideLoading();
+                        hideLoading(capturedTab);
                         return;
                     }
-
                     var rewritten = rewriteHtml(html, url);
-                    var frame = document.getElementById("zweb-frame");
-                    frame.srcdoc = rewritten;
-                    _lastGoodUrl = url;
-
-                    hideLoading();
+                    capturedTab.frame.srcdoc = rewritten;
+                    capturedTab.loaded = true;
+                    capturedTab.url = url;
+                    hideLoading(capturedTab);
+                    if (currentTab && currentTab.id === capturedTab.id) syncUrlBar(url);
                 })
                 .catch(function(err) {
-                    /* Try next proxy */
                     if (_retryCount < PROXY_LIST.length - 1) {
                         _proxyIndex = (_proxyIndex + 1) % PROXY_LIST.length;
-                        loadTab(url, _retryCount + 1);
+                        loadTab(url, _retryCount + 1, capturedTab);
                         return;
                     }
-                    hideLoading();
-                    var frame = document.getElementById("zweb-frame");
-                    frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;">' +
-                        '<div style="font-size:48px;">⚠️</div>' +
-                        '<div style="font-size:16px;font-weight:700;">Could not load page</div>' +
-                        '<div style="color:#8899bb;font-size:13px;">All proxies failed. The site may be unreachable.</div>' +
-                        '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;">Try opening directly ↗</a>' +
-                        '</body></html>';
+                    hideLoading(capturedTab);
+                    capturedTab.frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;">' +
+                        '<div style="font-size:48px;">⚠️</div><div style="font-size:16px;font-weight:700;">Could not load page</div>' +
+                        '<div style="color:#8899bb;font-size:13px;">All proxies failed.</div>' +
+                        '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;">Try opening directly ↗</a></body></html>';
+                    capturedTab.loaded = true;
                 });
         }
 
-        /* --- 1ms GOGUARDIAN INTERCEPT TIMER ---
-           Checks the iframe srcdoc content and its contentWindow location
-           every 1ms. The moment any GG signature is detected, the frame
-           is immediately hidden and the GG URL is dumped to the decoy. */
+        /* --- 1ms GOGUARDIAN INTERCEPT — checks currentTab's frame every 1ms --- */
         function startGGCheck() {
             if (_ggCheckTimer) return;
             _ggCheckTimer = setInterval(function() {
-                if (_intercepting) return;
-                var frame = document.getElementById("zweb-frame");
-
-                /* Try reading contentWindow location (works if same-origin via srcdoc) */
-                var href = "";
-                try {
-                    var cw = frame.contentWindow;
-                    if (cw && cw.location) href = cw.location.href;
-                } catch(e) {}
-
-                /* Also check the title/URL content visible in the srcdoc */
-                var docUrl = "";
-                try {
-                    docUrl = frame.contentWindow && frame.contentWindow.document &&
-                             frame.contentWindow.document.URL;
-                } catch(e) {}
-
+                if (_intercepting || !currentTab) return;
+                var frame = currentTab.frame;
+                var href = "", docUrl = "";
+                try { href = frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href; } catch(e) {}
+                try { docUrl = frame.contentWindow && frame.contentWindow.document && frame.contentWindow.document.URL; } catch(e) {}
                 var check = (href || "") + " " + (docUrl || "");
-
                 if (isGoGuardianBlock(check)) {
                     _intercepting = true;
-                    /* Instantly blank the frame */
                     frame.style.visibility = "hidden";
-                    feedDecoy(href || docUrl || _currentPageUrl);
-
+                    feedDecoy(href || docUrl || currentTab.url);
+                    var lastGood = currentTab.url;
+                    var badTab = currentTab;
                     setTimeout(function() {
-                        /* Restore last good page */
-                        if (_lastGoodUrl) {
-                            loadTab(_lastGoodUrl);
-                        } else {
-                            frame.srcdoc = "";
-                        }
+                        badTab.loaded = false;
+                        if (lastGood) loadTab(lastGood, 0, badTab);
+                        else badTab.frame.srcdoc = "";
                         frame.style.visibility = "";
                         _intercepting = false;
                     }, 50);
@@ -2569,35 +2565,27 @@
             }, 1);
         }
 
-        /* --- postMessage bridge — receives navigation events from inside the iframe --- */
+        /* --- postMessage bridge — navigation events from inside any tab's iframe --- */
         window.addEventListener("message", function(e) {
             if (!e.data || typeof e.data !== "object") return;
-
             if (e.data.type === "ZWEB_NAV" && e.data.url) {
                 var navUrl = e.data.url;
-                if (isGoGuardianBlock(navUrl)) {
-                    feedDecoy(navUrl);
-                    return;
-                }
+                if (isGoGuardianBlock(navUrl)) { feedDecoy(navUrl); return; }
                 if (!currentTab) createTab(navUrl);
-                loadTab(navUrl);
+                else loadTab(navUrl);
             }
-
             if (e.data.type === "ZWEB_URL" && e.data.url) {
-                var pageUrl = e.data.url;
-                if (!isGoGuardianBlock(pageUrl)) {
-                    _currentPageUrl = pageUrl;
-                }
+                if (!isGoGuardianBlock(e.data.url) && currentTab) currentTab.url = e.data.url;
             }
         });
 
-        /* --- Intercept window.open (parent-level safety net) --- */
+        /* --- Intercept window.open --- */
         var _origOpen = window.open;
         window.open = function(url, target, features) {
             if (url && isGoGuardianBlock(url)) { feedDecoy(url); return null; }
             if (url && (target === "_blank" || !target)) {
                 if (!currentTab) createTab(url);
-                loadTab(url);
+                else loadTab(url);
                 return { closed: false, close: function(){} };
             }
             return _origOpen.call(window, url, target, features);
@@ -2606,19 +2594,12 @@
         function zwebNavigate() {
             var q = document.getElementById("zweb-url").value.replace(/^\s+|\s+$/g, "");
             if (!q) return;
-
-            var isURL = (
-                q.indexOf("http://") === 0 ||
-                q.indexOf("https://") === 0 ||
-                q.indexOf(".") !== -1
-            );
-
+            var isURL = q.indexOf("http://") === 0 || q.indexOf("https://") === 0 || q.indexOf(".") !== -1;
             if (isURL) {
                 if (!currentTab) createTab(q);
-                loadTab(q);
+                else loadTab(q);
                 return;
             }
-
             runHyperZSearch(q);
         }
 
@@ -2629,7 +2610,7 @@
 
         createTab();
         showSection("zweb");
-        startGGCheck(); /* begin 1ms GoGuardian intercept immediately */
+        startGGCheck();
 
         function openGame(gameId) {
             document.getElementById("game-overlay").style.display = "block";
@@ -3761,7 +3742,8 @@
 
         function runHyperZSearch(query) {
             showSection("zweb");
-            document.getElementById("zweb-frame").style.display = "none";
+            /* hide all tab frames while showing search results */
+            for (var t = 0; t < tabs.length; t++) tabs[t].wrapper.style.display = "none";
             document.getElementById("hyperzsearch").style.display = "block";
 
             var resultsBox = document.getElementById("hyperzsearch-results");
@@ -3822,9 +3804,7 @@
 
         function openZWebTab(url) {
             createTab(url);
-            loadTab(url);
             document.getElementById("hyperzsearch").style.display = "none";
-            document.getElementById("zweb-frame").style.display = "block";
         }
 
         // SNAKE GAME
