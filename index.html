@@ -338,7 +338,7 @@
             background: transparent;
         }
 
-        #zweb { display: -webkit-box; display: -ms-flexbox; display: flex; -webkit-box-orient: vertical; -webkit-box-direction: normal; -ms-flex-direction: column; flex-direction: column; }
+        #zweb { -webkit-box-orient: vertical; -webkit-box-direction: normal; -ms-flex-direction: column; flex-direction: column; position: relative; }
 
         /* ===== BROWSER TABS ===== */
         #tabs {
@@ -2065,11 +2065,17 @@
                 document.getElementById("chatbot").style.display = "-webkit-box";
                 document.getElementById("chatbot").style.display = "-ms-flexbox";
                 document.getElementById("chatbot").style.display = "flex";
+            } else if (id === "zweb") {
+                document.getElementById("zweb").style.display = "-webkit-box";
+                document.getElementById("zweb").style.display = "-ms-flexbox";
+                document.getElementById("zweb").style.display = "flex";
+                document.getElementById("hyperzsearch").style.display = "none";
+                /* Re-show the active tab's wrapper */
+                if (currentTab) currentTab.wrapper.style.display = "flex";
             } else {
                 document.getElementById(id).style.display = "block";
             }
 
-            // Update active nav button highlight
             var navBtns = document.querySelectorAll ? document.querySelectorAll(".center-buttons button") : [];
             for (var nb = 0; nb < navBtns.length; nb++) {
                 navBtns[nb].className = navBtns[nb].className.replace(" nav-active", "");
@@ -2077,10 +2083,6 @@
             var sectionMap = { "zweb": 0, "games": 1, "chatbot": 2 };
             if (navBtns.length > 0 && sectionMap[id] !== undefined) {
                 navBtns[sectionMap[id]].className += " nav-active";
-            }
-
-            if (id === "zweb") {
-                document.getElementById("hyperzsearch").style.display = "none";
             }
         }
 
@@ -2188,7 +2190,7 @@
         function _makeTabFrame(id) {
             var wrapper = document.createElement("div");
             wrapper.setAttribute("data-tab-frame", id);
-            wrapper.style.cssText = "position:absolute;top:88px;left:0;right:0;bottom:0;display:none;flex-direction:column;";
+            wrapper.style.cssText = "flex:1;display:none;flex-direction:column;min-height:0;position:relative;";
 
             /* Loading spinner */
             var loader = document.createElement("div");
@@ -2203,7 +2205,7 @@
             frame.setAttribute("data-frame", id);
             frame.srcdoc = "";
             frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals";
-            frame.style.cssText = "width:100%;flex:1;border:none;background:#02030a;display:block;";
+            frame.style.cssText = "width:100%;flex:1;border:none;background:#02030a;display:block;min-height:0;";
 
             wrapper.appendChild(loader);
             wrapper.appendChild(frame);
@@ -2273,10 +2275,9 @@
             document.getElementById("hyperzsearch").style.display = "none";
             document.getElementById("zweb-url").value = currentTab.url === "New Tab" ? "" : currentTab.url;
 
-            /* If the frame is empty (new tab just created), load the URL.
-               If it already has content (switching back), just show it — don't reload. */
+            /* If not yet loaded, kick off the fetch now */
             if (currentTab.url !== "New Tab" && !currentTab.loaded) {
-                loadTab(currentTab.url);
+                loadTab(currentTab.url, 0, currentTab);
             }
         }
 
@@ -2498,6 +2499,11 @@
                         loadTab(url, _retryCount + 1, capturedTab);
                         return null;
                     }
+                    if (!res.ok) {
+                        /* All proxies gave bad responses — try direct iframe */
+                        fallbackIframe(url, capturedTab);
+                        return null;
+                    }
                     var ct = res.headers.get("content-type") || "";
                     if (ct && ct.indexOf("text/html") === -1 && ct.indexOf("text/plain") === -1 && ct.indexOf("application/xhtml") === -1) {
                         hideLoading(capturedTab);
@@ -2529,16 +2535,73 @@
                         loadTab(url, _retryCount + 1, capturedTab);
                         return;
                     }
-                    hideLoading(capturedTab);
-                    capturedTab.frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;">' +
-                        '<div style="font-size:48px;">⚠️</div><div style="font-size:16px;font-weight:700;">Could not load page</div>' +
-                        '<div style="color:#8899bb;font-size:13px;">All proxies failed.</div>' +
-                        '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;">Try opening directly ↗</a></body></html>';
-                    capturedTab.loaded = true;
+                    /* All proxies failed — fall back to direct iframe */
+                    fallbackIframe(url, capturedTab);
                 });
         }
 
-        /* --- 1ms GOGUARDIAN INTERCEPT — checks currentTab's frame every 1ms --- */
+        /* --- IFRAME FALLBACK ---
+           Called when all proxies fail. Switches the tab's iframe from srcdoc
+           to a direct src= load. If the site blocks framing, the iframe fires
+           an error event and we show the final failure message. */
+        function fallbackIframe(url, tab) {
+            tab = tab || currentTab;
+            if (!tab) return;
+
+            /* Swap out the srcdoc iframe for a plain src iframe */
+            var oldFrame = tab.frame;
+            var newFrame = document.createElement("iframe");
+            newFrame.setAttribute("data-frame", tab.id);
+            newFrame.style.cssText = oldFrame.style.cssText;
+            newFrame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation";
+            newFrame.referrerPolicy = "no-referrer";
+
+            var timedOut = false;
+            var loaded = false;
+
+            /* Treat load as success — we can't read cross-origin content but
+               if it didn't error the site probably loaded fine */
+            newFrame.addEventListener("load", function() {
+                if (timedOut) return;
+                loaded = true;
+                hideLoading(tab);
+                tab.loaded = true;
+                tab.frame = newFrame;
+            });
+
+            /* If the frame errors (blocked by X-Frame-Options etc.) show failure */
+            newFrame.addEventListener("error", function() {
+                if (timedOut) return;
+                showFailed(url, tab);
+            });
+
+            /* Timeout safety net — if neither fires within 10s, show failure */
+            var timer = setTimeout(function() {
+                if (!loaded) {
+                    timedOut = true;
+                    showFailed(url, tab);
+                }
+            }, 10000);
+
+            newFrame.addEventListener("load", function() { clearTimeout(timer); });
+
+            oldFrame.parentNode.replaceChild(newFrame, oldFrame);
+            tab.frame = newFrame;
+            newFrame.src = url;
+        }
+
+        function showFailed(url, tab) {
+            tab = tab || currentTab;
+            if (!tab) return;
+            hideLoading(tab);
+            tab.frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;margin:0;">' +
+                '<div style="font-size:48px;">🚫</div>' +
+                '<div style="font-size:16px;font-weight:700;">Failed to load site</div>' +
+                '<div style="color:#8899bb;font-size:13px;text-align:center;max-width:340px;">All proxies failed and the site blocked direct framing.</div>' +
+                '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;margin-top:4px;">Open in new tab ↗</a>' +
+                '</body></html>';
+            tab.loaded = true;
+        }
         function startGGCheck() {
             if (_ggCheckTimer) return;
             _ggCheckTimer = setInterval(function() {
