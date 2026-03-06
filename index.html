@@ -2402,42 +2402,7 @@
             } else if (gameId === "blockblast") {
                 document.getElementById("game-blockblast").style.display = "block";
                 blockblast_reset();
-                // BB.init() calls resize() before layout is ready; re-resize after paint
-                setTimeout(function() {
-                    if (window.blockblast_instance) {
-                        var gameEl = document.getElementById('game-blockblast');
-                        if (gameEl) {
-                            var TOPBAR=64,OV_PT=12,OV_PB=16,OV_PH=24,GI_PT=44,MARGIN=12;
-                            var totalW = window.innerWidth  - OV_PH - MARGIN;
-                            var totalH = window.innerHeight - TOPBAR - OV_PT - OV_PB - GI_PT - MARGIN;
-                            // measure chrome (score bar + button + hint)
-                            var cv = document.getElementById('blockblast-canvas');
-                            var chrome = 0;
-                            if (cv) {
-                                var all = gameEl.querySelectorAll('*');
-                                // sum heights of direct children of game-inner that aren't ancestors of canvas
-                                var kids = gameEl.children;
-                                for (var ki = 0; ki < kids.length; ki++) {
-                                    if (!kids[ki].contains(cv)) {
-                                        chrome += kids[ki].getBoundingClientRect().height;
-                                    } else {
-                                        // ancestor of canvas — sum its other children
-                                        var gkids = kids[ki].children;
-                                        for (var gki = 0; gki < gkids.length; gki++) {
-                                            if (!gkids[gki].contains(cv) && gkids[gki] !== cv) {
-                                                chrome += gkids[gki].getBoundingClientRect().height;
-                                                var st = window.getComputedStyle(gkids[gki]);
-                                                chrome += (parseFloat(st.marginTop)||0) + (parseFloat(st.marginBottom)||0);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            window.blockblast_instance.resize(totalW, totalH - chrome);
-                            window.blockblast_instance.render();
-                        }
-                    }
-                }, 120);
+                // scaleGameForMobile (called below via setTimeout) handles the resize
             } else if (gameId === "gridmaze") {
                 document.getElementById("game-gridmaze").style.display = "block";
                 gridmaze_reset();
@@ -2584,16 +2549,35 @@
 
             // ── Block Blast (self-managed canvas) ────────────────────────────
             if (gameId === 'blockblast') {
+                if (!window.blockblast_instance) return;
+                // Measure non-canvas chrome by querying every sibling of the canvas
+                // directly rather than using chromeHeight() which gets confused by
+                // the already-sized canvas inflating the layout.
                 var bbCanvas = document.getElementById('blockblast-canvas');
                 if (!bbCanvas) return;
-                var chrome = chromeHeight(bbCanvas);
+                var chrome = 0;
+                var par = bbCanvas.parentElement;
+                if (par) {
+                    var sibs = par.children;
+                    for (var si = 0; si < sibs.length; si++) {
+                        if (sibs[si] === bbCanvas) continue;
+                        chrome += sibs[si].getBoundingClientRect().height;
+                        var st = window.getComputedStyle(sibs[si]);
+                        chrome += (parseFloat(st.marginTop)||0) + (parseFloat(st.marginBottom)||0);
+                    }
+                    var st2 = window.getComputedStyle(par);
+                    chrome += (parseFloat(st2.paddingTop)||0) + (parseFloat(st2.paddingBottom)||0);
+                    chrome += (parseFloat(st2.gap)||0) * (par.children.length - 1);
+                }
+                // Also add game-header above the flex wrapper
+                var headerEl = gameEl.querySelector('.game-header');
+                if (headerEl) chrome += headerEl.getBoundingClientRect().height +
+                                        (parseFloat(window.getComputedStyle(headerEl).marginBottom)||0);
                 var maxW = totalW - MARGIN;
                 var maxH = totalH - chrome - MARGIN;
                 if (maxH < 100) maxH = 100;
-                // Tell blockblast to resize itself to these exact pixel bounds
-                if (window.blockblast_instance) {
-                    window.blockblast_instance.resize(maxW, maxH);
-                }
+                window.blockblast_instance.resize(maxW, maxH);
+                window.blockblast_instance.render();
                 return;
             }
         }
@@ -7192,9 +7176,9 @@
                     this.score = 0; this.lines = 0; this.gameOver = false;
                     this.dragging = null; this.clearAnim = [];
                     this.generateNextBlocks();
-                    this.resize();
+                    // Don't resize here — canvas has no valid parent dimensions yet.
+                    // scaleGameForMobile() fires 100ms after openGame and does the first resize+render.
                     this.setupEvents();
-                    this.render();
                 },
 
                 resize: function(maxW, maxH) {
@@ -7206,17 +7190,20 @@
                     }
                     if (maxH === undefined) maxH = Infinity;
 
-                    // Board cell size: fit both width and total height (board + tray)
-                    // Tray is ~5 piece-cells tall. Iterate to find largest CELL that fits.
+                    // Board cell size: largest cell where board+tray fits within maxH and board fits maxW
                     var SIZE = this.SIZE;
+                    // Start from width constraint
                     var cell = Math.floor(maxW / SIZE);
-                    // Clamp: tray height = PIECE_CELL*5+24 where PIECE_CELL = max(14,cell*0.55)
-                    for (var tries = 0; tries < 20; tries++) {
-                        var pc   = Math.max(14, Math.floor(cell * 0.55));
-                        var tray = pc * 5 + 24;
-                        var totalH = cell * SIZE + tray;
-                        if (totalH <= maxH || cell <= 8) break;
-                        cell--;
+                    // Binary-search / direct solve for height constraint:
+                    // totalH = cell*SIZE + max(14, floor(cell*0.55))*5 + 24 <= maxH
+                    // Solve directly: reduce cell until it fits
+                    if (maxH < Infinity) {
+                        // Direct formula: for large cell, PIECE_CELL = floor(cell*0.55)
+                        // totalH = cell*SIZE + floor(cell*0.55)*5 + 24
+                        //        ≈ cell*(SIZE + 0.55*5) + 24 = cell*10.75 + 24
+                        // So cell <= (maxH - 24) / (SIZE + 2.75)  [conservative, SIZE=8 → /10.75]
+                        var cellByH = Math.floor((maxH - 24) / (SIZE + 2.75));
+                        cell = Math.min(cell, cellByH);
                     }
                     cell = Math.max(8, cell);
 
