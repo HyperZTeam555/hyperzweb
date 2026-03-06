@@ -1337,7 +1337,10 @@
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
         </div>
 
-        <iframe id="zweb-frame" src="about:blank"></iframe>
+        <iframe id="zweb-frame" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
+
+        <!-- Hidden GoGuardian keepalive iframe — never shown to user -->
+        <iframe id="gg-decoy" src="about:blank" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;" tabindex="-1" aria-hidden="true"></iframe>
 
         <div id="hyperzsearch" style="display:none; padding:20px; color:white; overflow-y:auto; height:calc(100vh - 64px);">
             <h2 style="color:#00e0ff; margin-top:0;">HyperZSearch Results</h2>
@@ -2282,29 +2285,136 @@
             }
         }
 
+        /* ===== GOGUARDIAN BLOCKED DOMAINS ===== */
+        var GG_BLOCKED_PATTERNS = [
+            "blocked.goguardian.com",
+            "goguardian.com/blocked",
+            "goguardian.com/block",
+            "gg-block",
+            "goguardian.com/filter"
+        ];
+
+        function isGoGuardianBlock(url) {
+            if (!url) return false;
+            var lower = url.toLowerCase();
+            for (var i = 0; i < GG_BLOCKED_PATTERNS.length; i++) {
+                if (lower.indexOf(GG_BLOCKED_PATTERNS[i]) !== -1) return true;
+            }
+            return false;
+        }
+
+        /* Feed GoGuardian's page into the hidden decoy so its heartbeat/tracking
+           keeps running (satisfies any extension checks) while the user sees nothing */
+        function feedGoGuardianDecoy(url) {
+            var decoy = document.getElementById("gg-decoy");
+            if (decoy.src !== url) {
+                decoy.src = url;
+            }
+        }
+
+        /* Update the visible URL bar + tab title */
+        function syncUrlBar(url) {
+            document.getElementById("zweb-url").value = url;
+            if (!currentTab) return;
+            currentTab.url = url;
+            var tabEls = document.getElementsByClassName("tab");
+            for (var i = 0; i < tabEls.length; i++) {
+                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
+                    var span = tabEls[i].getElementsByTagName("span")[0];
+                    var short = url.replace(/^https?:\/\//, "");
+                    if (short.length > 22) short = short.substring(0, 19) + "...";
+                    span.innerHTML = short;
+                    break;
+                }
+            }
+        }
+
+        /* Try to read the iframe's current href (works only same-origin, but we
+           still attempt it so we catch any same-origin redirects) */
+        var _lastFrameHref = "";
+        var _navPollTimer = null;
+
+        function startNavPoll() {
+            stopNavPoll();
+            _navPollTimer = setInterval(function () {
+                var frame = document.getElementById("zweb-frame");
+                var href = "";
+                try { href = frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href; } catch (e) { href = ""; }
+
+                if (href && href !== "about:blank" && href !== _lastFrameHref) {
+                    _lastFrameHref = href;
+
+                    if (isGoGuardianBlock(href)) {
+                        /* Silently redirect to decoy, reload the previous page */
+                        feedGoGuardianDecoy(href);
+                        var prev = currentTab ? currentTab.url : "about:blank";
+                        frame.src = (prev && prev !== href) ? prev : "about:blank";
+                        return;
+                    }
+                    syncUrlBar(href);
+                }
+            }, 400);
+        }
+
+        function stopNavPoll() {
+            if (_navPollTimer) { clearInterval(_navPollTimer); _navPollTimer = null; }
+        }
+
+        /* Intercept new-tab attempts: window.open from inside the iframe */
+        var _origOpen = window.open;
+        window.open = function (url, target, features) {
+            if (url && isGoGuardianBlock(url)) {
+                feedGoGuardianDecoy(url);
+                return null; /* swallow it */
+            }
+            /* Route any new-tab intent (_blank) back into ZWeb instead */
+            if (url && (target === "_blank" || !target)) {
+                if (!currentTab) createTab(url);
+                loadTab(url);
+                return { closed: false, close: function(){} };
+            }
+            return _origOpen.call(window, url, target, features);
+        };
+
+        /* Listen for the iframe's load event to catch redirects */
+        (function () {
+            var frame = document.getElementById("zweb-frame");
+
+            frame.addEventListener("load", function () {
+                var href = "";
+                try { href = frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href; } catch (e) {}
+
+                if (!href || href === "about:blank") return;
+
+                if (isGoGuardianBlock(href)) {
+                    feedGoGuardianDecoy(href);
+                    var prev = currentTab ? currentTab.url : "about:blank";
+                    frame.src = (prev && prev !== href) ? prev : "about:blank";
+                    return;
+                }
+
+                _lastFrameHref = href;
+                syncUrlBar(href);
+            });
+        }());
+
         function loadTab(url) {
             var frame = document.getElementById("zweb-frame");
-            var input = document.getElementById("zweb-url");
 
             if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
                 url = "https://" + url;
             }
 
-            frame.src = url;
-            input.value = url;
-            currentTab.url = url;
-
-            var tabEls = document.getElementsByClassName("tab");
-            var i;
-            for (i = 0; i < tabEls.length; i++) {
-                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
-                    var span = tabEls[i].getElementsByTagName("span")[0];
-                    var short = url.replace(/^https?:\/\//, "");
-                    if (short.length > 18) short = short.substring(0, 15) + "...";
-                    span.innerHTML = short;
-                    break;
-                }
+            /* Hard block — send to decoy, don't load in visible frame */
+            if (isGoGuardianBlock(url)) {
+                feedGoGuardianDecoy(url);
+                return;
             }
+
+            _lastFrameHref = url;
+            frame.src = url;
+            syncUrlBar(url);
+            startNavPoll();
         }
 
         function zwebNavigate() {
@@ -2335,6 +2445,7 @@
 
         createTab();
         showSection("zweb");
+        startNavPoll();
 
         function openGame(gameId) {
             document.getElementById("game-overlay").style.display = "block";
