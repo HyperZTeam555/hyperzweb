@@ -1337,7 +1337,15 @@
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
         </div>
 
-        <iframe id="zweb-frame" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"></iframe>
+        <!-- Loading spinner shown while proxy-fetching pages -->
+        <div id="zweb-loading" style="display:none;position:absolute;top:88px;left:0;right:0;bottom:0;background:var(--bg-main);z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+            <div style="width:38px;height:38px;border:3px solid var(--border-mid);border-top-color:var(--accent);border-radius:50%;animation:zweb-spin 0.7s linear infinite;"></div>
+            <span id="zweb-loading-url" style="color:var(--text-soft);font-size:12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        </div>
+        <style>@keyframes zweb-spin{to{transform:rotate(360deg);}}</style>
+
+        <!-- Main content frame — srcdoc bypasses X-Frame-Options entirely -->
+        <iframe id="zweb-frame" srcdoc="" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" style="width:100%;height:calc(100% - 88px);border:none;background:#02030a;display:block;"></iframe>
 
         <!-- Hidden GoGuardian keepalive iframe — never shown to user -->
         <iframe id="gg-decoy" src="about:blank" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;" tabindex="-1" aria-hidden="true"></iframe>
@@ -2285,35 +2293,45 @@
             }
         }
 
-        /* =========================================================
-           GOGUARDIAN INTERCEPT SYSTEM
-           Strategy:
-           - Poll the visible iframe at 50ms using requestAnimationFrame
-             so we catch the redirect the instant the URL changes,
-             before the blocked page has a chance to render visually.
-           - The moment a GG pattern is detected:
-               1. Instantly hide the visible frame (user sees nothing)
-               2. Dump the GG URL into the hidden decoy iframe so
-                  GoGuardian's extension heartbeat / logging stays happy
-               3. Restore the visible frame to the last known-good URL
-           - Also intercepts on iframe "load" and "beforeunload" events
-             as a secondary safety net.
-        ========================================================= */
+        /* =================================================================
+           ZWEB PROXY ENGINE + GOGUARDIAN INTERCEPT
+           =================================================================
+           HOW IT WORKS:
+           - All URLs are fetched via a public CORS proxy which strips
+             X-Frame-Options and CSP headers, so ANY website loads.
+           - The fetched HTML is rewritten so every link/asset also routes
+             through the proxy, keeping the browsing session self-contained.
+           - A 1ms setInterval constantly checks the srcdoc iframe's inner
+             location. The moment anything GoGuardian-related appears, it is
+             silently rerouted to the hidden decoy iframe and the user sees
+             nothing.
+           - window.postMessage is used as a bridge so the injected page
+             script can report navigations back up to us.
+        ================================================================= */
 
+        /* --- PROXY CONFIGURATION --- */
+        /* Multiple proxies tried in order — if one is down, next is used */
+        var PROXY_LIST = [
+            "https://corsproxy.io/?",
+            "https://api.allorigins.win/raw?url=",
+            "https://cors-anywhere.herokuapp.com/"
+        ];
+        var _proxyIndex = 0;
+
+        function proxyUrl(url) {
+            return PROXY_LIST[_proxyIndex] + encodeURIComponent(url);
+        }
+
+        /* --- GOGUARDIAN PATTERNS --- */
         var GG_BLOCKED_PATTERNS = [
             "blocked.goguardian.com",
             "goguardian.com/blocked",
             "goguardian.com/block",
             "goguardian.com/filter",
             "goguardian.com/api/block",
-            "gg-block",
-            "goguardian.com/pause"
+            "goguardian.com/pause",
+            "gg-block"
         ];
-
-        var _lastGoodHref  = "";   // last URL that was NOT a GG block
-        var _lastSeenHref  = "";   // last URL we observed in the frame
-        var _rafHandle     = null;
-        var _intercepting  = false;
 
         function isGoGuardianBlock(url) {
             if (!url || url === "about:blank") return false;
@@ -2324,14 +2342,20 @@
             return false;
         }
 
-        /* Silently feed the GG block URL to the hidden decoy so GoGuardian
-           thinks its page loaded, while the user sees nothing. */
         function feedDecoy(url) {
-            var d = document.getElementById("gg-decoy");
-            try { if (d.src !== url) d.src = url; } catch(e) {}
+            try {
+                var d = document.getElementById("gg-decoy");
+                if (d.src !== url) d.src = url;
+            } catch(e) {}
         }
 
-        /* Update URL bar and tab label */
+        /* --- STATE --- */
+        var _currentPageUrl = "";   /* canonical URL of what's shown */
+        var _lastGoodUrl    = "";
+        var _ggCheckTimer   = null;
+        var _intercepting   = false;
+
+        /* --- URL BAR + TAB SYNC --- */
         function syncUrlBar(url) {
             document.getElementById("zweb-url").value = url;
             if (!currentTab) return;
@@ -2348,93 +2372,229 @@
             }
         }
 
-        /* Core intercept — called both by rAF loop AND iframe events */
-        function interceptCheck() {
-            var frame = document.getElementById("zweb-frame");
-            var href  = "";
+        /* --- LOADING INDICATOR --- */
+        function showLoading(url) {
+            var el = document.getElementById("zweb-loading");
+            el.style.display = "flex";
+            document.getElementById("zweb-loading-url").textContent = url;
+            document.getElementById("zweb-frame").style.opacity = "0";
+        }
+        function hideLoading() {
+            document.getElementById("zweb-loading").style.display = "none";
+            document.getElementById("zweb-frame").style.opacity = "1";
+        }
 
-            /* Try to read location — will throw on cross-origin, that's fine */
-            try {
-                var cw = frame.contentWindow;
-                if (cw && cw.location) href = cw.location.href;
-            } catch(e) { /* cross-origin: can't read, but also can't be GG block page */ return; }
+        /* --- HTML REWRITER ---
+           Rewrites the fetched HTML so all links, forms, and asset URLs
+           route back through our proxy + navigation system. Also injects
+           a script bridge so clicks/navigations are reported via postMessage. */
+        function rewriteHtml(html, baseUrl) {
+            var base;
+            try { base = new URL(baseUrl); } catch(e) { base = null; }
 
-            if (!href || href === _lastSeenHref) return;
-            _lastSeenHref = href;
-
-            if (isGoGuardianBlock(href)) {
-                /* ---- INTERCEPT ---- */
-                _intercepting = true;
-
-                /* 1. Flash-hide the frame so the GG page never renders visibly */
-                frame.style.visibility = "hidden";
-                frame.style.opacity    = "0";
-
-                /* 2. Dump the GG URL into the hidden decoy */
-                feedDecoy(href);
-
-                /* 3. Restore to last known-good page */
-                var restore = _lastGoodHref || "about:blank";
-                /* Small timeout so the src swap happens after the hide paint */
-                setTimeout(function() {
-                    frame.src = restore;
-                    syncUrlBar(restore);
-                    /* Fade back in once the good page starts loading */
-                    setTimeout(function() {
-                        frame.style.visibility = "";
-                        frame.style.opacity    = "";
-                        _intercepting = false;
-                    }, 180);
-                }, 30);
-
-            } else {
-                /* Normal navigation — update good-URL tracker and address bar */
-                _lastGoodHref = href;
-                syncUrlBar(href);
+            function resolveUrl(href) {
+                if (!href || href.indexOf("data:") === 0 || href.indexOf("javascript:") === 0 || href.indexOf("#") === 0) return href;
+                try {
+                    var abs = base ? new URL(href, base).href : href;
+                    return abs;
+                } catch(e) { return href; }
             }
+
+            /* Inject base tag + our navigation bridge script right after <head> or at start */
+            var bridge = '<base href="' + baseUrl + '">' +
+                '<script>' +
+                '(function(){' +
+                /* Intercept all link clicks */
+                'document.addEventListener("click",function(e){' +
+                '  var t=e.target;while(t&&t.tagName!=="A")t=t.parentElement;' +
+                '  if(!t||!t.href)return;' +
+                '  e.preventDefault();' +
+                '  window.parent.postMessage({type:"ZWEB_NAV",url:t.href},"*");' +
+                '},{capture:true});' +
+                /* Intercept form submits */
+                'document.addEventListener("submit",function(e){' +
+                '  e.preventDefault();' +
+                '  var f=e.target,action=f.action||location.href,method=(f.method||"get").toLowerCase();' +
+                '  if(method==="get"){' +
+                '    var q=new URLSearchParams(new FormData(f)).toString();' +
+                '    window.parent.postMessage({type:"ZWEB_NAV",url:action+(action.indexOf("?")>=0?"&":"?")+q},"*");' +
+                '  } else {' +
+                '    window.parent.postMessage({type:"ZWEB_NAV",url:action},"*");' +
+                '  }' +
+                '},{capture:true});' +
+                /* Report current URL immediately so parent can track it */
+                'window.parent.postMessage({type:"ZWEB_URL",url:location.href},"*");' +
+                /* Override window.open */
+                'window.open=function(u){window.parent.postMessage({type:"ZWEB_NAV",url:u},"*");return null;};' +
+                '})();' +
+                '<\/script>';
+
+            /* Remove existing X-Frame-Options meta tags and CSP meta tags */
+            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?x-frame-options["']?[^>]*>/gi, "");
+            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, "");
+
+            /* Inject bridge after opening <head> or at the very start */
+            if (/<head[\s>]/i.test(html)) {
+                html = html.replace(/(<head[^>]*>)/i, "$1" + bridge);
+            } else if (/<html[\s>]/i.test(html)) {
+                html = html.replace(/(<html[^>]*>)/i, "$1" + bridge);
+            } else {
+                html = bridge + html;
+            }
+
+            return html;
         }
 
-        /* High-frequency poll using requestAnimationFrame (fires ~60fps, ~16ms) */
-        function startNavPoll() {
-            if (_rafHandle) return; // already running
-            (function loop() {
-                interceptCheck();
-                _rafHandle = requestAnimationFrame(loop);
-            }());
+        /* --- MAIN FETCH ENGINE --- */
+        function loadTab(url, _retryCount) {
+            if (!url) return;
+            _retryCount = _retryCount || 0;
+
+            if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
+                url = "https://" + url;
+            }
+
+            /* Pre-flight GG check */
+            if (isGoGuardianBlock(url)) {
+                feedDecoy(url);
+                return;
+            }
+
+            showLoading(url);
+            syncUrlBar(url);
+            _currentPageUrl = url;
+
+            var fetchUrl = proxyUrl(url);
+
+            fetch(fetchUrl)
+                .then(function(res) {
+                    /* Try next proxy on failure */
+                    if (!res.ok && _retryCount < PROXY_LIST.length - 1) {
+                        _proxyIndex = (_proxyIndex + 1) % PROXY_LIST.length;
+                        loadTab(url, _retryCount + 1);
+                        return null;
+                    }
+                    var ct = res.headers.get("content-type") || "";
+                    /* For non-HTML (images, PDFs, etc.) just show a download link */
+                    if (ct && ct.indexOf("text/html") === -1 && ct.indexOf("text/plain") === -1 && ct.indexOf("application/xhtml") === -1) {
+                        hideLoading();
+                        var frame = document.getElementById("zweb-frame");
+                        frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">' +
+                            '<div style="font-size:48px;">📄</div>' +
+                            '<div>Non-HTML content</div>' +
+                            '<a href="' + url + '" target="_blank" style="color:#00c8ff;">Open directly ↗</a>' +
+                            '</body></html>';
+                        return null;
+                    }
+                    return res.text();
+                })
+                .then(function(html) {
+                    if (html === null || html === undefined) return;
+
+                    /* Check if GoGuardian snuck its content into the fetched HTML */
+                    if (isGoGuardianBlock(html.substring(0, 2000))) {
+                        feedDecoy(url);
+                        hideLoading();
+                        return;
+                    }
+
+                    var rewritten = rewriteHtml(html, url);
+                    var frame = document.getElementById("zweb-frame");
+                    frame.srcdoc = rewritten;
+                    _lastGoodUrl = url;
+
+                    hideLoading();
+                })
+                .catch(function(err) {
+                    /* Try next proxy */
+                    if (_retryCount < PROXY_LIST.length - 1) {
+                        _proxyIndex = (_proxyIndex + 1) % PROXY_LIST.length;
+                        loadTab(url, _retryCount + 1);
+                        return;
+                    }
+                    hideLoading();
+                    var frame = document.getElementById("zweb-frame");
+                    frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;">' +
+                        '<div style="font-size:48px;">⚠️</div>' +
+                        '<div style="font-size:16px;font-weight:700;">Could not load page</div>' +
+                        '<div style="color:#8899bb;font-size:13px;">All proxies failed. The site may be unreachable.</div>' +
+                        '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;">Try opening directly ↗</a>' +
+                        '</body></html>';
+                });
         }
 
-        function stopNavPoll() {
-            if (_rafHandle) { cancelAnimationFrame(_rafHandle); _rafHandle = null; }
-        }
-
-        /* Secondary net: iframe load event (catches completed redirects) */
-        (function() {
-            var frame = document.getElementById("zweb-frame");
-
-            frame.addEventListener("load", function() {
+        /* --- 1ms GOGUARDIAN INTERCEPT TIMER ---
+           Checks the iframe srcdoc content and its contentWindow location
+           every 1ms. The moment any GG signature is detected, the frame
+           is immediately hidden and the GG URL is dumped to the decoy. */
+        function startGGCheck() {
+            if (_ggCheckTimer) return;
+            _ggCheckTimer = setInterval(function() {
                 if (_intercepting) return;
+                var frame = document.getElementById("zweb-frame");
+
+                /* Try reading contentWindow location (works if same-origin via srcdoc) */
                 var href = "";
-                try { href = frame.contentWindow && frame.contentWindow.location.href; } catch(e) {}
-                if (!href || href === "about:blank") return;
+                try {
+                    var cw = frame.contentWindow;
+                    if (cw && cw.location) href = cw.location.href;
+                } catch(e) {}
 
-                if (isGoGuardianBlock(href)) {
-                    interceptCheck(); /* let the main logic handle it */
-                } else {
-                    _lastGoodHref = href;
-                    _lastSeenHref = href;
-                    syncUrlBar(href);
+                /* Also check the title/URL content visible in the srcdoc */
+                var docUrl = "";
+                try {
+                    docUrl = frame.contentWindow && frame.contentWindow.document &&
+                             frame.contentWindow.document.URL;
+                } catch(e) {}
+
+                var check = (href || "") + " " + (docUrl || "");
+
+                if (isGoGuardianBlock(check)) {
+                    _intercepting = true;
+                    /* Instantly blank the frame */
+                    frame.style.visibility = "hidden";
+                    feedDecoy(href || docUrl || _currentPageUrl);
+
+                    setTimeout(function() {
+                        /* Restore last good page */
+                        if (_lastGoodUrl) {
+                            loadTab(_lastGoodUrl);
+                        } else {
+                            frame.srcdoc = "";
+                        }
+                        frame.style.visibility = "";
+                        _intercepting = false;
+                    }, 50);
                 }
-            });
-        }());
+            }, 1);
+        }
 
-        /* Intercept window.open so new-tab links from inside the iframe
-           get routed back into ZWeb rather than escaping */
+        /* --- postMessage bridge — receives navigation events from inside the iframe --- */
+        window.addEventListener("message", function(e) {
+            if (!e.data || typeof e.data !== "object") return;
+
+            if (e.data.type === "ZWEB_NAV" && e.data.url) {
+                var navUrl = e.data.url;
+                if (isGoGuardianBlock(navUrl)) {
+                    feedDecoy(navUrl);
+                    return;
+                }
+                if (!currentTab) createTab(navUrl);
+                loadTab(navUrl);
+            }
+
+            if (e.data.type === "ZWEB_URL" && e.data.url) {
+                var pageUrl = e.data.url;
+                if (!isGoGuardianBlock(pageUrl)) {
+                    _currentPageUrl = pageUrl;
+                }
+            }
+        });
+
+        /* --- Intercept window.open (parent-level safety net) --- */
         var _origOpen = window.open;
         window.open = function(url, target, features) {
-            if (url && isGoGuardianBlock(url)) {
-                feedDecoy(url);
-                return null;
-            }
+            if (url && isGoGuardianBlock(url)) { feedDecoy(url); return null; }
             if (url && (target === "_blank" || !target)) {
                 if (!currentTab) createTab(url);
                 loadTab(url);
@@ -2442,26 +2602,6 @@
             }
             return _origOpen.call(window, url, target, features);
         };
-
-        function loadTab(url) {
-            var frame = document.getElementById("zweb-frame");
-
-            if (!url) return;
-            if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
-                url = "https://" + url;
-            }
-
-            /* Pre-flight: if the user explicitly typed a GG URL, block immediately */
-            if (isGoGuardianBlock(url)) {
-                feedDecoy(url);
-                return;
-            }
-
-            _lastGoodHref = url;
-            _lastSeenHref = url;
-            frame.src = url;
-            syncUrlBar(url);
-        }
 
         function zwebNavigate() {
             var q = document.getElementById("zweb-url").value.replace(/^\s+|\s+$/g, "");
@@ -2489,7 +2629,7 @@
 
         createTab();
         showSection("zweb");
-        startNavPoll(); /* begin rAF intercept loop immediately */
+        startGGCheck(); /* begin 1ms GoGuardian intercept immediately */
 
         function openGame(gameId) {
             document.getElementById("game-overlay").style.display = "block";
