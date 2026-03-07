@@ -340,7 +340,6 @@
 
         #zweb { -webkit-box-orient: vertical; -webkit-box-direction: normal; -ms-flex-direction: column; flex-direction: column; position: relative; }
 
-        /* ===== BROWSER TABS ===== */
         #tabs {
             height: 40px;
             background: #050816;
@@ -360,6 +359,22 @@
         }
 
         #tabs::-webkit-scrollbar { display: none; }
+
+        #zweb-broken-btn {
+            margin-left: auto;
+            flex-shrink: 0;
+            padding: 4px 10px;
+            background: rgba(255,100,50,0.1);
+            border: 1px solid rgba(255,100,50,0.35);
+            border-radius: 6px;
+            color: #ff8060;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s;
+            font-family: inherit;
+        }
+        #zweb-broken-btn:hover { background: rgba(255,100,50,0.22); border-color: rgba(255,100,50,0.6); }
 
         .tab {
             padding: 4px 12px;
@@ -1333,6 +1348,7 @@
     <div id="zweb">
         <div id="tabs">
             <div class="new-tab-btn" onclick="createTab()">+</div>
+            <button id="zweb-broken-btn" onclick="zwebReloadDirect()" title="Re-embed without proxy">⚠ Website Broken?</button>
         </div>
 
         <div id="zweb-url-bar">
@@ -2601,6 +2617,45 @@
                 '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;margin-top:4px;">Open in new tab ↗</a>' +
                 '</body></html>';
             tab.loaded = true;
+        }
+
+        /* "Website Broken?" — bypass the proxy entirely and embed with a plain iframe */
+        function zwebReloadDirect() {
+            var tab = currentTab;
+            if (!tab || !tab.url || tab.url === "New Tab") return;
+            var url = tab.url;
+
+            showLoading(url, tab);
+
+            /* Replace srcdoc frame with a fresh src= iframe */
+            var oldFrame = tab.frame;
+            var newFrame = document.createElement("iframe");
+            newFrame.setAttribute("data-frame", tab.id);
+            newFrame.style.cssText = oldFrame.style.cssText;
+            newFrame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation";
+            newFrame.referrerPolicy = "no-referrer";
+
+            var loaded = false, timedOut = false;
+            var timer = setTimeout(function() {
+                if (!loaded) { timedOut = true; showFailed(url, tab); }
+            }, 12000);
+
+            newFrame.addEventListener("load", function() {
+                if (timedOut) return;
+                loaded = true;
+                clearTimeout(timer);
+                hideLoading(tab);
+                tab.loaded = true;
+            });
+            newFrame.addEventListener("error", function() {
+                if (timedOut) return;
+                clearTimeout(timer);
+                showFailed(url, tab);
+            });
+
+            oldFrame.parentNode.replaceChild(newFrame, oldFrame);
+            tab.frame = newFrame;
+            newFrame.src = url;
         }
         function startGGCheck() {
             if (_ggCheckTimer) return;
