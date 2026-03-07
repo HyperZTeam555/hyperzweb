@@ -2569,7 +2569,7 @@
             var newFrame = document.createElement("iframe");
             newFrame.setAttribute("data-frame", tab.id);
             newFrame.style.cssText = oldFrame.style.cssText;
-            newFrame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation";
+            newFrame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation allow-top-navigation-by-user-activation");
             newFrame.referrerPolicy = "no-referrer";
 
             var timedOut = false;
@@ -2632,7 +2632,7 @@
             var newFrame = document.createElement("iframe");
             newFrame.setAttribute("data-frame", tab.id);
             newFrame.style.cssText = oldFrame.style.cssText;
-            newFrame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation";
+            newFrame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation allow-top-navigation-by-user-activation");
             newFrame.referrerPolicy = "no-referrer";
 
             var loaded = false, timedOut = false;
@@ -2693,7 +2693,10 @@
                 else loadTab(navUrl);
             }
             if (e.data.type === "ZWEB_URL" && e.data.url) {
-                if (!isGoGuardianBlock(e.data.url) && currentTab) currentTab.url = e.data.url;
+                var uu = e.data.url;
+                if (!isGoGuardianBlock(uu) && currentTab && uu !== 'about:srcdoc' && uu !== 'about:blank' && !uu.startsWith('about:')) {
+                    currentTab.url = uu;
+                }
             }
         });
 
