@@ -338,8 +338,9 @@
             background: transparent;
         }
 
-        #zweb { -webkit-box-orient: vertical; -webkit-box-direction: normal; -ms-flex-direction: column; flex-direction: column; position: relative; }
+        #zweb { display: -webkit-box; display: -ms-flexbox; display: flex; -webkit-box-orient: vertical; -webkit-box-direction: normal; -ms-flex-direction: column; flex-direction: column; }
 
+        /* ===== BROWSER TABS ===== */
         #tabs {
             height: 40px;
             background: #050816;
@@ -359,22 +360,6 @@
         }
 
         #tabs::-webkit-scrollbar { display: none; }
-
-        #zweb-broken-btn {
-            margin-left: auto;
-            flex-shrink: 0;
-            padding: 4px 10px;
-            background: rgba(255,100,50,0.1);
-            border: 1px solid rgba(255,100,50,0.35);
-            border-radius: 6px;
-            color: #ff8060;
-            font-size: 11px;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.15s, border-color 0.15s;
-            font-family: inherit;
-        }
-        #zweb-broken-btn:hover { background: rgba(255,100,50,0.22); border-color: rgba(255,100,50,0.6); }
 
         .tab {
             padding: 4px 12px;
@@ -701,7 +686,7 @@
 
         /* Canvas games: letterbox inside available space, never distort */
         #pong-canvas, #snake-canvas, #flappybird-canvas,
-        #tetrisCanvas, #dune-canvas, #gridmaze-canvas, #blockblast-canvas {
+        #tetrisCanvas, #dune-canvas, #gridmaze-canvas, #blockblast-canvas, #puyoCanvas {
             display: block;
             margin: 0 auto;
             /* JS sets exact px width/height — no CSS overrides */
@@ -916,9 +901,6 @@
             color: #8899bb;
             color: var(--text-soft);
         }
-
-        /* ===== TAB FRAME WRAPPERS ===== */
-        @keyframes zweb-spin { to { transform: rotate(360deg); } }
 
         /* ===== CHATBOT ===== */
         #chatbot {
@@ -1348,7 +1330,6 @@
     <div id="zweb">
         <div id="tabs">
             <div class="new-tab-btn" onclick="createTab()">+</div>
-            <button id="zweb-broken-btn" onclick="zwebReloadDirect()" title="Re-embed without proxy">⚠ Website Broken?</button>
         </div>
 
         <div id="zweb-url-bar">
@@ -1356,10 +1337,7 @@
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
         </div>
 
-        <!-- Tab frames are created dynamically per-tab by _makeTabFrame() -->
-
-        <!-- Hidden GoGuardian keepalive iframe — never shown to user -->
-        <iframe id="gg-decoy" src="about:blank" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:-9999px;left:-9999px;" tabindex="-1" aria-hidden="true"></iframe>
+        <iframe id="zweb-frame" src="about:blank"></iframe>
 
         <div id="hyperzsearch" style="display:none; padding:20px; color:white; overflow-y:auto; height:calc(100vh - 64px);">
             <h2 style="color:#00e0ff; margin-top:0;">HyperZSearch Results</h2>
@@ -1471,6 +1449,11 @@
                 <h2>Wordle</h2>
                 <p>Guess the hidden word! Easy=4 letters, Normal=5, Hard=6. You have 5 chances. Green=right spot, yellow=wrong spot.</p>
                 <button class="btn-small" onclick="openGame('wordle')">Play</button>
+            </div>
+            <div class="game-card">
+                <h2>Puyo Puyo</h2>
+                <p>Stack and pop colorful blobs in chains! Match 4+ same-color Puyos to clear them. Chain combos for big points!</p>
+                <button class="btn-small" onclick="openGame('puyo')">Play</button>
             </div>
         </div>
     </div>
@@ -1929,6 +1912,40 @@
                 <button id="dune-newgame-btn" onclick="dune_reset()" style="display:none; background:transparent; border:2px solid var(--accent); color:var(--accent); padding:10px 32px; border-radius:6px; font-size:15px; font-weight:700; cursor:pointer; letter-spacing:1px;">New Game</button>
             </div>
         </div>
+
+        <div id="game-puyo" class="game-inner">
+            <div class="game-header"><h2>Puyo Puyo</h2></div>
+            <div style="display:flex;gap:20px;justify-content:center;align-items:flex-start;flex-wrap:wrap;">
+                <div>
+                    <canvas id="puyoCanvas" width="192" height="384" style="border:2px solid var(--accent);background:#000;border-radius:4px;display:block;"></canvas>
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:4px;padding:12px;margin-top:12px;color:var(--text-soft);font-size:13px;line-height:1.6;">
+                        <div><strong>← →</strong> Move</div>
+                        <div><strong>↑ / Z</strong> Rotate</div>
+                        <div><strong>↓</strong> Soft drop</div>
+                        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-subtle);">Swipe to control on mobile</div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px;min-width:140px;">
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:4px;padding:12px;text-align:center;">
+                        <div style="color:var(--text-soft);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Score</div>
+                        <div style="color:var(--accent);font-size:28px;font-weight:700;" id="puyoScore">0</div>
+                    </div>
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:4px;padding:12px;text-align:center;">
+                        <div style="color:var(--text-soft);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Level</div>
+                        <div style="color:var(--accent);font-size:24px;font-weight:700;" id="puyoLevel">1</div>
+                    </div>
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:4px;padding:12px;text-align:center;">
+                        <div style="color:var(--text-soft);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Next</div>
+                        <canvas id="puyoNextCanvas" width="80" height="80" style="background:#000;border:1px solid var(--border-subtle);border-radius:4px;display:block;margin:0 auto;"></canvas>
+                    </div>
+                    <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:4px;padding:12px;text-align:center;">
+                        <div style="color:var(--text-soft);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Chains</div>
+                        <div style="color:var(--accent);font-size:24px;font-weight:700;" id="puyoChains">0</div>
+                    </div>
+                    <button class="btn-small" onclick="puyoReset()" style="margin-top:4px;">New Game</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2081,17 +2098,11 @@
                 document.getElementById("chatbot").style.display = "-webkit-box";
                 document.getElementById("chatbot").style.display = "-ms-flexbox";
                 document.getElementById("chatbot").style.display = "flex";
-            } else if (id === "zweb") {
-                document.getElementById("zweb").style.display = "-webkit-box";
-                document.getElementById("zweb").style.display = "-ms-flexbox";
-                document.getElementById("zweb").style.display = "flex";
-                document.getElementById("hyperzsearch").style.display = "none";
-                /* Re-show the active tab's wrapper */
-                if (currentTab) currentTab.wrapper.style.display = "flex";
             } else {
                 document.getElementById(id).style.display = "block";
             }
 
+            // Update active nav button highlight
             var navBtns = document.querySelectorAll ? document.querySelectorAll(".center-buttons button") : [];
             for (var nb = 0; nb < navBtns.length; nb++) {
                 navBtns[nb].className = navBtns[nb].className.replace(" nav-active", "");
@@ -2099,6 +2110,11 @@
             var sectionMap = { "zweb": 0, "games": 1, "chatbot": 2 };
             if (navBtns.length > 0 && sectionMap[id] !== undefined) {
                 navBtns[sectionMap[id]].className += " nav-active";
+            }
+
+            if (id === "zweb") {
+                document.getElementById("zweb-frame").style.display = "block";
+                document.getElementById("hyperzsearch").style.display = "none";
             }
         }
 
@@ -2200,64 +2216,37 @@
         var tabs = [];
         var currentTab = null;
 
-        /* Each tab gets its own iframe + loading overlay wrapper div,
-           stored on the tab object itself. Show/hide on switch, destroy on close. */
-
-        function _makeTabFrame(id) {
-            var wrapper = document.createElement("div");
-            wrapper.setAttribute("data-tab-frame", id);
-            wrapper.style.cssText = "flex:1;display:none;flex-direction:column;min-height:0;position:relative;";
-
-            /* Loading spinner */
-            var loader = document.createElement("div");
-            loader.className = "tab-loader";
-            loader.setAttribute("data-loader", id);
-            loader.style.cssText = "display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:var(--bg-main);z-index:5;align-items:center;justify-content:center;flex-direction:column;gap:16px;";
-            loader.innerHTML = '<div style="width:38px;height:38px;border:3px solid var(--border-mid);border-top-color:var(--accent);border-radius:50%;animation:zweb-spin 0.7s linear infinite;"></div>' +
-                '<span class="loader-url-text" style="color:var(--text-soft);font-size:12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>';
-
-            /* The actual iframe */
-            var frame = document.createElement("iframe");
-            frame.setAttribute("data-frame", id);
-            frame.srcdoc = "";
-            frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-popups allow-modals";
-            frame.style.cssText = "width:100%;flex:1;border:none;background:#02030a;display:block;min-height:0;";
-
-            wrapper.appendChild(loader);
-            wrapper.appendChild(frame);
-
-            /* Attach to #zweb container */
-            document.getElementById("zweb").appendChild(wrapper);
-            return { wrapper: wrapper, frame: frame, loader: loader };
-        }
-
         function createTab(url) {
             if (!url) url = "New Tab";
-            var id = Date.now();
-            var els = _makeTabFrame(id);
-            var tab = { id: id, url: url, frame: els.frame, loader: els.loader, wrapper: els.wrapper };
+            var id = new Date().getTime();
+            var tab = { id: id, url: url };
             tabs.push(tab);
 
-            /* Tab bar button */
             var tabEl = document.createElement("div");
             tabEl.className = "tab";
             tabEl.setAttribute("data-id", id);
 
             var title = document.createElement("span");
-            var short = url === "New Tab" ? "New Tab" : url.replace(/^https?:\/\//, "");
-            if (short.length > 22) short = short.substring(0, 19) + "...";
-            title.textContent = short;
+            title.innerHTML = url;
 
             var close = document.createElement("span");
             close.className = "close-btn";
             close.innerHTML = "&times;";
-            close.onclick = (function(tid) {
-                return function(e) { if (e && e.stopPropagation) e.stopPropagation(); closeTab(tid); };
+            close.onclick = (function (tid) {
+                return function (e) {
+                    if (e && e.stopPropagation) e.stopPropagation();
+                    closeTab(tid);
+                };
             })(id);
 
             tabEl.appendChild(title);
             tabEl.appendChild(close);
-            tabEl.onclick = (function(tid) { return function() { switchTab(tid); }; })(id);
+
+            tabEl.onclick = (function (tid) {
+                return function () {
+                    switchTab(tid);
+                };
+            })(id);
 
             var tabsBar = document.getElementById("tabs");
             tabsBar.insertBefore(tabEl, tabsBar.querySelector(".new-tab-btn"));
@@ -2268,50 +2257,51 @@
         function switchTab(id) {
             var i;
             currentTab = null;
-
-            /* Hide all tab frames */
             for (i = 0; i < tabs.length; i++) {
-                tabs[i].wrapper.style.display = "none";
-                if (tabs[i].id === id) currentTab = tabs[i];
+                if (tabs[i].id === id) {
+                    currentTab = tabs[i];
+                    break;
+                }
             }
-
-            /* Update tab bar active state */
             var tabEls = document.getElementsByClassName("tab");
             for (i = 0; i < tabEls.length; i++) {
                 var el = tabEls[i];
                 var tid = parseInt(el.getAttribute("data-id"), 10);
-                el.className = tid === id ? "tab active" : "tab";
+                if (tid === id) {
+                    if (el.className.indexOf("active") === -1) {
+                        el.className += " active";
+                    }
+                } else {
+                    el.className = el.className.replace(" active", "");
+                }
             }
 
             if (!currentTab) return;
 
-            /* Show this tab's frame wrapper */
-            currentTab.wrapper.style.display = "flex";
-
             document.getElementById("hyperzsearch").style.display = "none";
-            document.getElementById("zweb-url").value = currentTab.url === "New Tab" ? "" : currentTab.url;
+            document.getElementById("zweb-frame").style.display = "block";
 
-            /* If not yet loaded, kick off the fetch now */
-            if (currentTab.url !== "New Tab" && !currentTab.loaded) {
-                loadTab(currentTab.url, 0, currentTab);
+            if (currentTab.url === "New Tab") {
+                document.getElementById("zweb-frame").src = "about:blank";
+                document.getElementById("zweb-url").value = "";
+            } else {
+                loadTab(currentTab.url);
             }
         }
 
         function closeTab(id) {
-            var i, index = -1;
+            var i;
+            var index = -1;
             for (i = 0; i < tabs.length; i++) {
-                if (tabs[i].id === id) { index = i; break; }
+                if (tabs[i].id === id) {
+                    index = i;
+                    break;
+                }
             }
             if (index === -1) return;
 
-            /* Destroy this tab's iframe wrapper from the DOM entirely */
-            var dying = tabs[index];
-            dying.frame.srcdoc = "";  /* stop any active load */
-            dying.wrapper.parentNode.removeChild(dying.wrapper);
-
             tabs.splice(index, 1);
 
-            /* Remove tab bar button */
             var tabEls = document.getElementsByClassName("tab");
             for (i = tabEls.length - 1; i >= 0; i--) {
                 if (parseInt(tabEls[i].getAttribute("data-id"), 10) === id) {
@@ -2322,416 +2312,68 @@
 
             if (currentTab && currentTab.id === id) {
                 if (tabs.length > 0) {
-                    var newIndex = Math.min(index, tabs.length - 1);
+                    var newIndex = index - 1;
                     if (newIndex < 0) newIndex = 0;
                     switchTab(tabs[newIndex].id);
                 } else {
-                    currentTab = null;
                     createTab();
                 }
             }
         }
 
-        /* =================================================================
-           ZWEB PROXY ENGINE + GOGUARDIAN INTERCEPT
-           =================================================================
-           HOW IT WORKS:
-           - All URLs are fetched via a public CORS proxy which strips
-             X-Frame-Options and CSP headers, so ANY website loads.
-           - The fetched HTML is rewritten so every link/asset also routes
-             through the proxy, keeping the browsing session self-contained.
-           - A 1ms setInterval constantly checks the srcdoc iframe's inner
-             location. The moment anything GoGuardian-related appears, it is
-             silently rerouted to the hidden decoy iframe and the user sees
-             nothing.
-           - window.postMessage is used as a bridge so the injected page
-             script can report navigations back up to us.
-        ================================================================= */
-
-        /* --- PROXY CONFIGURATION --- */
-        /* Multiple proxies tried in order — if one is down, next is used */
-        var PROXY_LIST = [
-            "https://corsproxy.io/?",
-            "https://api.allorigins.win/raw?url=",
-            "https://cors-anywhere.herokuapp.com/"
-        ];
-        var _proxyIndex = 0;
-
-        function proxyUrl(url) {
-            return PROXY_LIST[_proxyIndex] + encodeURIComponent(url);
-        }
-
-        /* --- GOGUARDIAN PATTERNS --- */
-        var GG_BLOCKED_PATTERNS = [
-            "blocked.goguardian.com",
-            "goguardian.com/blocked",
-            "goguardian.com/block",
-            "goguardian.com/filter",
-            "goguardian.com/api/block",
-            "goguardian.com/pause",
-            "gg-block"
-        ];
-
-        function isGoGuardianBlock(url) {
-            if (!url || url === "about:blank") return false;
-            var lower = url.toLowerCase();
-            for (var i = 0; i < GG_BLOCKED_PATTERNS.length; i++) {
-                if (lower.indexOf(GG_BLOCKED_PATTERNS[i]) !== -1) return true;
-            }
-            return false;
-        }
-
-        function feedDecoy(url) {
-            try {
-                var d = document.getElementById("gg-decoy");
-                if (d.src !== url) d.src = url;
-            } catch(e) {}
-        }
-
-        /* --- STATE --- */
-        var _ggCheckTimer  = null;
-        var _intercepting  = false;
-
-        /* --- URL BAR + TAB SYNC --- */
-        function syncUrlBar(url) {
-            document.getElementById("zweb-url").value = url;
-            if (!currentTab) return;
-            currentTab.url = url;
-            var tabEls = document.getElementsByClassName("tab");
-            for (var i = 0; i < tabEls.length; i++) {
-                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
-                    var span = tabEls[i].getElementsByTagName("span")[0];
-                    var short = url.replace(/^https?:\/\//, "");
-                    if (short.length > 24) short = short.substring(0, 21) + "...";
-                    span.textContent = short;
-                    break;
-                }
-            }
-        }
-
-        /* --- LOADING INDICATOR — per-tab --- */
-        function showLoading(url, tab) {
-            tab = tab || currentTab;
-            if (!tab) return;
-            tab.loader.style.display = "flex";
-            tab.loader.querySelector(".loader-url-text").textContent = url;
-            tab.frame.style.opacity = "0";
-        }
-        function hideLoading(tab) {
-            tab = tab || currentTab;
-            if (!tab) return;
-            tab.loader.style.display = "none";
-            tab.frame.style.opacity = "1";
-        }
-
-        /* --- HTML REWRITER ---
-           Rewrites the fetched HTML so all links, forms, and asset URLs
-           route back through our proxy + navigation system. Also injects
-           a script bridge so clicks/navigations are reported via postMessage. */
-        function rewriteHtml(html, baseUrl) {
-            var base;
-            try { base = new URL(baseUrl); } catch(e) { base = null; }
-
-            function resolveUrl(href) {
-                if (!href || href.indexOf("data:") === 0 || href.indexOf("javascript:") === 0 || href.indexOf("#") === 0) return href;
-                try {
-                    var abs = base ? new URL(href, base).href : href;
-                    return abs;
-                } catch(e) { return href; }
-            }
-
-            /* Inject base tag + our navigation bridge script right after <head> or at start */
-            var bridge = '<base href="' + baseUrl + '">' +
-                '<script>' +
-                '(function(){' +
-                /* Intercept all link clicks */
-                'document.addEventListener("click",function(e){' +
-                '  var t=e.target;while(t&&t.tagName!=="A")t=t.parentElement;' +
-                '  if(!t||!t.href)return;' +
-                '  e.preventDefault();' +
-                '  window.parent.postMessage({type:"ZWEB_NAV",url:t.href},"*");' +
-                '},{capture:true});' +
-                /* Intercept form submits */
-                'document.addEventListener("submit",function(e){' +
-                '  e.preventDefault();' +
-                '  var f=e.target,action=f.action||location.href,method=(f.method||"get").toLowerCase();' +
-                '  if(method==="get"){' +
-                '    var q=new URLSearchParams(new FormData(f)).toString();' +
-                '    window.parent.postMessage({type:"ZWEB_NAV",url:action+(action.indexOf("?")>=0?"&":"?")+q},"*");' +
-                '  } else {' +
-                '    window.parent.postMessage({type:"ZWEB_NAV",url:action},"*");' +
-                '  }' +
-                '},{capture:true});' +
-                /* Report current URL immediately so parent can track it */
-                'window.parent.postMessage({type:"ZWEB_URL",url:location.href},"*");' +
-                /* Override window.open */
-                'window.open=function(u){window.parent.postMessage({type:"ZWEB_NAV",url:u},"*");return null;};' +
-                '})();' +
-                '<\/script>';
-
-            /* Remove existing X-Frame-Options meta tags and CSP meta tags */
-            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?x-frame-options["']?[^>]*>/gi, "");
-            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, "");
-
-            /* Inject bridge after opening <head> or at the very start */
-            if (/<head[\s>]/i.test(html)) {
-                html = html.replace(/(<head[^>]*>)/i, "$1" + bridge);
-            } else if (/<html[\s>]/i.test(html)) {
-                html = html.replace(/(<html[^>]*>)/i, "$1" + bridge);
-            } else {
-                html = bridge + html;
-            }
-
-            return html;
-        }
-
-        /* --- MAIN FETCH ENGINE --- */
-        function loadTab(url, _retryCount, _targetTab) {
-            var tab = _targetTab || currentTab;
-            if (!tab || !url) return;
-            _retryCount = _retryCount || 0;
+        function loadTab(url) {
+            var frame = document.getElementById("zweb-frame");
+            var input = document.getElementById("zweb-url");
 
             if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
                 url = "https://" + url;
             }
 
-            if (isGoGuardianBlock(url)) {
-                feedDecoy(url);
-                return;
-            }
+            frame.src = url;
+            input.value = url;
+            currentTab.url = url;
 
-            tab.url = url;
-            tab.loaded = false;
-            showLoading(url, tab);
-            if (currentTab && currentTab.id === tab.id) syncUrlBar(url);
-
-            var fetchUrl = proxyUrl(url);
-            var capturedTab = tab;
-
-            fetch(fetchUrl)
-                .then(function(res) {
-                    if (!res.ok && _retryCount < PROXY_LIST.length - 1) {
-                        _proxyIndex = (_proxyIndex + 1) % PROXY_LIST.length;
-                        loadTab(url, _retryCount + 1, capturedTab);
-                        return null;
-                    }
-                    if (!res.ok) {
-                        /* All proxies gave bad responses — try direct iframe */
-                        fallbackIframe(url, capturedTab);
-                        return null;
-                    }
-                    var ct = res.headers.get("content-type") || "";
-                    if (ct && ct.indexOf("text/html") === -1 && ct.indexOf("text/plain") === -1 && ct.indexOf("application/xhtml") === -1) {
-                        hideLoading(capturedTab);
-                        capturedTab.frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">' +
-                            '<div style="font-size:48px;">📄</div><div>Non-HTML content</div>' +
-                            '<a href="' + url + '" target="_blank" style="color:#00c8ff;">Open directly ↗</a></body></html>';
-                        capturedTab.loaded = true;
-                        return null;
-                    }
-                    return res.text();
-                })
-                .then(function(html) {
-                    if (html === null || html === undefined) return;
-                    if (isGoGuardianBlock(html.substring(0, 2000))) {
-                        feedDecoy(url);
-                        hideLoading(capturedTab);
-                        return;
-                    }
-                    var rewritten = rewriteHtml(html, url);
-                    capturedTab.frame.srcdoc = rewritten;
-                    capturedTab.loaded = true;
-                    capturedTab.url = url;
-                    hideLoading(capturedTab);
-                    if (currentTab && currentTab.id === capturedTab.id) syncUrlBar(url);
-                })
-                .catch(function(err) {
-                    if (_retryCount < PROXY_LIST.length - 1) {
-                        _proxyIndex = (_proxyIndex + 1) % PROXY_LIST.length;
-                        loadTab(url, _retryCount + 1, capturedTab);
-                        return;
-                    }
-                    /* All proxies failed — fall back to direct iframe */
-                    fallbackIframe(url, capturedTab);
-                });
-        }
-
-        /* --- IFRAME FALLBACK ---
-           Called when all proxies fail. Switches the tab's iframe from srcdoc
-           to a direct src= load. If the site blocks framing, the iframe fires
-           an error event and we show the final failure message. */
-        function fallbackIframe(url, tab) {
-            tab = tab || currentTab;
-            if (!tab) return;
-
-            /* Swap out the srcdoc iframe for a plain src iframe */
-            var oldFrame = tab.frame;
-            var newFrame = document.createElement("iframe");
-            newFrame.setAttribute("data-frame", tab.id);
-            newFrame.style.cssText = oldFrame.style.cssText;
-            newFrame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation allow-top-navigation-by-user-activation");
-            newFrame.referrerPolicy = "no-referrer";
-
-            var timedOut = false;
-            var loaded = false;
-
-            /* Treat load as success — we can't read cross-origin content but
-               if it didn't error the site probably loaded fine */
-            newFrame.addEventListener("load", function() {
-                if (timedOut) return;
-                loaded = true;
-                hideLoading(tab);
-                tab.loaded = true;
-                tab.frame = newFrame;
-            });
-
-            /* If the frame errors (blocked by X-Frame-Options etc.) show failure */
-            newFrame.addEventListener("error", function() {
-                if (timedOut) return;
-                showFailed(url, tab);
-            });
-
-            /* Timeout safety net — if neither fires within 10s, show failure */
-            var timer = setTimeout(function() {
-                if (!loaded) {
-                    timedOut = true;
-                    showFailed(url, tab);
-                }
-            }, 10000);
-
-            newFrame.addEventListener("load", function() { clearTimeout(timer); });
-
-            oldFrame.parentNode.replaceChild(newFrame, oldFrame);
-            tab.frame = newFrame;
-            newFrame.src = url;
-        }
-
-        function showFailed(url, tab) {
-            tab = tab || currentTab;
-            if (!tab) return;
-            hideLoading(tab);
-            tab.frame.srcdoc = '<html><body style="background:#03040e;color:#eef2ff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px;margin:0;">' +
-                '<div style="font-size:48px;">🚫</div>' +
-                '<div style="font-size:16px;font-weight:700;">Failed to load site</div>' +
-                '<div style="color:#8899bb;font-size:13px;text-align:center;max-width:340px;">All proxies failed and the site blocked direct framing.</div>' +
-                '<a href="' + url + '" target="_blank" style="color:#00c8ff;font-size:13px;margin-top:4px;">Open in new tab ↗</a>' +
-                '</body></html>';
-            tab.loaded = true;
-        }
-
-        /* "Website Broken?" — bypass the proxy entirely and embed with a plain iframe */
-        function zwebReloadDirect() {
-            var tab = currentTab;
-            if (!tab || !tab.url || tab.url === "New Tab") return;
-            var url = tab.url;
-
-            showLoading(url, tab);
-
-            /* Replace srcdoc frame with a fresh src= iframe */
-            var oldFrame = tab.frame;
-            var newFrame = document.createElement("iframe");
-            newFrame.setAttribute("data-frame", tab.id);
-            newFrame.style.cssText = oldFrame.style.cssText;
-            newFrame.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation allow-top-navigation-by-user-activation");
-            newFrame.referrerPolicy = "no-referrer";
-
-            var loaded = false, timedOut = false;
-            var timer = setTimeout(function() {
-                if (!loaded) { timedOut = true; showFailed(url, tab); }
-            }, 12000);
-
-            newFrame.addEventListener("load", function() {
-                if (timedOut) return;
-                loaded = true;
-                clearTimeout(timer);
-                hideLoading(tab);
-                tab.loaded = true;
-            });
-            newFrame.addEventListener("error", function() {
-                if (timedOut) return;
-                clearTimeout(timer);
-                showFailed(url, tab);
-            });
-
-            oldFrame.parentNode.replaceChild(newFrame, oldFrame);
-            tab.frame = newFrame;
-            newFrame.src = url;
-        }
-        function startGGCheck() {
-            if (_ggCheckTimer) return;
-            _ggCheckTimer = setInterval(function() {
-                if (_intercepting || !currentTab) return;
-                var frame = currentTab.frame;
-                var href = "", docUrl = "";
-                try { href = frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href; } catch(e) {}
-                try { docUrl = frame.contentWindow && frame.contentWindow.document && frame.contentWindow.document.URL; } catch(e) {}
-                var check = (href || "") + " " + (docUrl || "");
-                if (isGoGuardianBlock(check)) {
-                    _intercepting = true;
-                    frame.style.visibility = "hidden";
-                    feedDecoy(href || docUrl || currentTab.url);
-                    var lastGood = currentTab.url;
-                    var badTab = currentTab;
-                    setTimeout(function() {
-                        badTab.loaded = false;
-                        if (lastGood) loadTab(lastGood, 0, badTab);
-                        else badTab.frame.srcdoc = "";
-                        frame.style.visibility = "";
-                        _intercepting = false;
-                    }, 50);
-                }
-            }, 1);
-        }
-
-        /* --- postMessage bridge — navigation events from inside any tab's iframe --- */
-        window.addEventListener("message", function(e) {
-            if (!e.data || typeof e.data !== "object") return;
-            if (e.data.type === "ZWEB_NAV" && e.data.url) {
-                var navUrl = e.data.url;
-                if (isGoGuardianBlock(navUrl)) { feedDecoy(navUrl); return; }
-                if (!currentTab) createTab(navUrl);
-                else loadTab(navUrl);
-            }
-            if (e.data.type === "ZWEB_URL" && e.data.url) {
-                var uu = e.data.url;
-                if (!isGoGuardianBlock(uu) && currentTab && uu !== 'about:srcdoc' && uu !== 'about:blank' && !uu.startsWith('about:')) {
-                    currentTab.url = uu;
+            var tabEls = document.getElementsByClassName("tab");
+            var i;
+            for (i = 0; i < tabEls.length; i++) {
+                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
+                    var span = tabEls[i].getElementsByTagName("span")[0];
+                    var short = url.replace(/^https?:\/\//, "");
+                    if (short.length > 18) short = short.substring(0, 15) + "...";
+                    span.innerHTML = short;
+                    break;
                 }
             }
-        });
-
-        /* --- Intercept window.open --- */
-        var _origOpen = window.open;
-        window.open = function(url, target, features) {
-            if (url && isGoGuardianBlock(url)) { feedDecoy(url); return null; }
-            if (url && (target === "_blank" || !target)) {
-                if (!currentTab) createTab(url);
-                else loadTab(url);
-                return { closed: false, close: function(){} };
-            }
-            return _origOpen.call(window, url, target, features);
-        };
+        }
 
         function zwebNavigate() {
             var q = document.getElementById("zweb-url").value.replace(/^\s+|\s+$/g, "");
             if (!q) return;
-            var isURL = q.indexOf("http://") === 0 || q.indexOf("https://") === 0 || q.indexOf(".") !== -1;
+
+            var isURL = (
+                q.indexOf("http://") === 0 ||
+                q.indexOf("https://") === 0 ||
+                q.indexOf(".") !== -1
+            );
+
             if (isURL) {
                 if (!currentTab) createTab(q);
-                else loadTab(q);
+                loadTab(q);
                 return;
             }
+
             runHyperZSearch(q);
         }
 
-        document.getElementById("zweb-url").onkeydown = function(e) {
+        document.getElementById("zweb-url").onkeydown = function (e) {
             e = e || window.event;
-            if (e.key === "Enter" || e.keyCode === 13) zwebNavigate();
+            if (e.key === "Enter" || e.keyCode === 13) {
+                zwebNavigate();
+            }
         };
 
         createTab();
         showSection("zweb");
-        startGGCheck();
 
         function openGame(gameId) {
             document.getElementById("game-overlay").style.display = "block";
@@ -2753,6 +2395,7 @@
             document.getElementById("game-gridmaze").style.display = "none";
             document.getElementById("game-dune").style.display = "none";
             document.getElementById("game-wordle").style.display = "none";
+            document.getElementById("game-puyo").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -2809,6 +2452,9 @@
             } else if (gameId === "wordle") {
                 document.getElementById("game-wordle").style.display = "block";
                 wordle_newGame();
+            } else if (gameId === "puyo") {
+                document.getElementById("game-puyo").style.display = "block";
+                puyoInit();
             }
             
             // Dynamic scaling for mobile devices
@@ -2868,6 +2514,28 @@
                 return h;
             }
 
+            // ── Puyo: same layout as Tetris (canvas + sidebar) ──
+            if (gameId === 'puyo') {
+                var cv = document.getElementById('puyoCanvas');
+                if (cv) {
+                    var headerEl = gameEl.querySelector('.game-header');
+                    var headerH  = headerEl ? headerEl.getBoundingClientRect().height +
+                                              (parseFloat(window.getComputedStyle(headerEl).marginBottom)||0) : 0;
+                    var SIDEBAR  = 180;
+                    var maxW = totalW - MARGIN - SIDEBAR;
+                    var maxH = totalH - headerH - MARGIN;
+                    if (maxH < 100) maxH = 100;
+                    if (maxW <  80) maxW =  80;
+                    var aspect = 192 / 384; // 1:2 like tetris
+                    var w = maxW, h = w / aspect;
+                    if (h > maxH) { h = maxH; w = h * aspect; }
+                    w = Math.floor(Math.min(w, 192));
+                    h = Math.floor(Math.min(h, 384));
+                    cv.style.width  = w + 'px';
+                    cv.style.height = h + 'px';
+                }
+                return;
+            }
             // ── Tetris: special layout (canvas + sidebar), size independently ──
             if (gameId === 'tetris') {
                 var cv = document.getElementById('tetrisCanvas');
@@ -3008,6 +2676,7 @@
             gridgame_gameOver = true;
             dune_stop();
             wordle_stop();
+            puyoStop();
         }
 
         var tttBoardEl = document.getElementById("ttt-board");
@@ -3863,8 +3532,7 @@
 
         function runHyperZSearch(query) {
             showSection("zweb");
-            /* hide all tab frames while showing search results */
-            for (var t = 0; t < tabs.length; t++) tabs[t].wrapper.style.display = "none";
+            document.getElementById("zweb-frame").style.display = "none";
             document.getElementById("hyperzsearch").style.display = "block";
 
             var resultsBox = document.getElementById("hyperzsearch-results");
@@ -3925,7 +3593,9 @@
 
         function openZWebTab(url) {
             createTab(url);
+            loadTab(url);
             document.getElementById("hyperzsearch").style.display = "none";
+            document.getElementById("zweb-frame").style.display = "block";
         }
 
         // SNAKE GAME
@@ -9173,6 +8843,374 @@
                 return result;
             }
         };
+
+
+        // ==================== PUYO PUYO ====================
+        var PUYO_COLS = 6, PUYO_ROWS = 12;
+        var PUYO_BLOCK = 32; // px per cell on canvas
+        var PUYO_COLORS = ['#e74c3c','#2ecc71','#3498db','#f1c40f','#9b59b6'];
+        var PUYO_COLOR_NAMES = ['Red','Green','Blue','Yellow','Purple'];
+
+        var puyoGrid = [];
+        var puyoScore = 0, puyoLevel = 1, puyoLinesCleared = 0, puyoTotalChains = 0;
+        var puyoGameOver = false, puyoPaused = false;
+        var puyoCurrentPair = null, puyoNextPair = null;
+        var puyoDropTimer = null, puyoDropSpeed = 700;
+        var puyoCanvas, puyoCtx, puyoNextCanvas, puyoNextCtx;
+        var puyoAnimating = false;
+
+        // A "pair" is { ax,ay, bx,by, aColor, bColor, rotation }
+        // rotation 0=b above a, 1=b right of a, 2=b below a, 3=b left of a
+
+        function puyoMakePair() {
+            return {
+                ax: Math.floor(PUYO_COLS / 2) - 1,
+                ay: 0,
+                bx: Math.floor(PUYO_COLS / 2) - 1,
+                by: -1,
+                aColor: Math.floor(Math.random() * PUYO_COLORS.length),
+                bColor: Math.floor(Math.random() * PUYO_COLORS.length),
+                rotation: 0
+            };
+        }
+
+        function puyoInitGrid() {
+            puyoGrid = [];
+            for (var r = 0; r < PUYO_ROWS; r++) {
+                puyoGrid[r] = [];
+                for (var c = 0; c < PUYO_COLS; c++) puyoGrid[r][c] = -1;
+            }
+        }
+
+        function puyoInit() {
+            puyoCanvas    = document.getElementById('puyoCanvas');
+            puyoCtx       = puyoCanvas.getContext('2d');
+            puyoNextCanvas = document.getElementById('puyoNextCanvas');
+            puyoNextCtx   = puyoNextCanvas.getContext('2d');
+            puyoInitGrid();
+            puyoScore = 0; puyoLevel = 1; puyoLinesCleared = 0; puyoTotalChains = 0;
+            puyoGameOver = false; puyoPaused = false; puyoAnimating = false;
+            puyoCurrentPair = puyoMakePair();
+            puyoNextPair    = puyoMakePair();
+            puyoUpdateUI();
+            puyoRender();
+            puyoRenderNext();
+            puyoStartTimer();
+        }
+
+        function puyoUpdateUI() {
+            var s = document.getElementById('puyoScore');   if (s) s.textContent = puyoScore;
+            var l = document.getElementById('puyoLevel');   if (l) l.textContent = puyoLevel;
+            var c = document.getElementById('puyoChains');  if (c) c.textContent = puyoTotalChains;
+        }
+
+        function puyoStop() {
+            puyoGameOver = true;
+            if (puyoDropTimer) { clearInterval(puyoDropTimer); puyoDropTimer = null; }
+        }
+        function puyoReset() { puyoInit(); }
+
+        function puyoStartTimer() {
+            if (puyoDropTimer) clearInterval(puyoDropTimer);
+            puyoDropTimer = setInterval(function() {
+                if (!puyoPaused && !puyoGameOver && !puyoAnimating) puyoStepDown();
+            }, puyoDropSpeed);
+        }
+
+        function puyoCellFree(r, c) {
+            if (c < 0 || c >= PUYO_COLS || r >= PUYO_ROWS) return false;
+            if (r < 0) return true;
+            return puyoGrid[r][c] === -1;
+        }
+
+        function puyoCanMove(pair, dr, dc) {
+            var na = { r: pair.ay + dr, c: pair.ax + dc };
+            var nb = { r: pair.by + dr, c: pair.bx + dc };
+            return puyoCellFree(na.r, na.c) && puyoCellFree(nb.r, nb.c);
+        }
+
+        function puyoMove(dc) {
+            if (puyoGameOver || puyoAnimating) return;
+            if (puyoCanMove(puyoCurrentPair, 0, dc)) {
+                puyoCurrentPair.ax += dc;
+                puyoCurrentPair.bx += dc;
+                puyoRender();
+            }
+        }
+
+        function puyoRotate() {
+            if (puyoGameOver || puyoAnimating) return;
+            var p = puyoCurrentPair;
+            var r = (p.rotation + 1) % 4;
+            var newBX = p.ax, newBY = p.ay;
+            if (r === 0) { newBX = p.ax;     newBY = p.ay - 1; }
+            if (r === 1) { newBX = p.ax + 1; newBY = p.ay;     }
+            if (r === 2) { newBX = p.ax;     newBY = p.ay + 1; }
+            if (r === 3) { newBX = p.ax - 1; newBY = p.ay;     }
+            // Wall kick
+            var testBX = newBX;
+            if (testBX < 0) { p.ax -= testBX; testBX = 0; }
+            if (testBX >= PUYO_COLS) { var diff = testBX - (PUYO_COLS-1); p.ax -= diff; testBX = PUYO_COLS-1; }
+            if (puyoCellFree(newBY, testBX) && puyoCellFree(p.ay, p.ax)) {
+                p.bx = testBX; p.by = newBY; p.rotation = r;
+                puyoRender();
+            }
+        }
+
+        function puyoStepDown() {
+            if (puyoCanMove(puyoCurrentPair, 1, 0)) {
+                puyoCurrentPair.ay++;
+                puyoCurrentPair.by++;
+                puyoRender();
+            } else {
+                puyoLockPair();
+            }
+        }
+
+        function puyoSoftDrop() {
+            if (puyoGameOver || puyoAnimating) return;
+            if (puyoCanMove(puyoCurrentPair, 1, 0)) {
+                puyoCurrentPair.ay++;
+                puyoCurrentPair.by++;
+                puyoScore += 1;
+                puyoUpdateUI();
+                puyoRender();
+            }
+        }
+
+        function puyoLockPair() {
+            var p = puyoCurrentPair;
+            // Place B first (might be above grid)
+            if (p.by >= 0 && p.by < PUYO_ROWS) puyoGrid[p.by][p.bx] = p.bColor;
+            if (p.ay >= 0 && p.ay < PUYO_ROWS) puyoGrid[p.ay][p.ax] = p.aColor;
+            // Apply gravity (puyos above empty cells fall)
+            puyoApplyGravity();
+            puyoAnimating = true;
+            setTimeout(function() {
+                puyoChainReact(0);
+            }, 120);
+        }
+
+        function puyoApplyGravity() {
+            for (var c = 0; c < PUYO_COLS; c++) {
+                var stack = [];
+                for (var r = PUYO_ROWS - 1; r >= 0; r--) {
+                    if (puyoGrid[r][c] !== -1) stack.push(puyoGrid[r][c]);
+                }
+                for (var r = PUYO_ROWS - 1; r >= 0; r--) {
+                    puyoGrid[r][c] = stack.length > 0 ? stack.shift() : -1;
+                }
+            }
+        }
+
+        function puyoChainReact(chainCount) {
+            var groups = puyoFindGroups();
+            var toPop = [];
+            for (var i = 0; i < groups.length; i++) {
+                if (groups[i].length >= 4) {
+                    for (var j = 0; j < groups[i].length; j++) toPop.push(groups[i][j]);
+                }
+            }
+            if (toPop.length === 0) {
+                // No pop — spawn next pair
+                puyoAnimating = false;
+                puyoSpawnNext();
+                return;
+            }
+            // Pop them
+            var chainMult = chainCount + 1;
+            var pts = toPop.length * 10 * chainMult * chainMult;
+            puyoScore += pts;
+            puyoLinesCleared += toPop.length;
+            if (chainCount > 0) {
+                puyoTotalChains++;
+                puyoLevel = Math.floor(puyoLinesCleared / 20) + 1;
+                puyoDropSpeed = Math.max(150, 700 - (puyoLevel - 1) * 50);
+                puyoStartTimer();
+            }
+            puyoUpdateUI();
+            for (var i = 0; i < toPop.length; i++) {
+                puyoGrid[toPop[i].r][toPop[i].c] = -1;
+            }
+            puyoRender();
+            setTimeout(function() {
+                puyoApplyGravity();
+                puyoRender();
+                setTimeout(function() {
+                    puyoChainReact(chainCount + 1);
+                }, 150);
+            }, 200);
+        }
+
+        function puyoFindGroups() {
+            var visited = [];
+            for (var r = 0; r < PUYO_ROWS; r++) {
+                visited[r] = [];
+                for (var c = 0; c < PUYO_COLS; c++) visited[r][c] = false;
+            }
+            var groups = [];
+            for (var r = 0; r < PUYO_ROWS; r++) {
+                for (var c = 0; c < PUYO_COLS; c++) {
+                    if (puyoGrid[r][c] !== -1 && !visited[r][c]) {
+                        var color = puyoGrid[r][c];
+                        var group = [];
+                        var stack = [{r:r,c:c}];
+                        while (stack.length > 0) {
+                            var cur = stack.pop();
+                            if (cur.r < 0 || cur.r >= PUYO_ROWS || cur.c < 0 || cur.c >= PUYO_COLS) continue;
+                            if (visited[cur.r][cur.c]) continue;
+                            if (puyoGrid[cur.r][cur.c] !== color) continue;
+                            visited[cur.r][cur.c] = true;
+                            group.push({r:cur.r,c:cur.c});
+                            stack.push({r:cur.r+1,c:cur.c},{r:cur.r-1,c:cur.c},{r:cur.r,c:cur.c+1},{r:cur.r,c:cur.c-1});
+                        }
+                        groups.push(group);
+                    }
+                }
+            }
+            return groups;
+        }
+
+        function puyoSpawnNext() {
+            puyoCurrentPair = puyoNextPair;
+            puyoCurrentPair.ax = Math.floor(PUYO_COLS / 2) - 1;
+            puyoCurrentPair.ay = 0;
+            puyoCurrentPair.bx = Math.floor(PUYO_COLS / 2) - 1;
+            puyoCurrentPair.by = -1;
+            puyoCurrentPair.rotation = 0;
+            puyoNextPair = puyoMakePair();
+            puyoRenderNext();
+            // Check game over
+            if (!puyoCellFree(0, puyoCurrentPair.ax) || (!puyoCellFree(0, puyoCurrentPair.bx) && puyoCurrentPair.by >= 0)) {
+                puyoGameOver = true;
+                clearInterval(puyoDropTimer);
+                puyoDropTimer = null;
+                puyoRenderGameOver();
+                return;
+            }
+            puyoRender();
+        }
+
+        function puyoDrawPuyo(ctx, x, y, size, colorIdx, alpha) {
+            if (colorIdx < 0) return;
+            var col = PUYO_COLORS[colorIdx];
+            ctx.save();
+            ctx.globalAlpha = alpha !== undefined ? alpha : 1;
+            // Main circle
+            ctx.beginPath();
+            ctx.arc(x + size/2, y + size/2, size/2 - 2, 0, Math.PI * 2);
+            ctx.fillStyle = col;
+            ctx.fill();
+            // Highlight
+            ctx.beginPath();
+            ctx.arc(x + size/2 - size*0.12, y + size/2 - size*0.15, size*0.18, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.fill();
+            // Border
+            ctx.beginPath();
+            ctx.arc(x + size/2, y + size/2, size/2 - 2, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function puyoRender() {
+            if (!puyoCtx) return;
+            var cv = puyoCanvas;
+            var BS = PUYO_BLOCK;
+            puyoCtx.fillStyle = '#0a0a1a';
+            puyoCtx.fillRect(0, 0, cv.width, cv.height);
+            // Grid lines
+            puyoCtx.strokeStyle = 'rgba(255,255,255,0.04)';
+            puyoCtx.lineWidth = 0.5;
+            for (var r = 0; r <= PUYO_ROWS; r++) {
+                puyoCtx.beginPath(); puyoCtx.moveTo(0, r*BS); puyoCtx.lineTo(cv.width, r*BS); puyoCtx.stroke();
+            }
+            for (var c = 0; c <= PUYO_COLS; c++) {
+                puyoCtx.beginPath(); puyoCtx.moveTo(c*BS, 0); puyoCtx.lineTo(c*BS, cv.height); puyoCtx.stroke();
+            }
+            // Placed puyos
+            for (var r = 0; r < PUYO_ROWS; r++) {
+                for (var c = 0; c < PUYO_COLS; c++) {
+                    if (puyoGrid[r][c] !== -1) puyoDrawPuyo(puyoCtx, c*BS, r*BS, BS, puyoGrid[r][c]);
+                }
+            }
+            // Ghost (drop preview) for 'a' puyo only
+            if (puyoCurrentPair && !puyoGameOver) {
+                var ghostAY = puyoCurrentPair.ay;
+                var p = puyoCurrentPair;
+                while (puyoCellFree(ghostAY + 1, p.ax) && ghostAY + 1 < PUYO_ROWS) ghostAY++;
+                if (ghostAY !== p.ay) {
+                    puyoDrawPuyo(puyoCtx, p.ax*BS, ghostAY*BS, BS, p.aColor, 0.25);
+                }
+                // Draw current pair
+                if (p.ay >= 0) puyoDrawPuyo(puyoCtx, p.ax*BS, p.ay*BS, BS, p.aColor);
+                if (p.by >= 0) puyoDrawPuyo(puyoCtx, p.bx*BS, p.by*BS, BS, p.bColor);
+            }
+        }
+
+        function puyoRenderNext() {
+            if (!puyoNextCtx || !puyoNextPair) return;
+            var nc = puyoNextCanvas;
+            puyoNextCtx.fillStyle = '#0a0a1a';
+            puyoNextCtx.fillRect(0, 0, nc.width, nc.height);
+            var BS = 28;
+            var ox = (nc.width - BS) / 2;
+            puyoDrawPuyo(puyoNextCtx, ox, 4,      BS, puyoNextPair.bColor);
+            puyoDrawPuyo(puyoNextCtx, ox, 4+BS+4, BS, puyoNextPair.aColor);
+        }
+
+        function puyoRenderGameOver() {
+            if (!puyoCtx) return;
+            var cv = puyoCanvas;
+            puyoCtx.fillStyle = 'rgba(231,76,60,0.72)';
+            puyoCtx.fillRect(0, 0, cv.width, cv.height);
+            puyoCtx.fillStyle = '#fff';
+            puyoCtx.font = 'bold 26px Arial';
+            puyoCtx.textAlign = 'center';
+            puyoCtx.fillText('GAME OVER', cv.width/2, cv.height/2 - 20);
+            puyoCtx.font = '16px Arial';
+            puyoCtx.fillText('Score: ' + puyoScore, cv.width/2, cv.height/2 + 14);
+            puyoCtx.fillText('Chains: ' + puyoTotalChains, cv.width/2, cv.height/2 + 36);
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', function(e) {
+            if (!document.getElementById('game-puyo') || document.getElementById('game-puyo').style.display !== 'block') return;
+            if (puyoGameOver || puyoAnimating) return;
+            var tag = document.activeElement ? document.activeElement.tagName : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (e.key === 'ArrowLeft')  { puyoMove(-1); e.preventDefault(); }
+            else if (e.key === 'ArrowRight') { puyoMove(1);  e.preventDefault(); }
+            else if (e.key === 'ArrowDown')  { puyoSoftDrop(); e.preventDefault(); }
+            else if (e.key === 'ArrowUp' || e.key === 'z' || e.key === 'Z') { puyoRotate(); e.preventDefault(); }
+        });
+
+        // Touch controls
+        var puyoTouchStartX = 0, puyoTouchStartY = 0;
+        (function() {
+            var cv = document.getElementById('puyoCanvas');
+            if (!cv) return;
+            cv.addEventListener('touchstart', function(e) {
+                puyoTouchStartX = e.touches[0].clientX;
+                puyoTouchStartY = e.touches[0].clientY;
+            }, { passive: true });
+            cv.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+            cv.addEventListener('touchend', function(e) {
+                if (puyoGameOver || puyoAnimating) return;
+                var dx = e.changedTouches[0].clientX - puyoTouchStartX;
+                var dy = e.changedTouches[0].clientY - puyoTouchStartY;
+                var THRESH = 25;
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > THRESH) {
+                    puyoMove(dx > 0 ? 1 : -1);
+                } else if (dy > THRESH) {
+                    puyoSoftDrop();
+                } else if (dy < -THRESH) {
+                    puyoRotate();
+                }
+            }, { passive: true });
+        })();
 
         function wordle_newGame() { wordle.newGame(); }
         function wordle_stop() { /* nothing to stop */ }
