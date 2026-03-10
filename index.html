@@ -467,6 +467,8 @@
             background: #02030a;
         }
 
+
+
         /* ===== CTA / ACTION BUTTONS ===== */
         .btn-go {
             height: 32px;
@@ -2321,6 +2323,13 @@
             }
         }
 
+        // ── Proxy waterfall ──────────────────────────────────────────────────
+        var ZWEB_PROXIES = [
+            { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
+            { name: 'thingproxy',    wrap: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + u; } },
+            { name: 'allorigins',    wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
+        ];
+
         function loadTab(url) {
             var frame = document.getElementById("zweb-frame");
             var input = document.getElementById("zweb-url");
@@ -2329,7 +2338,6 @@
                 url = "https://" + url;
             }
 
-            frame.src = url;
             input.value = url;
             currentTab.url = url;
 
@@ -2344,6 +2352,55 @@
                     break;
                 }
             }
+
+            zwebTryProxy(frame, url, 0);
+        }
+
+        function zwebTryProxy(frame, targetUrl, idx) {
+            var proxied;
+            if (idx >= ZWEB_PROXIES.length) {
+                proxied = targetUrl; // all proxies exhausted — go direct
+            } else {
+                proxied = ZWEB_PROXIES[idx].wrap(targetUrl);
+            }
+
+            var newFrame = frame.cloneNode(false);
+            newFrame.src = proxied;
+            frame.parentNode.replaceChild(newFrame, frame);
+
+            var timer = setTimeout(function() {
+                newFrame.removeEventListener('load', onLoad);
+                if (idx < ZWEB_PROXIES.length) {
+                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                }
+            }, 8000);
+
+            function onLoad() {
+                clearTimeout(timer);
+                var blocked = false;
+                try {
+                    var doc = newFrame.contentDocument || newFrame.contentWindow.document;
+                    var bodyHTML = doc && doc.body ? doc.body.innerHTML.trim() : '';
+                    if (bodyHTML === '') {
+                        blocked = true;
+                    } else {
+                        var bodyText = (doc.body.innerText || '').toLowerCase();
+                        if (bodyText.length < 600 &&
+                            (bodyText.indexOf('access denied') !== -1 ||
+                             bodyText.indexOf('blocked') !== -1 ||
+                             (bodyText.indexOf('error') !== -1 && bodyText.indexOf('forbidden') !== -1))) {
+                            blocked = true;
+                        }
+                    }
+                } catch(e) {
+                    blocked = false;
+                }
+                if (blocked && idx < ZWEB_PROXIES.length) {
+                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                }
+            }
+
+            newFrame.addEventListener('load', onLoad, { once: true });
         }
 
         function zwebNavigate() {
