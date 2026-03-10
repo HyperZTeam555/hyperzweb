@@ -2334,7 +2334,7 @@
         function zwebRewriteHtml(html, baseUrl) {
             var bridge =
                 '<base href="' + baseUrl + '">' +
-                '<script>(function(){' +
+                '<scr' + 'ipt>(function(){' +
                 'document.addEventListener(\'click\',function(e){var t=e.target;while(t&&t.tagName!==\'A\')t=t.parentElement;if(!t||!t.href)return;e.preventDefault();window.parent.postMessage({type:\'ZWEB_NAV\',url:t.href},\'*\');},{capture:true});' +
                 'document.addEventListener(\'submit\',function(e){e.preventDefault();var f=e.target,action=f.action||location.href,method=(f.method||\'get\').toLowerCase();if(method===\'get\'){var q=new URLSearchParams(new FormData(f)).toString();window.parent.postMessage({type:\'ZWEB_NAV\',url:action+(action.indexOf(\'?\')>=0?\'&\':\'?\')+q},\'*\');}else{window.parent.postMessage({type:\'ZWEB_NAV\',url:action},\'*\');}},{capture:true});' +
                 'window.open=function(u){window.parent.postMessage({type:\'ZWEB_NAV\',url:u},\'*\');return null;};' +
