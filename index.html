@@ -2327,7 +2327,6 @@
         var ZWEB_PROXIES = [
             { name: 'allorigins',    wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
             { name: 'codetabs',      wrap: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
-            { name: 'corsanywhere',  wrap: function(u){ return 'https://cors-anywhere.herokuapp.com/' + u; } },
             { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
         ];
 
@@ -2378,26 +2377,24 @@
 
             function onLoad() {
                 clearTimeout(timer);
-                var blocked = false;
                 try {
+                    // Readable same-origin doc = proxy served its own page, check for errors
                     var doc = newFrame.contentDocument || newFrame.contentWindow.document;
                     var bodyHTML = doc && doc.body ? doc.body.innerHTML.trim() : '';
-                    if (bodyHTML === '') {
-                        blocked = true;
-                    } else {
-                        var bodyText = (doc.body.innerText || '').toLowerCase();
-                        if (bodyText.length < 600 &&
-                            (bodyText.indexOf('access denied') !== -1 ||
-                             bodyText.indexOf('blocked') !== -1 ||
-                             (bodyText.indexOf('error') !== -1 && bodyText.indexOf('forbidden') !== -1))) {
-                            blocked = true;
-                        }
+                    var bodyText = (doc && doc.body ? doc.body.innerText : '').trim();
+                    var lowerText = bodyText.toLowerCase();
+                    var blocked = false;
+                    if (bodyHTML === '' || bodyHTML.length < 50) blocked = true;
+                    else if (lowerText.indexOf('access denied') !== -1) blocked = true;
+                    else if (lowerText.indexOf('403') !== -1 && bodyText.length < 500) blocked = true;
+                    else if (lowerText.indexOf('404') !== -1 && bodyText.length < 500) blocked = true;
+                    else if (lowerText.indexOf('forbidden') !== -1 && bodyText.length < 500) blocked = true;
+                    if (blocked && idx < ZWEB_PROXIES.length) {
+                        zwebTryProxy(newFrame, targetUrl, idx + 1);
                     }
+                    // else same-origin proxy page that looks valid — leave it
                 } catch(e) {
-                    blocked = false;
-                }
-                if (blocked && idx < ZWEB_PROXIES.length) {
-                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                    // Cross-origin SecurityError = real site loaded successfully. Stop here, do nothing.
                 }
             }
 
