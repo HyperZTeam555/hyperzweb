@@ -2325,9 +2325,10 @@
 
         // ── Proxy waterfall ──────────────────────────────────────────────────
         var ZWEB_PROXIES = [
-            { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
-            { name: 'thingproxy',    wrap: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + u; } },
             { name: 'allorigins',    wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
+            { name: 'codetabs',      wrap: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
+            { name: 'corsanywhere',  wrap: function(u){ return 'https://cors-anywhere.herokuapp.com/' + u; } },
+            { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
         ];
 
         function loadTab(url) {
