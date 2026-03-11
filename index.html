@@ -2323,50 +2323,68 @@
             }
         }
 
-        // ── Proxy engine (fetch → rewrite → srcdoc) ─────────────────
+        // ── Proxy engine (HyperZOS-style) ────────────────────────────
         var ZWEB_PROXIES = [
-            { name: 'allorigins',   wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
-            { name: 'codetabs',     wrap: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
-            { name: 'corsproxy.io', wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
+            { build: function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); } },
+            { build: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
+            { build: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
+            { build: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + encodeURIComponent(u); } },
+            { build: function(u){ return 'https://proxy.cors.sh/' + u; } },
         ];
+        var zwebProxyIndex = 0;
         var zwebProxyEnabled = true;
 
         function zwebRewriteHtml(html, baseUrl) {
+            var sc = '<scr'+'ipt>', sc2 = '</scr'+'ipt>';
             var bridge =
                 '<base href="' + baseUrl + '">' +
-                '<scr' + 'ipt>(function(){' +
+                sc + '(function(){' +
                 'document.addEventListener(\'click\',function(e){var t=e.target;while(t&&t.tagName!==\'A\')t=t.parentElement;if(!t||!t.href)return;e.preventDefault();window.parent.postMessage({type:\'ZWEB_NAV\',url:t.href},\'*\');},{capture:true});' +
                 'document.addEventListener(\'submit\',function(e){e.preventDefault();var f=e.target,action=f.action||location.href,method=(f.method||\'get\').toLowerCase();if(method===\'get\'){var q=new URLSearchParams(new FormData(f)).toString();window.parent.postMessage({type:\'ZWEB_NAV\',url:action+(action.indexOf(\'?\')>=0?\'&\':\'?\')+q},\'*\');}else{window.parent.postMessage({type:\'ZWEB_NAV\',url:action},\'*\');}},{capture:true});' +
                 'window.open=function(u){window.parent.postMessage({type:\'ZWEB_NAV\',url:u},\'*\');return null;};' +
                 'window.parent.postMessage({type:\'ZWEB_URL\',url:\'' + baseUrl + '\'},\'*\');' +
-                '})();<\/script>';
-            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?x-frame-options["']?[^>]*>/gi, '');
-            html = html.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '');
-            if (/<head[\s>]/i.test(html))      html = html.replace(/(<head[^>]*>)/i, '$1' + bridge);
-            else if (/<html[\s>]/i.test(html)) html = html.replace(/(<html[^>]*>)/i, '$1' + bridge);
-            else                                html = bridge + html;
+                '})();' + sc2;
+            html = html.replace(new RegExp('<meta[^>]+http-equiv\s*=\s*["' + "'" + ']?x-frame-options["' + "'" + ']?[^>]*>', 'gi'), '');
+            html = html.replace(new RegExp('<meta[^>]+http-equiv\s*=\s*["' + "'" + ']?content-security-policy["' + "'" + ']?[^>]*>', 'gi'), '');
+            if (new RegExp('<head[\s>]', 'i').test(html))      html = html.replace(new RegExp('(<head[^>]*>)', 'i'), '$1' + bridge);
+            else if (new RegExp('<html[\s>]', 'i').test(html)) html = html.replace(new RegExp('(<html[^>]*>)', 'i'), '$1' + bridge);
+            else                                                   html = bridge + html;
             return html;
         }
 
-        function zwebTryProxy(frame, targetUrl, idx) {
+        function zwebTryProxy(frame, targetUrl, _retry) {
+            _retry = _retry || 0;
             var input = document.getElementById('zweb-url');
 
             // Direct load fallback
-            if (!zwebProxyEnabled || idx >= ZWEB_PROXIES.length) {
+            if (!zwebProxyEnabled || _retry >= ZWEB_PROXIES.length) {
                 var newFrame = frame.cloneNode(false);
                 newFrame.src = targetUrl;
                 frame.parentNode.replaceChild(newFrame, frame);
                 return;
             }
 
-            var proxyUrl = ZWEB_PROXIES[idx].wrap(targetUrl);
+            var proxy = ZWEB_PROXIES[zwebProxyIndex];
+            var proxyUrl = proxy.build(targetUrl);
+            var fetchOpts = proxy.headers ? { headers: proxy.headers } : {};
 
-            fetch(proxyUrl)
+            fetch(proxyUrl, fetchOpts)
                 .then(function(res) {
-                    if (!res.ok) throw new Error('status ' + res.status);
+                    if (!res.ok && _retry < ZWEB_PROXIES.length - 1) {
+                        zwebProxyIndex = (_retry + 1) % ZWEB_PROXIES.length;
+                        zwebTryProxy(frame, targetUrl, _retry + 1);
+                        return null;
+                    }
+                    if (!res.ok) {
+                        var ifrF = frame.cloneNode(false);
+                        ifrF.src = targetUrl;
+                        frame.parentNode.replaceChild(ifrF, frame);
+                        return null;
+                    }
                     return res.text();
                 })
                 .then(function(html) {
+                    if (html === null || html === undefined) return;
                     var rewritten = zwebRewriteHtml(html, targetUrl);
                     var newFrame = frame.cloneNode(false);
                     newFrame.removeAttribute('src');
@@ -2388,11 +2406,10 @@
                     }
                 })
                 .catch(function() {
-                    var next = idx + 1;
-                    if (next < ZWEB_PROXIES.length) {
-                        zwebTryProxy(frame, targetUrl, next);
+                    if (_retry < ZWEB_PROXIES.length - 1) {
+                        zwebProxyIndex = (_retry + 1) % ZWEB_PROXIES.length;
+                        zwebTryProxy(frame, targetUrl, _retry + 1);
                     } else {
-                        // All proxies failed — go direct
                         var newFrame = frame.cloneNode(false);
                         newFrame.src = targetUrl;
                         frame.parentNode.replaceChild(newFrame, frame);
