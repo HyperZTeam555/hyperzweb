@@ -2084,7 +2084,6 @@
                             }
                         }
                     } catch(e) {
-                        console.error('mmParallel error:', e);
                     }
                     resolve({ bestMove: bestMove, bestScore: bestScore });
                 }, 0);
@@ -2323,122 +2322,84 @@
             }
         }
 
-        // ── Proxy engine (HyperZOS-style) ────────────────────────────
+        // ── Proxy waterfall ──────────────────────────────────────────────────
         var ZWEB_PROXIES = [
-            { build: function(u){ return 'https://corsproxy.io/?url=' + encodeURIComponent(u); } },
-            { build: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
-            { build: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
-            { build: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + encodeURIComponent(u); } },
-            { build: function(u){ return 'https://proxy.cors.sh/' + u; } },
+            { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
+            { name: 'thingproxy',    wrap: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + u; } },
+            { name: 'allorigins',    wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
         ];
-        var zwebProxyIndex = 0;
-        var zwebProxyEnabled = true;
-
-        function zwebRewriteHtml(html, baseUrl) {
-            var sc = '<scr'+'ipt>', sc2 = '</scr'+'ipt>';
-            var bridge =
-                '<base href="' + baseUrl + '">' +
-                sc + '(function(){' +
-                'document.addEventListener(\'click\',function(e){var t=e.target;while(t&&t.tagName!==\'A\')t=t.parentElement;if(!t||!t.href)return;e.preventDefault();window.parent.postMessage({type:\'ZWEB_NAV\',url:t.href},\'*\');},{capture:true});' +
-                'document.addEventListener(\'submit\',function(e){e.preventDefault();var f=e.target,action=f.action||location.href,method=(f.method||\'get\').toLowerCase();if(method===\'get\'){var q=new URLSearchParams(new FormData(f)).toString();window.parent.postMessage({type:\'ZWEB_NAV\',url:action+(action.indexOf(\'?\')>=0?\'&\':\'?\')+q},\'*\');}else{window.parent.postMessage({type:\'ZWEB_NAV\',url:action},\'*\');}},{capture:true});' +
-                'window.open=function(u){window.parent.postMessage({type:\'ZWEB_NAV\',url:u},\'*\');return null;};' +
-                'window.parent.postMessage({type:\'ZWEB_URL\',url:\'' + baseUrl + '\'},\'*\');' +
-                '})();' + sc2;
-            html = html.replace(new RegExp('<meta[^>]+http-equiv\s*=\s*["' + "'" + ']?x-frame-options["' + "'" + ']?[^>]*>', 'gi'), '');
-            html = html.replace(new RegExp('<meta[^>]+http-equiv\s*=\s*["' + "'" + ']?content-security-policy["' + "'" + ']?[^>]*>', 'gi'), '');
-            if (new RegExp('<head[\s>]', 'i').test(html))      html = html.replace(new RegExp('(<head[^>]*>)', 'i'), '$1' + bridge);
-            else if (new RegExp('<html[\s>]', 'i').test(html)) html = html.replace(new RegExp('(<html[^>]*>)', 'i'), '$1' + bridge);
-            else                                                   html = bridge + html;
-            return html;
-        }
-
-        function zwebTryProxy(frame, targetUrl, _retry) {
-            _retry = _retry || 0;
-            var input = document.getElementById('zweb-url');
-
-            // Direct load fallback
-            if (!zwebProxyEnabled || _retry >= ZWEB_PROXIES.length) {
-                var newFrame = frame.cloneNode(false);
-                newFrame.src = targetUrl;
-                frame.parentNode.replaceChild(newFrame, frame);
-                return;
-            }
-
-            var proxy = ZWEB_PROXIES[zwebProxyIndex];
-            var proxyUrl = proxy.build(targetUrl);
-            var fetchOpts = proxy.headers ? { headers: proxy.headers } : {};
-
-            fetch(proxyUrl, fetchOpts)
-                .then(function(res) {
-                    if (!res.ok && _retry < ZWEB_PROXIES.length - 1) {
-                        zwebProxyIndex = (_retry + 1) % ZWEB_PROXIES.length;
-                        zwebTryProxy(frame, targetUrl, _retry + 1);
-                        return null;
-                    }
-                    if (!res.ok) {
-                        var ifrF = frame.cloneNode(false);
-                        ifrF.src = targetUrl;
-                        frame.parentNode.replaceChild(ifrF, frame);
-                        return null;
-                    }
-                    return res.text();
-                })
-                .then(function(html) {
-                    if (html === null || html === undefined) return;
-                    var rewritten = zwebRewriteHtml(html, targetUrl);
-                    var newFrame = frame.cloneNode(false);
-                    newFrame.removeAttribute('src');
-                    frame.parentNode.replaceChild(newFrame, frame);
-                    newFrame.srcdoc = rewritten;
-                    if (input) input.value = targetUrl;
-                    if (currentTab) {
-                        currentTab.url = targetUrl;
-                        var short = targetUrl.replace(/^https?:\/\//, '');
-                        if (short.length > 18) short = short.substring(0, 15) + '...';
-                        var tabEls = document.getElementsByClassName('tab');
-                        for (var i = 0; i < tabEls.length; i++) {
-                            if (parseInt(tabEls[i].getAttribute('data-id'), 10) === currentTab.id) {
-                                var span = tabEls[i].getElementsByTagName('span')[0];
-                                if (span) span.innerHTML = short;
-                                break;
-                            }
-                        }
-                    }
-                })
-                .catch(function() {
-                    if (_retry < ZWEB_PROXIES.length - 1) {
-                        zwebProxyIndex = (_retry + 1) % ZWEB_PROXIES.length;
-                        zwebTryProxy(frame, targetUrl, _retry + 1);
-                    } else {
-                        var newFrame = frame.cloneNode(false);
-                        newFrame.src = targetUrl;
-                        frame.parentNode.replaceChild(newFrame, frame);
-                    }
-                });
-        }
-
-        // Listen for in-page navigation from injected bridge script
-        window.addEventListener('message', function(e) {
-            if (!e.data) return;
-            if (e.data.type === 'ZWEB_NAV' && e.data.url) {
-                var url = e.data.url;
-                if (!url.startsWith('http')) return;
-                var frame = document.getElementById('zweb-frame');
-                if (frame) zwebTryProxy(frame, url, 0);
-            }
-            if (e.data.type === 'ZWEB_URL' && e.data.url) {
-                var input = document.getElementById('zweb-url');
-                if (input) input.value = e.data.url;
-            }
-        });
 
         function loadTab(url) {
-            var frame = document.getElementById('zweb-frame');
-            if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
-                url = 'https://' + url;
+            var frame = document.getElementById("zweb-frame");
+            var input = document.getElementById("zweb-url");
+
+            if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
+                url = "https://" + url;
             }
-            if (currentTab) currentTab.url = url;
+
+            input.value = url;
+            currentTab.url = url;
+
+            var tabEls = document.getElementsByClassName("tab");
+            var i;
+            for (i = 0; i < tabEls.length; i++) {
+                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
+                    var span = tabEls[i].getElementsByTagName("span")[0];
+                    var short = url.replace(/^https?:\/\//, "");
+                    if (short.length > 18) short = short.substring(0, 15) + "...";
+                    span.innerHTML = short;
+                    break;
+                }
+            }
+
             zwebTryProxy(frame, url, 0);
+        }
+
+        function zwebTryProxy(frame, targetUrl, idx) {
+            var proxied;
+            if (idx >= ZWEB_PROXIES.length) {
+                proxied = targetUrl; // all proxies exhausted — go direct
+            } else {
+                proxied = ZWEB_PROXIES[idx].wrap(targetUrl);
+            }
+
+            var newFrame = frame.cloneNode(false);
+            newFrame.src = proxied;
+            frame.parentNode.replaceChild(newFrame, frame);
+
+            var timer = setTimeout(function() {
+                newFrame.removeEventListener('load', onLoad);
+                if (idx < ZWEB_PROXIES.length) {
+                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                }
+            }, 8000);
+
+            function onLoad() {
+                clearTimeout(timer);
+                var blocked = false;
+                try {
+                    var doc = newFrame.contentDocument || newFrame.contentWindow.document;
+                    var bodyHTML = doc && doc.body ? doc.body.innerHTML.trim() : '';
+                    if (bodyHTML === '') {
+                        blocked = true;
+                    } else {
+                        var bodyText = (doc.body.innerText || '').toLowerCase();
+                        if (bodyText.length < 600 &&
+                            (bodyText.indexOf('access denied') !== -1 ||
+                             bodyText.indexOf('blocked') !== -1 ||
+                             (bodyText.indexOf('error') !== -1 && bodyText.indexOf('forbidden') !== -1))) {
+                            blocked = true;
+                        }
+                    }
+                } catch(e) {
+                    blocked = false;
+                }
+                if (blocked && idx < ZWEB_PROXIES.length) {
+                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                }
+            }
+
+            newFrame.addEventListener('load', onLoad, { once: true });
         }
 
         function zwebNavigate() {
@@ -4980,7 +4941,6 @@
                     }
                 }
             } catch (err) {
-                console.error("Render error:", err);
             }
         }
 
@@ -6636,7 +6596,7 @@
             let guess = document.getElementById('codebreaker-input').value.trim();
 
             if (guess.length !== codebreaker_length || isNaN(guess)) {
-                alert('Please enter a valid ' + codebreaker_length + '-digit code');
+                showToast('Please enter a valid ' + codebreaker_length + '-digit code');
                 return;
             }
 
@@ -6709,14 +6669,14 @@
             
             if (allCorrect) {
                 setTimeout(() => {
-                    alert('🎉 You cracked the code! ' + codebreaker_code);
+                    showToast('🎉 You cracked the code! ' + codebreaker_code);
                     codebreaker_revealed = true;
                     document.getElementById('codebreaker-secret').textContent = codebreaker_code;
                 }, 100);
             } else if (codebreaker_attempts === 0) {
                 codebreaker_revealed = true;
                 document.getElementById('codebreaker-secret').textContent = codebreaker_code;
-                alert('Game Over! The code was: ' + codebreaker_code);
+                showToast('Game Over! The code was: ' + codebreaker_code);
             }
 
             // Clear input
@@ -6890,7 +6850,7 @@
                     document.getElementById('gridgame-status').textContent = 'LOST';
                     document.getElementById('gridgame-status').style.color = '#ff6b6b';
                     gridgame_render();          // render first so @ appears inside #
-                    alert('💀 Hit a hazard! Game Over!');
+                    showToast('💀 Hit a hazard! Game Over!');
                     return;
                 }
                 
@@ -6911,7 +6871,7 @@
                         gridgame_won = true;
                         document.getElementById('gridgame-status').textContent = 'WON!';
                         document.getElementById('gridgame-status').style.color = '#00ff88';
-                        alert('🎉 You won! All ' + gridgame_max_hazards + ' hazards collected!');
+                        showToast('🎉 You won! All ' + gridgame_max_hazards + ' hazards collected!');
                         gridgame_render();
                         return;
                     }
@@ -7113,7 +7073,7 @@
             let input = document.getElementById('hackersim-password-input').value.toUpperCase();
             
             if (input === hackersim_password) {
-                alert('✓ Access granted! Injecting miner...');
+                showToast('✓ Access granted! Injecting miner...');
                 hackersim_computers_hacked++;
                 if (hackersim_password_length < 32) {
                     hackersim_password_length++;
@@ -7122,7 +7082,7 @@
                 hackersim_render_main_menu();
                 hackersim_update_display();
             } else {
-                alert('✗ Incorrect password! Try again.');
+                showToast('✗ Incorrect password! Try again.');
                 document.getElementById('hackersim-password-input').value = '';
                 document.getElementById('hackersim-password-input').focus();
             }
@@ -7159,7 +7119,7 @@
             // Try using the modern Clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(hackersim_password).then(function() {
-                    alert('✓ Password copied to clipboard!');
+                    showToast('✓ Password copied to clipboard!');
                     document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
                     document.getElementById('hackersim-password-display').textContent = hackersim_password;
                     setTimeout(function() {
@@ -7196,7 +7156,7 @@
                 
                 if (successful) {
                     // Successfully copied with fallback method
-                    alert('✓ Password copied to clipboard!');
+                    showToast('✓ Password copied to clipboard!');
                     document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
                     document.getElementById('hackersim-password-display').textContent = hackersim_password;
                     setTimeout(function() {
@@ -7206,7 +7166,7 @@
                     }, 1000);
                 } else {
                     // Even fallback failed - show message but continue game anyway
-                    alert('✓ Password displayed (copy not supported on this device)');
+                    showToast('✓ Password displayed (copy not supported on this device)');
                     document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
                     document.getElementById('hackersim-password-display').textContent = hackersim_password;
                     setTimeout(function() {
@@ -7217,7 +7177,7 @@
                 }
             } catch(err) {
                 // Last resort - just show the password and continue game
-                alert('✓ Password displayed (copy not supported on this device)');
+                showToast('✓ Password displayed (copy not supported on this device)');
                 document.getElementById('hackersim-copy-btn').textContent = 'Password Copied!';
                 document.getElementById('hackersim-password-display').textContent = hackersim_password;
                 setTimeout(function() {
@@ -7230,13 +7190,13 @@
 
         function hackersim_collect_bitcoin() {
             if (hackersim_computers_hacked === 0) {
-                alert('You must hack at least 1 computer first!');
+                showToast('You must hack at least 1 computer first!');
                 return;
             }
             
             let earned = 0.001 * hackersim_computers_hacked * hackersim_power;
             hackersim_bitcoin += earned;
-            alert('💰 Collected ' + earned.toFixed(3) + ' BTC!');
+            showToast('💰 Collected ' + earned.toFixed(3) + ' BTC!');
             hackersim_update_display();
         }
 
@@ -7244,13 +7204,13 @@
             let upgrade_cost = 0.5 + (hackersim_power - 1) * 0.1;
             
             if (hackersim_bitcoin < upgrade_cost) {
-                alert('Not enough Bitcoin! Need ' + upgrade_cost.toFixed(1) + ' BTC');
+                showToast('Not enough Bitcoin! Need ' + upgrade_cost.toFixed(1) + ' BTC');
                 return;
             }
             
             hackersim_bitcoin -= upgrade_cost;
             hackersim_power++;
-            alert('⚡ Power upgraded to ' + hackersim_power + '!');
+            showToast('⚡ Power upgraded to ' + hackersim_power + '!');
             hackersim_render_main_menu();
             hackersim_update_display();
         }
@@ -9320,6 +9280,77 @@
             else if (e.key === 'Backspace') { wordle.onKey('BACKSPACE'); e.preventDefault(); }
             else if (/^[a-zA-Z]$/.test(e.key)) { wordle.onKey(e.key.toUpperCase()); e.preventDefault(); }
         });
+
+        // ==================== TOAST NOTIFICATION SYSTEM ====================
+        (function() {
+            var style = document.createElement('style');
+            style.textContent = `
+                #toast-container {
+                    position: fixed;
+                    bottom: 24px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 99999;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
+                    pointer-events: none;
+                }
+                .toast-msg {
+                    background: rgba(30,30,40,0.95);
+                    color: #e0e0e0;
+                    border: 1px solid rgba(255,255,255,0.15);
+                    border-radius: 8px;
+                    padding: 10px 20px;
+                    font-size: 14px;
+                    font-family: inherit;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+                    opacity: 0;
+                    transform: translateY(10px);
+                    transition: opacity 0.2s ease, transform 0.2s ease;
+                    max-width: 340px;
+                    text-align: center;
+                    pointer-events: none;
+                }
+                .toast-msg.toast-show {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            `;
+            document.head.appendChild(style);
+
+            var container = document.createElement('div');
+            container.id = 'toast-container';
+            document.body.appendChild(container);
+
+            var currentToast = null;
+            var currentTimer = null;
+
+            window.showToast = function(msg, duration) {
+                duration = duration || 2200;
+                if (currentToast) {
+                    clearTimeout(currentTimer);
+                    if (currentToast.parentNode) currentToast.parentNode.removeChild(currentToast);
+                    currentToast = null;
+                }
+                var el = document.createElement('div');
+                el.className = 'toast-msg';
+                el.textContent = msg;
+                container.appendChild(el);
+                currentToast = el;
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() { el.classList.add('toast-show'); });
+                });
+                currentTimer = setTimeout(function() {
+                    el.classList.remove('toast-show');
+                    setTimeout(function() {
+                        if (el.parentNode) el.parentNode.removeChild(el);
+                        if (currentToast === el) currentToast = null;
+                    }, 250);
+                }, duration);
+            };
+        })();
 
     </script>
 </body>
