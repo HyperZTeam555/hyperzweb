@@ -1039,8 +1039,33 @@
 
         #chat-send:hover { opacity: 0.85; }
 
+        /* ===== 2048 ===== */
+        #board-2048 {
+            position: relative;
+            width: 356px;
+            height: 356px;
+            background: #040810;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            padding: 8px;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        /* Background empty cells */
+        .cell-2048-bg {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: #0d1a2e;
+            border-radius: 6px;
+            border: 1px solid #1a2a44;
+        }
+
         .tile-2048 {
-            background: #3a4a6a;
+            position: absolute;
+            width: 80px;
+            height: 80px;
             border-radius: 6px;
             display: flex;
             align-items: center;
@@ -1048,59 +1073,44 @@
             font-size: 32px;
             font-weight: 700;
             color: #f5f7ff;
-            transition: all 0.15s ease-in-out;
-            position: relative;
+            z-index: 2;
+            user-select: none;
+            box-sizing: border-box;
         }
 
-        .tile-2048.slide {
-            animation: slideIn 0.15s ease-in-out;
+        .tile-2048.tile-new {
+            animation: tileAppear 0.18s ease-in-out;
         }
 
-        .tile-2048.merge {
-            animation: mergeScale 0.15s ease-in-out;
+        .tile-2048.tile-merge {
+            animation: tileMerge 0.18s ease-in-out;
         }
 
-        @keyframes slideIn {
-            0% {
-                opacity: 0.7;
-                transform: scale(0.95);
-            }
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
+        @keyframes tileAppear {
+            0%   { transform: scale(0); }
+            60%  { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
 
-        @keyframes mergeScale {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.15);
-            }
-            100% {
-                transform: scale(1);
-            }
+        @keyframes tileMerge {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.18); }
+            100% { transform: scale(1); }
         }
 
-        .tile-2048.empty {
-            background: #050816;
-            color: transparent;
-        }
-
-        .tile-2048[data-value="2"] { background: #3a4a6a; }
-        .tile-2048[data-value="4"] { background: #4a5a7a; }
-        .tile-2048[data-value="8"] { background: #5a6a8a; color: #f5f7ff; }
-        .tile-2048[data-value="16"] { background: #6a7a9a; }
-        .tile-2048[data-value="32"] { background: #00b4ff; }
-        .tile-2048[data-value="64"] { background: #00e0ff; color: #02030a; }
-        .tile-2048[data-value="128"] { background: #00ff88; color: #02030a; font-size: 28px; }
-        .tile-2048[data-value="256"] { background: #ffff00; color: #02030a; }
-        .tile-2048[data-value="512"] { background: #ffaa00; color: #02030a; }
-        .tile-2048[data-value="1024"] { background: #ff6600; color: #f5f7ff; font-size: 28px; }
-        .tile-2048[data-value="2048"] { background: #ff4b81; color: #f5f7ff; font-size: 24px; font-weight: 900; }
-        .tile-2048[data-value="4096"] { background: #ff0066; color: #f5f7ff; font-size: 24px; }
-        .tile-2048[data-value="8192"] { background: #cc0044; color: #f5f7ff; font-size: 24px; }
+        .tile-2048[data-val="2"]    { background: #3a4a6a; }
+        .tile-2048[data-val="4"]    { background: #4a5a7a; }
+        .tile-2048[data-val="8"]    { background: #5a6a8a; }
+        .tile-2048[data-val="16"]   { background: #6a7a9a; }
+        .tile-2048[data-val="32"]   { background: #00b4ff; color: #02030a; }
+        .tile-2048[data-val="64"]   { background: #00e0ff; color: #02030a; }
+        .tile-2048[data-val="128"]  { background: #00ff88; color: #02030a; font-size: 28px; }
+        .tile-2048[data-val="256"]  { background: #ffff00; color: #02030a; font-size: 28px; }
+        .tile-2048[data-val="512"]  { background: #ffaa00; color: #02030a; font-size: 28px; }
+        .tile-2048[data-val="1024"] { background: #ff6600; color: #f5f7ff; font-size: 24px; }
+        .tile-2048[data-val="2048"] { background: #ff4b81; color: #f5f7ff; font-size: 22px; font-weight: 900; }
+        .tile-2048[data-val="4096"] { background: #ff0066; color: #f5f7ff; font-size: 22px; }
+        .tile-2048[data-val="8192"] { background: #cc0044; color: #f5f7ff; font-size: 20px; }
 
         .board.checkers {
             grid-template-columns: repeat(8, 40px);
@@ -1457,6 +1467,11 @@
                 <p>Stack and pop colorful blobs in chains! Match 4+ same-color Puyos to clear them. Chain combos for big points!</p>
                 <button class="btn-small" onclick="openGame('puyo')">Play</button>
             </div>
+            <div class="game-card">
+                <h2>ZTower Defense</h2>
+                <p>Place towers to defend your base! Buy Sword Guys, upgrade their range and damage, survive the waves!</p>
+                <button class="btn-small" onclick="openGame('ztd')">Play</button>
+            </div>
         </div>
     </div>
 
@@ -1562,7 +1577,7 @@
             </div>
             <div id="2048-container" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
                 <div id="2048-score" style="color:var(--accent-strong); font-size:18px; font-weight:600;">Score: 0</div>
-                <div id="2048-board" style="display:grid; grid-template-columns:repeat(4,80px); grid-template-rows:repeat(4,80px); gap:8px; background:#0a1020; padding:12px; border-radius:10px; border:1px solid var(--border-subtle);"></div>
+                <div id="board-2048"></div>
             </div>
             <div id="2048-status" class="status"></div>
         </div>
@@ -1838,11 +1853,12 @@
                         <option value="medium" selected>Medium (21×21)</option>
                         <option value="hard">Hard (31×31)</option>
                         <option value="impossible">Impossible (51×51)</option>
+                        <option value="godlevel">⚡ Impossible+ (36 zones × 17×17, 36 keys)</option>
                     </select>
                     <button class="btn-small" onclick="gridmaze_reset()" style="margin-top:0;">New Maze</button>
                 </div>
 
-                <div style="display:flex; justify-content:space-around; width:100%; max-width:500px;">
+                <div style="display:flex; justify-content:space-around; width:100%; max-width:600px; flex-wrap:wrap; gap:8px;">
                     <div style="text-align:center;">
                         <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Steps</div>
                         <div style="color:var(--accent); font-size:22px; font-weight:700; font-family:monospace;" id="gridmaze-steps">0</div>
@@ -1850,6 +1866,14 @@
                     <div style="text-align:center;">
                         <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Time</div>
                         <div style="color:var(--accent); font-size:22px; font-weight:700; font-family:monospace;" id="gridmaze-time">0.0s</div>
+                    </div>
+                    <div style="text-align:center; display:none;" id="gridmaze-keys-wrap">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Keys</div>
+                        <div style="color:#ffd700; font-size:22px; font-weight:700; font-family:monospace;" id="gridmaze-keys">0/0</div>
+                    </div>
+                    <div style="text-align:center; display:none;" id="gridmaze-zone-wrap">
+                        <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Zone</div>
+                        <div style="color:#ff9900; font-size:22px; font-weight:700; font-family:monospace;" id="gridmaze-zone">1/36</div>
                     </div>
                     <div style="text-align:center;">
                         <div style="color:var(--text-soft); font-size:11px; text-transform:uppercase; letter-spacing:1px;">Status</div>
@@ -1865,7 +1889,8 @@
                     <span style="color:var(--accent-strong);">Arrow Keys / WASD</span> to move &nbsp;|&nbsp;
                     <span style="color:#00ff88;">■</span> Start &nbsp;
                     <span style="color:#ff3d70;">■</span> End &nbsp;
-                    <span style="color:#40dfff;">■</span> You
+                    <span style="color:#40dfff;">■</span> You &nbsp;
+                    <span style="color:#ffd700;" id="gridmaze-key-legend" style="display:none;">🔑 Key &nbsp; <span style="color:#ff6600;">🚪</span> Gate</span>
                     <div style="margin-top:4px; color:#4a5878;">Swipe to move on mobile</div>
                 </div>
             </div>
@@ -1948,11 +1973,144 @@
                 </div>
             </div>
         </div>
-    </div>
+
+        <div id="game-ztd" class="game-inner" style="display:none;">
+            <div class="game-header"><h2>ZTower Defense</h2></div>
+
+            <!-- MAP PICKER SCREEN -->
+            <div id="ztd-map-picker" style="display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:700px;margin:0 auto;">
+                <div style="color:var(--text-soft);font-size:13px;letter-spacing:1px;text-transform:uppercase;">Choose a Map</div>
+                <!-- Sandbox toggle -->
+                <div style="display:flex;align-items:center;gap:10px;background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:10px 16px;">
+                    <span style="color:var(--text-soft);font-size:12px;">🧪 Sandbox Mode</span>
+                    <button id="ztd-sandbox-btn" onclick="ztd_toggleSandbox()" style="background:rgba(0,0,0,0.4);border:1px solid var(--border-mid);border-radius:6px;color:var(--text-soft);padding:4px 14px;cursor:pointer;font-size:12px;font-family:inherit;transition:all 0.15s;">OFF</button>
+                    <span id="ztd-sandbox-desc" style="color:var(--text-muted);font-size:11px;">Free towers, infinite gold, infinite upgrades, spawn any bloon</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;" id="ztd-map-list"></div>
+            </div>
+
+            <!-- GAME SCREEN (hidden until map chosen) -->
+            <div id="ztd-game-screen" style="display:none;flex-direction:column;align-items:center;gap:8px;width:100%;max-width:900px;margin:0 auto;">
+
+                <!-- Top HUD bar -->
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;width:100%;">
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;">Health</div>
+                        <div style="color:#ff3d70;font-size:18px;font-weight:700;" id="ztd-health">200</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;">Gold</div>
+                        <div style="color:#ffd700;font-size:18px;font-weight:700;" id="ztd-gold">150</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;">Wave</div>
+                        <div style="color:var(--accent);font-size:18px;font-weight:700;" id="ztd-wave">0</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;">Score</div>
+                        <div style="color:var(--accent-strong);font-size:18px;font-weight:700;" id="ztd-score">0</div>
+                    </div>
+                    <button class="btn-small" onclick="ztd_startWave()" id="ztd-wave-btn" style="margin:0;font-size:12px;">▶ Start Wave 1</button>
+                    <button class="btn-small" onclick="ztd_toggleSpeed()" id="ztd-speed-btn" style="margin:0;min-width:46px;font-size:12px;">▶▶ 1×</button>
+                    <div style="text-align:center;min-width:70px;">
+                        <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;">Time</div>
+                        <div style="font-size:13px;font-weight:700;" id="ztd-daynight">☀️ Day</div>
+                    </div>
+                    <button class="btn-small" onclick="ztd_reset()" style="margin:0;background:rgba(255,61,112,0.15);border-color:rgba(255,61,112,0.3);font-size:12px;">↺ Menu</button>
+                </div>
+
+                <!-- Canvas + Sidebar row -->
+                <div style="display:flex;gap:8px;width:100%;align-items:flex-start;justify-content:center;">
+
+                    <!-- Canvas -->
+                    <canvas id="ztd-canvas" style="border:1px solid var(--border-mid);border-radius:8px;box-shadow:0 0 20px rgba(0,200,255,0.08);display:block;cursor:crosshair;flex-shrink:0;max-width:calc(100% - 148px);"></canvas>
+
+                    <!-- Right sidebar — fixed width, no overflow -->
+                    <div style="display:flex;flex-direction:column;gap:6px;width:136px;min-width:136px;flex-shrink:0;overflow:hidden;box-sizing:border-box;">
+
+                        <!-- Tower shop -->
+                        <div style="background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:7px;box-sizing:border-box;overflow:hidden;">
+                            <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Towers</div>
+                            <div style="display:flex;flex-direction:column;gap:3px;">
+                                <button class="btn-small" onclick="ztd_previewTower('sword')"    style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;">🗡️ Sword Guy $50</button>
+                                <button class="btn-small" onclick="ztd_previewTower('gun')"      style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#ffaa00;">🔫 Gun Man $125</button>
+                                <button class="btn-small" onclick="ztd_previewTower('ice')"      style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#aaeeff;">🧊 Ice Tower $150</button>
+                                <button class="btn-small" onclick="ztd_previewTower('cannon')"   style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#ff6600;">💣 Cannon $200</button>
+                                <button class="btn-small" onclick="ztd_previewTower('sniper')"   style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#00ffaa;">🎯 Sniper $225</button>
+                                <button class="btn-small" onclick="ztd_previewTower('ninja')"    style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#aa00ff;">🥷 Ninja $350</button>
+                                <button class="btn-small" onclick="ztd_previewTower('necro')"    style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#55ff55;">💀 Necromancer $725</button>
+                                <button class="btn-small" onclick="ztd_previewTower('supergun')" style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#ff2200;">🔥 Super Gun $1225</button>
+                            </div>
+                            <div id="ztd-cancel-wrap" style="display:none;margin-top:4px;">
+                                <button class="btn-small" onclick="ztd_cancelPlace()" style="width:100%;background:rgba(255,61,112,0.18);border-color:rgba(255,61,112,0.4);font-size:11px;padding:4px 2px;box-sizing:border-box;">✕ Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Tower preview panel — shown when clicking a tower button -->
+                        <div id="ztd-tower-preview" style="display:none;background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:8px;box-sizing:border-box;overflow:hidden;">
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                                <span id="ztd-prev-emoji" style="font-size:22px;">🗡️</span>
+                                <div>
+                                    <div style="font-weight:700;color:var(--text-main);font-size:11px;" id="ztd-prev-name">Tower</div>
+                                    <div style="color:#ffd700;font-size:11px;font-weight:700;" id="ztd-prev-cost">$50</div>
+                                </div>
+            </div>
+                            <div style="color:var(--text-soft);font-size:9px;line-height:1.5;" id="ztd-prev-desc">Description</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:3px;margin:5px 0;font-size:9px;" id="ztd-prev-stats"></div>
+                            <button id="ztd-prev-buy" class="btn-small" style="width:100%;font-size:10px;padding:4px;margin-top:2px;" onclick="ztd_buyFromPreview()">Place Tower</button>
+                            <button class="btn-small" onclick="ztd_closePreview()" style="width:100%;font-size:9px;padding:3px;margin-top:3px;background:rgba(255,61,112,0.1);border-color:rgba(255,61,112,0.3);">✕ Close</button>
+                        </div>
+
+                        <!-- Upgrade panel -->
+                        <div id="ztd-upgrade-panel" style="display:none;background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:7px;box-sizing:border-box;overflow:hidden;">
+                            <div style="font-weight:700;color:var(--accent-strong);margin-bottom:5px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="ztd-up-title">Tower</div>
+                            <div style="display:flex;flex-direction:column;gap:3px;">
+                                <button class="btn-small" id="ztd-up-range-btn" onclick="ztd_upgrade('range')" style="width:100%;font-size:9px;padding:3px 2px;box-sizing:border-box;">⬆ Range <span id="ztd-up-range-cost">($30)</span></button>
+                                <div style="color:var(--text-soft);font-size:9px;margin-bottom:2px;">Range Lv <span id="ztd-up-range-lv">1</span></div>
+                                <button class="btn-small" id="ztd-up-dmg-btn" onclick="ztd_upgrade('damage')" style="width:100%;font-size:9px;padding:3px 2px;box-sizing:border-box;">⬆ Dmg <span id="ztd-up-dmg-cost">($40)</span></button>
+                                <div style="color:var(--text-soft);font-size:9px;margin-bottom:2px;">Damage Lv <span id="ztd-up-dmg-lv">1</span></div>
+                                <button class="btn-small" id="ztd-up-spd-btn" onclick="ztd_upgrade('speed')" style="width:100%;font-size:9px;padding:3px 2px;box-sizing:border-box;">⬆ Spd <span id="ztd-up-spd-cost">($35)</span></button>
+                                <div style="color:var(--text-soft);font-size:9px;margin-bottom:2px;">Speed Lv <span id="ztd-up-spd-lv">1</span></div>
+                                <button class="btn-small" onclick="ztd_sellTower()" style="width:100%;background:rgba(255,61,112,0.15);border-color:rgba(255,61,112,0.3);font-size:9px;padding:3px 2px;box-sizing:border-box;margin-top:2px;">💰 Sell (<span id="ztd-sell-val"></span>)</button>
+                            </div>
+                        </div>
+
+                    </div><!-- end sidebar -->
+                </div><!-- end canvas+sidebar row -->
+
+                <div style="color:var(--text-soft);font-size:11px;text-align:center;width:100%;" id="ztd-status">Place towers, then start the wave!</div>
+
+                <!-- Sandbox spawn panel — bottom row, only in sandbox mode -->
+                <div id="ztd-sandbox-panel" style="display:none;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.3);border-radius:8px;padding:8px 10px;width:100%;box-sizing:border-box;">
+                    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:6px;">
+                        <div style="color:#ffd700;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">🧪 Spawn Bloon</div>
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#ff88bb;font-size:11px;">
+                            <input type="checkbox" id="ztd-sb-heart" onchange="ztd_setSandboxHeart(this.checked)" style="cursor:pointer;"> ❤️ Heart Shaped
+                        </label>
+                        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;color:#88ffaa;font-size:11px;">
+                            <input type="checkbox" id="ztd-sb-camo" onchange="ztd_setSandboxCamo(this.checked)" style="cursor:pointer;"> 👁 Camo
+                        </label>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;">
+                        <button onclick="ztd_sandboxSpawn('basic')"       style="background:rgba(255,61,112,0.12);border:1px solid #ff3d70;border-radius:5px;color:#ff3d70;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🔴 Red</button>
+                        <button onclick="ztd_sandboxSpawn('basic2shell')" style="background:rgba(51,153,255,0.12);border:1px solid #3399ff;border-radius:5px;color:#3399ff;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🔵 Blue</button>
+                        <button onclick="ztd_sandboxSpawn('basic3shell')" style="background:rgba(0,221,85,0.12);border:1px solid #00dd55;border-radius:5px;color:#00dd55;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🟢 Green</button>
+                        <button onclick="ztd_sandboxSpawn('yellow')"      style="background:rgba(255,221,0,0.12);border:1px solid #ffdd00;border-radius:5px;color:#ddbb00;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🟡 Yellow</button>
+                        <button onclick="ztd_sandboxSpawn('basic4shell')" style="background:rgba(153,51,255,0.12);border:1px solid #9933ff;border-radius:5px;color:#9933ff;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🟣 Purple</button>
+                        <button onclick="ztd_sandboxSpawn('lead')"        style="background:rgba(136,153,170,0.12);border:1px solid #8899aa;border-radius:5px;color:#8899aa;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">⬛ Lead</button>
+                        <button onclick="ztd_sandboxSpawn('rainbow')"     style="background:rgba(255,68,204,0.12);border:1px solid #ff44cc;border-radius:5px;color:#ff44cc;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🌈 Rainbow</button>
+                        <button onclick="ztd_sandboxSpawn('ceramic')"     style="background:rgba(139,94,60,0.15);border:1px solid #8B5E3C;border-radius:5px;color:#c4845a;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🟫 Ceramic</button>
+                        <button onclick="ztd_sandboxSpawn('black')"       style="background:rgba(30,30,50,0.4);border:1px solid #445;border-radius:5px;color:#aabbcc;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">🖤 Black</button>
+                        <button onclick="ztd_sandboxSpawn('boss1')"       style="background:rgba(0,102,255,0.12);border:1px solid #0066ff;border-radius:5px;color:#6699ff;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">👾 Boss 1</button>
+                        <button onclick="ztd_sandboxSpawn('boss2')"       style="background:rgba(204,0,0,0.15);border:1px solid #cc0000;border-radius:5px;color:#ff4444;font-size:11px;padding:5px 8px;cursor:pointer;font-family:inherit;">💀 Boss 2</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- end game-overlay -->
 
     <script>
-
-        // ── Minimax Engine (runs inline, no workers — maximum compatibility) ──────
         // setTimeout(0) yields to the browser so the UI can paint "thinking" before
         // the synchronous search begins. No Blob/Worker needed.
 
@@ -2452,6 +2610,7 @@
             document.getElementById("game-dune").style.display = "none";
             document.getElementById("game-wordle").style.display = "none";
             document.getElementById("game-puyo").style.display = "none";
+            document.getElementById("game-ztd").style.display = "none";
 
             if (gameId === "ttt") {
                 document.getElementById("game-ttt").style.display = "block";
@@ -2511,6 +2670,9 @@
             } else if (gameId === "puyo") {
                 document.getElementById("game-puyo").style.display = "block";
                 puyoInit();
+            } else if (gameId === "ztd") {
+                document.getElementById("game-ztd").style.display = "block";
+                ztd_open();
             }
             
             // Dynamic scaling for mobile devices
@@ -2701,12 +2863,18 @@
                 window.blockblast_instance.render();
                 return;
             }
+
+            // ── ZTower Defense ──
+            if (gameId === 'ztd') {
+                if (window.ztd_resize) window.ztd_resize();
+                return;
+            }
         }
 
         function rescaleCurrentGame() {
             var games = ['ttt','rev','pong','snake','minesweeper','2048','flappybird','checkers',
                          'connect4','chess','tetris','codebreaker','gridgame','hackersim',
-                         'blockblast','gridmaze','dune','wordle'];
+                         'blockblast','gridmaze','dune','wordle','ztd'];
             var overlay = document.getElementById('game-overlay');
             if (!overlay || overlay.style.display !== 'block') return;
             for (var i = 0; i < games.length; i++) {
@@ -2733,6 +2901,7 @@
             dune_stop();
             wordle_stop();
             puyoStop();
+            ztd_stop();
         }
 
         var tttBoardEl = document.getElementById("ttt-board");
@@ -3973,336 +4142,323 @@
 
         minesweeperInit();
 
-        // 2048 GAME
-        var game2048Board = null;
-        var game2048Score = 0;
-        var game2048GameOver = false;
-        var game2048Won = false;
-        var game2048MergedTiles = {};
+        // ==================== 2048 GAME ====================
+        // Tile-object based: each tile has a persistent DOM element that slides
+        // via CSS transitions on top/left. No full re-render on move.
+        var g2048 = {
+            // board[r][c] = tile object or null
+            board: null,
+            score: 0,
+            gameOver: false,
+            won: false,
+            animating: false,
+            nextId: 0,
 
-        function game2048Init() {
-            game2048Board = [];
-            var i, j;
-            for (i = 0; i < 4; i++) {
-                game2048Board[i] = [];
-                for (j = 0; j < 4; j++) {
-                    game2048Board[i][j] = 0;
-                }
-            }
-            game2048Score = 0;
-            game2048GameOver = false;
-            game2048Won = false;
-            game2048MergedTiles = {};
-            game2048AddTile();
-            game2048AddTile();
-            game2048Render();
-            document.getElementById("2048-status").innerHTML = "Use arrow keys to move tiles";
-        }
+            // Cell size + gap
+            CELL: 80,
+            GAP: 8,
+            PAD: 8,
 
-        function game2048AddTile() {
-            var empty = [];
-            var i, j;
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 4; j++) {
-                    if (game2048Board[i][j] === 0) {
-                        empty.push([i, j]);
+            // Convert row/col to pixel top/left inside the board div
+            px: function(r, c) {
+                return {
+                    top:  this.PAD + r * (this.CELL + this.GAP),
+                    left: this.PAD + c * (this.CELL + this.GAP)
+                };
+            },
+
+            init: function() {
+                this.board = [[null,null,null,null],[null,null,null,null],[null,null,null,null],[null,null,null,null]];
+                this.score = 0; this.gameOver = false; this.won = false; this.animating = false; this.nextId = 0;
+                this.moveQueue = []; this.moveTimestamps = []; this.animDuration = 120;
+                // Build background grid cells
+                var container = document.getElementById('board-2048');
+                container.innerHTML = '';
+                for (var r = 0; r < 4; r++) {
+                    for (var c = 0; c < 4; c++) {
+                        var bg = document.createElement('div');
+                        bg.className = 'cell-2048-bg';
+                        var p = this.px(r, c);
+                        bg.style.top  = p.top  + 'px';
+                        bg.style.left = p.left + 'px';
+                        container.appendChild(bg);
                     }
                 }
-            }
-            if (empty.length === 0) return;
-            var pos = empty[Math.floor(Math.random() * empty.length)];
-            var val = Math.random() < 0.9 ? 2 : 4;
-            game2048Board[pos[0]][pos[1]] = val;
-        }
+                this.addTile(); this.addTile();
+                document.getElementById('2048-score').textContent = 'Score: 0';
+                document.getElementById('2048-status').textContent = 'Arrow keys or WASD to slide';
+            },
 
-        function game2048Render() {
-            var board = document.getElementById("2048-board");
-            board.innerHTML = "";
-            var i, j, cell, val, key;
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 4; j++) {
-                    cell = document.createElement("div");
-                    cell.className = "tile-2048";
-                    val = game2048Board[i][j];
-                    key = i + "," + j;
-                    if (val === 0) {
-                        cell.className += " empty";
+            // Create and place a DOM tile element
+            addTile: function(r, c, val, isNew) {
+                if (r === undefined) {
+                    // 60% chance: spawn a tile adjacent to an existing tile with the same value
+                    var empties = [];
+                    for (var rr = 0; rr < 4; rr++)
+                        for (var cc = 0; cc < 4; cc++)
+                            if (!this.board[rr][cc]) empties.push([rr, cc]);
+                    if (!empties.length) return;
+
+                    var pick = null;
+                    val = Math.random() < 0.9 ? 2 : 4;
+
+                    if (Math.random() < 0.80) {
+                        // Try to find an empty cell next to a tile with the same value we're about to spawn
+                        var DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+                        var candidates = [];
+                        for (var ei = 0; ei < empties.length; ei++) {
+                            var er = empties[ei][0], ec = empties[ei][1];
+                            for (var di = 0; di < 4; di++) {
+                                var nr = er + DIRS[di][0], nc = ec + DIRS[di][1];
+                                if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4 &&
+                                    this.board[nr][nc] && this.board[nr][nc].val === val) {
+                                    candidates.push([er, ec]);
+                                    break;
+                                }
+                            }
+                        }
+                        if (candidates.length > 0) {
+                            pick = candidates[Math.floor(Math.random() * candidates.length)];
+                        }
+                    }
+
+                    // Fall back to fully random if no merge opportunity found
+                    if (!pick) pick = empties[Math.floor(Math.random() * empties.length)];
+
+                    r = pick[0]; c = pick[1];
+                    isNew = true;
+                }
+                var el = document.createElement('div');
+                el.className = 'tile-2048' + (isNew ? ' tile-new' : '');
+                el.setAttribute('data-val', val);
+                el.textContent = val;
+                var p = this.px(r, c);
+                el.style.top  = p.top  + 'px';
+                el.style.left = p.left + 'px';
+                document.getElementById('board-2048').appendChild(el);
+                var tile = { r: r, c: c, val: val, el: el, id: this.nextId++ };
+                this.board[r][c] = tile;
+                return tile;
+            },
+
+            // Move tile element to new row/col (CSS transition does the slide)
+            moveTileEl: function(tile, r, c) {
+                tile.r = r; tile.c = c;
+                var p = this.px(r, c);
+                tile.el.style.top  = p.top  + 'px';
+                tile.el.style.left = p.left + 'px';
+            },
+
+            // Core slide logic for one row/col vector (left-to-right)
+            // Returns { tiles: [tile|null x4], score: added, moved: bool }
+            slideVector: function(line) {
+                // Compress: remove nulls, keep tiles in order
+                var tiles = line.filter(function(t){ return t !== null; });
+                var score = 0, merged = [];
+                var result = [];
+                var i = 0;
+                while (i < tiles.length) {
+                    if (i + 1 < tiles.length && tiles[i].val === tiles[i+1].val && merged.indexOf(tiles[i]) === -1 && merged.indexOf(tiles[i+1]) === -1) {
+                        // Merge pair
+                        tiles[i].val *= 2;
+                        score += tiles[i].val;
+                        merged.push(tiles[i]);
+                        result.push(tiles[i]);
+                        // The consumed tile gets moved to same spot then removed
+                        tiles[i]._mergeFrom = tiles[i+1];
+                        i += 2;
                     } else {
-                        cell.setAttribute("data-value", val);
-                        cell.innerHTML = val;
-                        // Add merge animation if this tile was just merged
-                        if (game2048MergedTiles[key]) {
-                            cell.className += " merge";
-                        } else {
-                            cell.className += " slide";
-                        }
+                        result.push(tiles[i]);
+                        i++;
                     }
-                    board.appendChild(cell);
                 }
-            }
-            document.getElementById("2048-score").innerHTML = "Score: " + game2048Score;
-            // Clear merged tiles after render
-            game2048MergedTiles = {};
-        }
+                while (result.length < 4) result.push(null);
+                return { result: result, score: score };
+            },
 
-        function game2048Move(direction) {
-            if (game2048GameOver) return;
-            var moved = false;
-            if (direction === "left") {
-                moved = game2048MoveLeft();
-            } else if (direction === "right") {
-                moved = game2048MoveRight();
-            } else if (direction === "up") {
-                moved = game2048MoveUp();
-            } else if (direction === "down") {
-                moved = game2048MoveDown();
-            }
-            if (moved) {
-                game2048AddTile();
-                game2048Render();
-                if (game2048CheckGameOver()) {
-                    game2048GameOver = true;
-                    document.getElementById("2048-status").innerHTML = "Game Over! No more moves.";
-                }
-                if (!game2048Won && game2048CheckWin()) {
-                    game2048Won = true;
-                    document.getElementById("2048-status").innerHTML = "You reached 2048! Keep going for more.";
-                }
-            }
-        }
+            // Velocity tracking for adaptive animation speed
+            moveTimestamps: [],   // ring buffer of recent move times
+            animDuration: 120,    // current animation duration in ms
+            moveQueue: [],        // queued directions pressed during animation
 
-        function game2048MoveLeft() {
-            var moved = false;
-            var i, j, k;
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 3; j++) {
-                    for (k = j; k < 3; k++) {
-                        if (game2048Board[i][k] === 0 && game2048Board[i][k + 1] !== 0) {
-                            game2048Board[i][k] = game2048Board[i][k + 1];
-                            game2048Board[i][k + 1] = 0;
-                            moved = true;
-                        }
-                    }
-                }
-                for (j = 0; j < 3; j++) {
-                    if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i][j + 1]) {
-                        game2048Board[i][j] *= 2;
-                        game2048Score += game2048Board[i][j];
-                        game2048MergedTiles[i + "," + j] = true;
-                        game2048Board[i][j + 1] = 0;
-                        moved = true;
-                    }
-                }
-                for (j = 0; j < 3; j++) {
-                    for (k = j; k < 3; k++) {
-                        if (game2048Board[i][k] === 0 && game2048Board[i][k + 1] !== 0) {
-                            game2048Board[i][k] = game2048Board[i][k + 1];
-                            game2048Board[i][k + 1] = 0;
-                            moved = true;
-                        }
-                    }
-                }
-            }
-            return moved;
-        }
+            // Compute animation duration based on recent move rate.
+            // Fast mashing → shorter. Normal play → full 120ms.
+            calcDuration: function() {
+                var now = Date.now();
+                // Keep only timestamps from last 600ms
+                this.moveTimestamps = this.moveTimestamps.filter(function(t){ return now - t < 600; });
+                this.moveTimestamps.push(now);
+                var count = this.moveTimestamps.length;
+                // count=1 → slow, count≥6 → very fast
+                // Map linearly: 1→120ms, 6+→30ms
+                var dur = Math.round(120 - (count - 1) * 18);
+                dur = Math.max(30, Math.min(120, dur));
+                this.animDuration = dur;
+                return dur;
+            },
 
-        function game2048MoveRight() {
-            var moved = false;
-            var i, j, k;
-            for (i = 0; i < 4; i++) {
-                for (j = 3; j > 0; j--) {
-                    for (k = j; k > 0; k--) {
-                        if (game2048Board[i][k] === 0 && game2048Board[i][k - 1] !== 0) {
-                            game2048Board[i][k] = game2048Board[i][k - 1];
-                            game2048Board[i][k - 1] = 0;
-                            moved = true;
+            // Apply the current animDuration to a tile element's transition
+            setTileTransition: function(el, dur) {
+                var s = dur + 'ms';
+                el.style.transition = 'top ' + s + ' ease-in-out, left ' + s + ' ease-in-out, background 0.08s';
+            },
+
+            move: function(dir) {
+                if (this.gameOver) return;
+                // If currently animating, queue the move instead of dropping it
+                if (this.animating) {
+                    // Only keep the latest queued direction (no point stacking many)
+                    this.moveQueue = [dir];
+                    return;
+                }
+                this._executeMove(dir);
+            },
+
+            _executeMove: function(dir) {
+                var self = this;
+                var moved = false;
+                var totalScore = 0;
+                var mergedTiles = [];
+                var removedTiles = [];
+
+                // Calculate adaptive duration before touching tiles
+                var dur = this.calcDuration();
+
+                // Build vectors, slide, place back
+                for (var i = 0; i < 4; i++) {
+                    var line = [];
+                    if (dir === 'left')  for (var j=0;j<4;j++) line.push(self.board[i][j]);
+                    if (dir === 'right') for (var j=3;j>=0;j--) line.push(self.board[i][j]);
+                    if (dir === 'up')    for (var j=0;j<4;j++) line.push(self.board[j][i]);
+                    if (dir === 'down')  for (var j=3;j>=0;j--) line.push(self.board[j][i]);
+
+                    var res = self.slideVector(line);
+                    totalScore += res.score;
+
+                    res.result.forEach(function(t) {
+                        if (t && t._mergeFrom) {
+                            removedTiles.push(t._mergeFrom);
+                            mergedTiles.push(t);
                         }
-                    }
-                }
-                for (j = 3; j > 0; j--) {
-                    if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i][j - 1]) {
-                        game2048Board[i][j] *= 2;
-                        game2048Score += game2048Board[i][j];
-                        game2048MergedTiles[i + "," + j] = true;
-                        game2048Board[i][j - 1] = 0;
-                        moved = true;
-                    }
-                }
-                for (j = 3; j > 0; j--) {
-                    for (k = j; k > 0; k--) {
-                        if (game2048Board[i][k] === 0 && game2048Board[i][k - 1] !== 0) {
-                            game2048Board[i][k] = game2048Board[i][k - 1];
-                            game2048Board[i][k - 1] = 0;
-                            moved = true;
+                    });
+
+                    for (var j = 0; j < 4; j++) {
+                        var tile = res.result[j];
+                        var r, c;
+                        if (dir === 'left')  { r = i; c = j; }
+                        if (dir === 'right') { r = i; c = 3 - j; }
+                        if (dir === 'up')    { r = j; c = i; }
+                        if (dir === 'down')  { r = 3 - j; c = i; }
+
+                        if (dir === 'left')  self.board[i][j]   = tile;
+                        if (dir === 'right') self.board[i][3-j] = tile;
+                        if (dir === 'up')    self.board[j][i]   = tile;
+                        if (dir === 'down')  self.board[3-j][i] = tile;
+
+                        if (tile) {
+                            // Apply dynamic transition to this tile
+                            self.setTileTransition(tile.el, dur);
+                            if (tile._mergeFrom) {
+                                self.setTileTransition(tile._mergeFrom.el, dur);
+                                self.moveTileEl(tile._mergeFrom, r, c);
+                            }
+                            if (tile.r !== r || tile.c !== c) moved = true;
+                            self.moveTileEl(tile, r, c);
                         }
                     }
                 }
-            }
-            return moved;
-        }
 
-        function game2048MoveUp() {
-            var moved = false;
-            var i, j, k;
-            for (j = 0; j < 4; j++) {
-                for (i = 0; i < 3; i++) {
-                    for (k = i; k < 3; k++) {
-                        if (game2048Board[k][j] === 0 && game2048Board[k + 1][j] !== 0) {
-                            game2048Board[k][j] = game2048Board[k + 1][j];
-                            game2048Board[k + 1][j] = 0;
-                            moved = true;
-                        }
+                if (!moved && totalScore === 0) {
+                    // Nothing moved — process queue immediately if any
+                    if (self.moveQueue.length > 0) {
+                        var next = self.moveQueue.shift();
+                        self._executeMove(next);
+                    }
+                    return;
+                }
+
+                this.animating = true;
+                this.score += totalScore;
+
+                // Wait exactly as long as the slide animation takes
+                setTimeout(function() {
+                    removedTiles.forEach(function(t) {
+                        if (t.el && t.el.parentNode) t.el.parentNode.removeChild(t.el);
+                    });
+                    mergedTiles.forEach(function(t) {
+                        t.el.setAttribute('data-val', t.val);
+                        t.el.textContent = t.val;
+                        t.el.classList.remove('tile-merge');
+                        void t.el.offsetWidth;
+                        t.el.classList.add('tile-merge');
+                        delete t._mergeFrom;
+                    });
+
+                    self.addTile();
+                    document.getElementById('2048-score').textContent = 'Score: ' + self.score;
+
+                    if (!self.won) {
+                        outer: for (var r=0;r<4;r++) for (var c=0;c<4;c++)
+                            if (self.board[r][c] && self.board[r][c].val === 2048) {
+                                self.won = true;
+                                document.getElementById('2048-status').textContent = '🎉 You reached 2048! Keep going!';
+                                break outer;
+                            }
+                    }
+                    if (self.checkGameOver()) {
+                        self.gameOver = true;
+                        document.getElementById('2048-status').textContent = 'Game Over! No more moves.';
+                    }
+
+                    self.animating = false;
+
+                    // Process any queued move
+                    if (self.moveQueue.length > 0 && !self.gameOver) {
+                        var next = self.moveQueue.shift();
+                        self._executeMove(next);
+                    }
+                }, dur + 10); // +10ms buffer for browser paint
+            },
+
+            checkGameOver: function() {
+                for (var r = 0; r < 4; r++) {
+                    for (var c = 0; c < 4; c++) {
+                        if (!this.board[r][c]) return false; // empty cell = moves exist
+                        if (c < 3 && this.board[r][c+1] && this.board[r][c].val === this.board[r][c+1].val) return false;
+                        if (r < 3 && this.board[r+1][c] && this.board[r][c].val === this.board[r+1][c].val) return false;
                     }
                 }
-                for (i = 0; i < 3; i++) {
-                    if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i + 1][j]) {
-                        game2048Board[i][j] *= 2;
-                        game2048Score += game2048Board[i][j];
-                        game2048MergedTiles[i + "," + j] = true;
-                        game2048Board[i + 1][j] = 0;
-                        moved = true;
-                    }
-                }
-                for (i = 0; i < 3; i++) {
-                    for (k = i; k < 3; k++) {
-                        if (game2048Board[k][j] === 0 && game2048Board[k + 1][j] !== 0) {
-                            game2048Board[k][j] = game2048Board[k + 1][j];
-                            game2048Board[k + 1][j] = 0;
-                            moved = true;
-                        }
-                    }
-                }
+                return true;
             }
-            return moved;
-        }
+        };
 
-        function game2048MoveDown() {
-            var moved = false;
-            var i, j, k;
-            for (j = 0; j < 4; j++) {
-                for (i = 3; i > 0; i--) {
-                    for (k = i; k > 0; k--) {
-                        if (game2048Board[k][j] === 0 && game2048Board[k - 1][j] !== 0) {
-                            game2048Board[k][j] = game2048Board[k - 1][j];
-                            game2048Board[k - 1][j] = 0;
-                            moved = true;
-                        }
-                    }
-                }
-                for (i = 3; i > 0; i--) {
-                    if (game2048Board[i][j] !== 0 && game2048Board[i][j] === game2048Board[i - 1][j]) {
-                        game2048Board[i][j] *= 2;
-                        game2048Score += game2048Board[i][j];
-                        game2048MergedTiles[i + "," + j] = true;
-                        game2048Board[i - 1][j] = 0;
-                        moved = true;
-                    }
-                }
-                for (i = 3; i > 0; i--) {
-                    for (k = i; k > 0; k--) {
-                        if (game2048Board[k][j] === 0 && game2048Board[k - 1][j] !== 0) {
-                            game2048Board[k][j] = game2048Board[k - 1][j];
-                            game2048Board[k - 1][j] = 0;
-                            moved = true;
-                        }
-                    }
-                }
-            }
-            return moved;
-        }
+        function game2048Init()  { g2048.init(); }
+        function game2048Reset() { g2048.init(); }
+        function game2048Move(dir) { g2048.move(dir); }
 
-        function game2048CheckGameOver() {
-            var i, j;
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 4; j++) {
-                    if (game2048Board[i][j] === 0) return false;
-                }
-            }
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 3; j++) {
-                    if (game2048Board[i][j] === game2048Board[i][j + 1]) return false;
-                }
-            }
-            for (i = 0; i < 3; i++) {
-                for (j = 0; j < 4; j++) {
-                    if (game2048Board[i][j] === game2048Board[i + 1][j]) return false;
-                }
-            }
-            return true;
-        }
-
-        function game2048CheckWin() {
-            var i, j;
-            for (i = 0; i < 4; i++) {
-                for (j = 0; j < 4; j++) {
-                    if (game2048Board[i][j] === 2048) return true;
-                }
-            }
-            return false;
-        }
-
-        function game2048Reset() {
-            game2048Init();
-        }
-
-        window.addEventListener("keydown", function (e) {
+        window.addEventListener('keydown', function(e) {
             var tag = document.activeElement ? document.activeElement.tagName : '';
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-            if (document.getElementById("game-2048").style.display === "block") {
-                if (e.key === "ArrowLeft") {
-                    e.preventDefault();
-                    game2048Move("left");
-                } else if (e.key === "ArrowRight") {
-                    e.preventDefault();
-                    game2048Move("right");
-                } else if (e.key === "ArrowUp") {
-                    e.preventDefault();
-                    game2048Move("up");
-                } else if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    game2048Move("down");
-                }
-            }
+            if (document.getElementById('game-2048').style.display !== 'block') return;
+            if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') { e.preventDefault(); g2048.move('left'); }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { e.preventDefault(); g2048.move('right'); }
+            if (e.key === 'ArrowUp'    || e.key === 'w' || e.key === 'W') { e.preventDefault(); g2048.move('up'); }
+            if (e.key === 'ArrowDown'  || e.key === 's' || e.key === 'S') { e.preventDefault(); g2048.move('down'); }
         });
 
-        // Touch gesture support for 2048
-        var touchStartX = 0;
-        var touchStartY = 0;
-        var touchMinDistance = 50;
-
-        document.addEventListener("touchstart", function (e) {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-
-        document.addEventListener("touchend", function (e) {
-            if (document.getElementById("game-2048").style.display !== "block") return;
-
-            var touchEndX = e.changedTouches[0].clientX;
-            var touchEndY = e.changedTouches[0].clientY;
-
-            var deltaX = touchEndX - touchStartX;
-            var deltaY = touchEndY - touchStartY;
-
-            var absDeltaX = Math.abs(deltaX);
-            var absDeltaY = Math.abs(deltaY);
-
-            if (absDeltaX > absDeltaY && absDeltaX > touchMinDistance) {
-                e.preventDefault();
-                if (deltaX > 0) {
-                    game2048Move("right");
-                } else {
-                    game2048Move("left");
-                }
-            } else if (absDeltaY > absDeltaX && absDeltaY > touchMinDistance) {
-                e.preventDefault();
-                if (deltaY > 0) {
-                    game2048Move("down");
-                } else {
-                    game2048Move("up");
-                }
-            }
-        });
+        // Touch swipe for 2048
+        (function() {
+            var tx = 0, ty = 0;
+            document.addEventListener('touchstart', function(e) { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+            document.addEventListener('touchend', function(e) {
+                if (document.getElementById('game-2048').style.display !== 'block') return;
+                var dx = e.changedTouches[0].clientX - tx;
+                var dy = e.changedTouches[0].clientY - ty;
+                if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return;
+                if (Math.abs(dx) > Math.abs(dy)) g2048.move(dx > 0 ? 'right' : 'left');
+                else g2048.move(dy > 0 ? 'down' : 'up');
+            }, { passive: true });
+        })();
 
         // FLAPPY BIRD GAME
         var flappybirdCanvas = document.getElementById("flappybird-canvas");
@@ -7700,79 +7856,310 @@
 
         // ==================== GRID MAZE GAME ====================
         var gridmaze = {
-            cols: 0,
-            rows: 0,
-            cells: null,       // flat array: 0=wall, 1=open
-            playerX: 0,
-            playerY: 0,
-            endX: 0,
-            endY: 0,
-            steps: 0,
-            won: false,
-            running: false,
-            timerVal: 0,
-            timerStarted: false,
-            timerInterval: null,
-            cellSize: 0,
-            canvas: null,
-            ctx: null,
+            // Standard maze state
+            cols: 0, rows: 0,
+            cells: null,   // 0=wall, 1=open, 2=locked gate
+            playerX: 0, playerY: 0,
+            endX: 0, endY: 0,
+            steps: 0, won: false, running: false,
+            timerVal: 0, timerStarted: false, timerInterval: null,
+            cellSize: 0, canvas: null, ctx: null,
             difficulty: 'medium',
-            touchStartX: 0,
-            touchStartY: 0,
+
+            // ── GOD LEVEL state ──────────────────────────────────────────────
+            // Architecture:
+            //   36 zones arranged 6×6. Each zone is its own independently-generated
+            //   17×17 maze (17 is odd so the backtracker works perfectly).
+            //   Zones share border walls: zone (zc,zr) occupies global canvas cells
+            //     x: [zc*16 .. zc*16+16],  y: [zr*16 .. zr*16+16]
+            //   Full grid = 6*16+1 = 97 wide × 97 tall.
+            //   Between consecutive snake-order zones a doorway is CARVED through
+            //   the shared wall and then SET to value 2 (locked gate).
+            //   On each side of the doorway we guarantee an open path cell so the
+            //   player can always reach the gate and always enter after unlocking.
+            //   Locked (not-yet-revealed) zones have open cells stored as value 3
+            //   (fog). Fog renders identically to walls so the zone is invisible.
+            //   Canvas physically grows each time a zone is unlocked.
+            GOD_ZA: 6,   // zones across
+            GOD_ZD: 6,   // zones down
+            GOD_ZW: 17,  // zone width  in cells (must be odd)
+            GOD_ZH: 17,  // zone height in cells (must be odd)
+            // stride between zone origins (zones share their outer wall)
+            // zoneOriginX(zc) = zc * (GOD_ZW - 1)   = zc * 16
+            // zoneOriginY(zr) = zr * (GOD_ZH - 1)   = zr * 16
+            // total cols = GOD_ZA*(GOD_ZW-1)+1 = 97
+            // total rows = GOD_ZD*(GOD_ZH-1)+1 = 97
+
+            keyItems: [],       // {x, y, zoneSnakeIdx, collected}
+            gates: [],          // {x, y, fromSnake, toSnake, unlocked}
+            zoneUnlocked: [],   // bool[36]
+            snakeOrder: [],     // [zoneLinearIdx, ...] length 36
+            totalKeys: 36,
+            keysCollected: 0,
+            visibleCols: 0,     // how many canvas cols are currently shown (grows)
+            visibleRows: 0,
 
             CONFIGS: {
-                easy:       { cols: 11, rows: 11 },
-                medium:     { cols: 21, rows: 21 },
-                hard:       { cols: 31, rows: 31 },
-                impossible: { cols: 51, rows: 51 }
+                easy:          { cols: 11,  rows: 11  },
+                medium:        { cols: 21,  rows: 21  },
+                hard:          { cols: 31,  rows: 31  },
+                impossible:    { cols: 51,  rows: 51  },
+                godlevel:      { cols: 97,  rows: 97  }
             },
 
-            // Recursive backtracker maze generation
-            generate: function(cols, rows) {
-                var total = cols * rows;
-                var cells = new Array(total);
-                var i;
-                for (i = 0; i < total; i++) cells[i] = 0; // all walls
+            // ── Generic iterative backtracker ──────────────────────────────
+            // Generates a perfect maze inside the bounding box
+            // [ox..ox+w-1] × [oy..oy+h-1] of the global cells array (cols wide).
+            // w and h must be odd. Outer border of the box stays wall.
+            generateZone: function(cells, globalCols, ox, oy, w, h) {
+                // All cells in box → wall
+                for (var yy = oy; yy < oy + h; yy++)
+                    for (var xx = ox; xx < ox + w; xx++)
+                        cells[yy * globalCols + xx] = 0;
 
-                var visited = new Array(total);
-                for (i = 0; i < total; i++) visited[i] = false;
-
-                var idx = function(x, y) { return y * cols + x; };
-
-                // Start from (1,1)
-                var stack = [];
-                var sx = 1, sy = 1;
-                cells[idx(sx, sy)] = 1;
-                visited[idx(sx, sy)] = true;
-                stack.push([sx, sy]);
-
-                var dirs = [[-2,0],[2,0],[0,-2],[0,2]];
+                var visited = {};
+                var startX = ox + 1, startY = oy + 1;
+                cells[startY * globalCols + startX] = 1;
+                visited[startY * globalCols + startX] = 1;
+                var stack = [[startX, startY]];
+                var ord = [0,1,2,3];
+                var DIRS = [[-2,0],[2,0],[0,-2],[0,2]];
 
                 while (stack.length > 0) {
-                    var cur = stack[stack.length - 1];
-                    var cx = cur[0], cy = cur[1];
+                    var top = stack[stack.length - 1];
+                    var cx = top[0], cy = top[1];
+                    // shuffle directions
+                    for (var d = 3; d > 0; d--) {
+                        var jj = Math.floor(Math.random() * (d+1));
+                        var tt = ord[d]; ord[d] = ord[jj]; ord[jj] = tt;
+                    }
+                    var moved = false;
+                    for (var di = 0; di < 4; di++) {
+                        var dr = DIRS[ord[di]];
+                        var nx2 = cx + dr[0], ny2 = cy + dr[1];
+                        var nx2c = nx2 - ox, ny2c = ny2 - oy;
+                        if (nx2c >= 1 && nx2c < w-1 && ny2c >= 1 && ny2c < h-1 &&
+                            !visited[ny2 * globalCols + nx2]) {
+                            var mx = cx + dr[0]/2, my = cy + dr[1]/2;
+                            cells[my * globalCols + mx] = 1;
+                            cells[ny2 * globalCols + nx2] = 1;
+                            visited[ny2 * globalCols + nx2] = 1;
+                            stack.push([nx2, ny2]);
+                            moved = true; break;
+                        }
+                    }
+                    if (!moved) stack.pop();
+                }
+            },
 
-                    // Shuffle directions
-                    var shuffled = dirs.slice();
-                    for (var d = shuffled.length - 1; d > 0; d--) {
-                        var j = Math.floor(Math.random() * (d + 1));
-                        var tmp = shuffled[d]; shuffled[d] = shuffled[j]; shuffled[j] = tmp;
+            // ── Zone helpers ───────────────────────────────────────────────
+            zoneOriginX: function(zc) { return zc * (this.GOD_ZW - 1); },
+            zoneOriginY: function(zr) { return zr * (this.GOD_ZH - 1); },
+            zoneLinearIdx: function(zc, zr) { return zr * this.GOD_ZA + zc; },
+            zoneCoords: function(li) { return { zc: li % this.GOD_ZA, zr: Math.floor(li / this.GOD_ZA) }; },
+
+            buildSnakeOrder: function() {
+                var order = [];
+                for (var zr = 0; zr < this.GOD_ZD; zr++) {
+                    if (zr % 2 === 0) {
+                        for (var zc = 0; zc < this.GOD_ZA; zc++)
+                            order.push(this.zoneLinearIdx(zc, zr));
+                    } else {
+                        for (var zc = this.GOD_ZA-1; zc >= 0; zc--)
+                            order.push(this.zoneLinearIdx(zc, zr));
+                    }
+                }
+                return order;
+            },
+
+            // How many grid cols/rows are visible given N zones unlocked (snake order)
+            visibleBoundsForUnlocked: function(numUnlocked) {
+                // Find the bounding box of the first numUnlocked zones in snake order
+                var maxZc = 0, maxZr = 0;
+                for (var i = 0; i < numUnlocked && i < this.snakeOrder.length; i++) {
+                    var c = this.zoneCoords(this.snakeOrder[i]);
+                    if (c.zc > maxZc) maxZc = c.zc;
+                    if (c.zr > maxZr) maxZr = c.zr;
+                }
+                return {
+                    cols: this.zoneOriginX(maxZc) + this.GOD_ZW,
+                    rows: this.zoneOriginY(maxZr) + this.GOD_ZH
+                };
+            },
+
+            // ── God Level initialisation ───────────────────────────────────
+            initGodLevel: function() {
+                var ZA = this.GOD_ZA, ZD = this.GOD_ZD;
+                var ZW = this.GOD_ZW, ZH = this.GOD_ZH;
+                var gcols = this.cols, grows = this.rows; // 97×97
+                var cells = this.cells;
+
+                this.keyItems = [];
+                this.gates = [];
+                this.keysCollected = 0;
+                this.totalKeys = ZA * ZD; // 36
+                this.snakeOrder = this.buildSnakeOrder();
+                this.zoneUnlocked = [];
+                for (var i = 0; i < ZA * ZD; i++) this.zoneUnlocked.push(false);
+
+                // 1. Generate each zone independently; open cells start as value 3 (fog).
+                for (var zr = 0; zr < ZD; zr++) {
+                    for (var zc = 0; zc < ZA; zc++) {
+                        var ox = this.zoneOriginX(zc);
+                        var oy = this.zoneOriginY(zr);
+                        this.generateZone(cells, gcols, ox, oy, ZW, ZH);
+                        // Mark open cells as fog (3) — they'll be revealed on unlock
+                        for (var yy = oy; yy < oy + ZH; yy++) {
+                            for (var xx = ox; xx < ox + ZW; xx++) {
+                                if (cells[yy * gcols + xx] === 1) cells[yy * gcols + xx] = 3;
+                            }
+                        }
+                    }
+                }
+
+                // 2. Between consecutive snake-order zones, carve a guaranteed doorway
+                //    through the shared wall, then lock it (value 2).
+                //    Also ensure there is an open path cell on EACH side of the doorway
+                //    inside each respective zone.
+                for (var si = 0; si < this.snakeOrder.length - 1; si++) {
+                    var fromLi = this.snakeOrder[si];
+                    var toLi   = this.snakeOrder[si + 1];
+                    var fc = this.zoneCoords(fromLi);
+                    var tc = this.zoneCoords(toLi);
+                    var dzc = tc.zc - fc.zc;
+                    var dzr = tc.zr - fc.zr;
+
+                    var gx, gy; // gate cell coords
+
+                    if (dzc === 1) {
+                        // from→right: shared wall col = zoneOriginX(fc.zc) + ZW - 1 = zoneOriginX(tc.zc)
+                        gx = this.zoneOriginX(tc.zc);          // the shared wall column
+                        gy = this.zoneOriginY(fc.zr) + Math.floor(ZH / 2); // middle row of zone
+                        // ensure path on left (inside from-zone) and right (inside to-zone)
+                        cells[gy * gcols + (gx - 1)] = 3; // from-zone side open (fog)
+                        cells[gy * gcols + (gx + 1)] = 3; // to-zone side open (fog)
+                    } else if (dzc === -1) {
+                        gx = this.zoneOriginX(fc.zc);
+                        gy = this.zoneOriginY(fc.zr) + Math.floor(ZH / 2);
+                        cells[gy * gcols + (gx + 1)] = 3;
+                        cells[gy * gcols + (gx - 1)] = 3;
+                    } else if (dzr === 1) {
+                        gy = this.zoneOriginY(tc.zr);          // shared wall row
+                        gx = this.zoneOriginX(fc.zc) + Math.floor(ZW / 2);
+                        cells[(gy - 1) * gcols + gx] = 3;
+                        cells[(gy + 1) * gcols + gx] = 3;
+                    } else { // dzr === -1
+                        gy = this.zoneOriginY(fc.zr);
+                        gx = this.zoneOriginX(fc.zc) + Math.floor(ZW / 2);
+                        cells[(gy + 1) * gcols + gx] = 3;
+                        cells[(gy - 1) * gcols + gx] = 3;
                     }
 
+                    // Place the locked gate
+                    cells[gy * gcols + gx] = 2;
+                    this.gates.push({ x: gx, y: gy, fromSnake: si, toSnake: si+1, unlocked: false });
+
+                    // Place key randomly inside the from-zone (open/fog cells only, not gate, not start)
+                    var keyPos = this.randomOpenInZone(fc.zc, fc.zr, gx, gy);
+                    this.keyItems.push({ x: keyPos.x, y: keyPos.y, snakeIdx: si, collected: false });
+                }
+
+                // Last zone key (no gate after it, but needed for end)
+                var lastFc = this.zoneCoords(this.snakeOrder[this.snakeOrder.length - 1]);
+                var lastKey = this.randomOpenInZone(lastFc.zc, lastFc.zr, -1, -1);
+                this.keyItems.push({ x: lastKey.x, y: lastKey.y, snakeIdx: 35, collected: false });
+
+                // 3. Reveal zone 0 (first in snake order)
+                this.unlockZoneBySnakeIdx(0);
+
+                // 4. Start visible bounds = just zone 0
+                var vb = this.visibleBoundsForUnlocked(1);
+                this.visibleCols = vb.cols;
+                this.visibleRows = vb.rows;
+
+                // End marker lives at bottom-right of the LAST zone
+                var lastZC = this.zoneCoords(this.snakeOrder[35]);
+                this.endX = this.zoneOriginX(lastZC.zc) + ZW - 2;
+                this.endY = this.zoneOriginY(lastZC.zr) + ZH - 2;
+                // Ensure end cell is open
+                cells[this.endY * gcols + this.endX] = 3; // fog until zone 35 unlocked
+
+                this.updateGodHUD();
+            },
+
+            // Pick a random open/fog (1 or 3) cell inside zone (zc,zr), avoiding given exclusions
+            randomOpenInZone: function(zc, zr, exX, exY) {
+                var ZW = this.GOD_ZW, ZH = this.GOD_ZH;
+                var ox = this.zoneOriginX(zc), oy = this.zoneOriginY(zr);
+                var gcols = this.cols, cells = this.cells;
+                var tries = 0;
+                while (tries < 800) {
+                    var rx = ox + 1 + Math.floor(Math.random() * (ZW - 2));
+                    var ry = oy + 1 + Math.floor(Math.random() * (ZH - 2));
+                    var v = cells[ry * gcols + rx];
+                    if ((v === 1 || v === 3) && !(rx === exX && ry === exY) &&
+                        !(rx === 1 && ry === 1) && !(rx === this.endX && ry === this.endY)) {
+                        return { x: rx, y: ry };
+                    }
+                    tries++;
+                }
+                // Fallback: first open cell in zone
+                for (var dy = 1; dy < ZH-1; dy++) {
+                    for (var dx = 1; dx < ZW-1; dx++) {
+                        var v2 = cells[(oy+dy)*gcols+(ox+dx)];
+                        if ((v2===1||v2===3) && !(ox+dx===1&&oy+dy===1)) return { x:ox+dx, y:oy+dy };
+                    }
+                }
+                return { x: ox+1, y: oy+1 };
+            },
+
+            // Reveal all fog cells in a zone (fog 3 → open 1); also reveal gate on from-side
+            unlockZoneBySnakeIdx: function(snakeIdx) {
+                var li = this.snakeOrder[snakeIdx];
+                if (this.zoneUnlocked[li]) return;
+                this.zoneUnlocked[li] = true;
+                var coords = this.zoneCoords(li);
+                var ox = this.zoneOriginX(coords.zc), oy = this.zoneOriginY(coords.zr);
+                var ZW = this.GOD_ZW, ZH = this.GOD_ZH;
+                var gcols = this.cols, cells = this.cells;
+                for (var yy = oy; yy < oy + ZH; yy++) {
+                    for (var xx = ox; xx < ox + ZW; xx++) {
+                        if (cells[yy * gcols + xx] === 3) cells[yy * gcols + xx] = 1;
+                    }
+                }
+                // Expand visible area
+                var vb = this.visibleBoundsForUnlocked(snakeIdx + 1);
+                this.visibleCols = vb.cols;
+                this.visibleRows = vb.rows;
+            },
+
+            // ── Standard single-maze generator (for non-god modes) ─────────
+            generate: function(cols, rows) {
+                var cells = new Uint8Array(cols * rows);
+                var visited = new Uint8Array(cols * rows);
+                var sx = 1, sy = 1;
+                cells[sy * cols + sx] = 1;
+                visited[sy * cols + sx] = 1;
+                var stack = [[sx, sy]];
+                var ord = [0,1,2,3];
+                var DIRS = [[-2,0],[2,0],[0,-2],[0,2]];
+                while (stack.length > 0) {
+                    var top = stack[stack.length-1];
+                    var cx = top[0], cy = top[1];
+                    for (var d = 3; d > 0; d--) {
+                        var jj = Math.floor(Math.random()*(d+1));
+                        var tt = ord[d]; ord[d]=ord[jj]; ord[jj]=tt;
+                    }
                     var moved = false;
-                    for (var di = 0; di < shuffled.length; di++) {
-                        var nx = cx + shuffled[di][0];
-                        var ny = cy + shuffled[di][1];
-                        if (nx >= 1 && nx < cols - 1 && ny >= 1 && ny < rows - 1 && !visited[idx(nx, ny)]) {
-                            // Carve passage
-                            var mx = cx + shuffled[di][0] / 2;
-                            var my = cy + shuffled[di][1] / 2;
-                            cells[idx(mx, my)] = 1;
-                            cells[idx(nx, ny)] = 1;
-                            visited[idx(nx, ny)] = true;
-                            stack.push([nx, ny]);
-                            moved = true;
-                            break;
+                    for (var di = 0; di < 4; di++) {
+                        var dr = DIRS[ord[di]];
+                        var nx2 = cx+dr[0], ny2 = cy+dr[1];
+                        if (nx2>=1&&nx2<cols-1&&ny2>=1&&ny2<rows-1&&!visited[ny2*cols+nx2]) {
+                            cells[(cy+dr[1]/2)*cols+(cx+dr[0]/2)]=1;
+                            cells[ny2*cols+nx2]=1;
+                            visited[ny2*cols+nx2]=1;
+                            stack.push([nx2,ny2]);
+                            moved=true; break;
                         }
                     }
                     if (!moved) stack.pop();
@@ -7780,6 +8167,7 @@
                 return cells;
             },
 
+            // ── Init ───────────────────────────────────────────────────────
             init: function() {
                 this.canvas = document.getElementById('gridmaze-canvas');
                 this.ctx = this.canvas.getContext('2d');
@@ -7789,169 +8177,273 @@
                 this.cols = cfg.cols;
                 this.rows = cfg.rows;
 
-                this.cells = this.generate(this.cols, this.rows);
+                var keysWrap  = document.getElementById('gridmaze-keys-wrap');
+                var zoneWrap  = document.getElementById('gridmaze-zone-wrap');
+                var keyLegend = document.getElementById('gridmaze-key-legend');
 
-                // Player starts top-left open cell
-                this.playerX = 1;
-                this.playerY = 1;
+                if (diff === 'godlevel') {
+                    // Allocate the full 97×97 grid (all walls initially)
+                    this.cells = new Uint8Array(this.cols * this.rows);
+                    this.playerX = 1; this.playerY = 1;
+                    // endX/endY set in initGodLevel
+                    this.endX = this.cols - 2; this.endY = this.rows - 2;
+                    keysWrap.style.display  = 'block';
+                    zoneWrap.style.display  = 'block';
+                    if (keyLegend) keyLegend.style.display = 'inline';
+                    this.initGodLevel();
+                } else {
+                    this.cells = this.generate(this.cols, this.rows);
+                    this.playerX = 1; this.playerY = 1;
+                    this.endX = this.cols - 2; this.endY = this.rows - 2;
+                    keysWrap.style.display  = 'none';
+                    zoneWrap.style.display  = 'none';
+                    if (keyLegend) keyLegend.style.display = 'none';
+                    this.keyItems = []; this.gates = [];
+                    this.zoneUnlocked = []; this.snakeOrder = [];
+                    this.totalKeys = 0; this.keysCollected = 0;
+                    this.visibleCols = this.cols; this.visibleRows = this.rows;
+                }
 
-                // End at bottom-right open cell
-                this.endX = this.cols - 2;
-                this.endY = this.rows - 2;
-
-                this.steps = 0;
-                this.won = false;
-                this.running = true;
-                this.timerVal = 0;
-                this.timerStarted = false;
-
-                // Fit canvas to container
+                this.steps = 0; this.won = false; this.running = true;
+                this.timerVal = 0; this.timerStarted = false;
                 this.resize();
-
                 this.stopTimer();
                 this.render();
                 this.updateHUD();
             },
 
+            // ── Resize: for god level, size canvas to VISIBLE bounds only ──
             resize: function() {
                 var container = document.getElementById('gridmaze-container');
                 if (!container) return;
                 var maxW = container.clientWidth - 4;
-                var maxH = window.innerHeight - 280;
+                var maxH = window.innerHeight - 300;
                 if (maxH < 200) maxH = 200;
-                var cellW = Math.floor(maxW / this.cols);
-                var cellH = Math.floor(maxH / this.rows);
-                this.cellSize = Math.max(3, Math.min(cellW, cellH));
-                // Cap cell size for small mazes so they don't get enormous
-                if (this.difficulty === 'easy') this.cellSize = Math.min(this.cellSize, 28);
-                if (this.difficulty === 'medium') this.cellSize = Math.min(this.cellSize, 20);
-                if (this.difficulty === 'hard') this.cellSize = Math.min(this.cellSize, 14);
-                if (this.difficulty === 'impossible') this.cellSize = Math.min(this.cellSize, 10);
 
-                this.canvas.width = this.cols * this.cellSize;
-                this.canvas.height = this.rows * this.cellSize;
-                // CSS handles display scaling (max-width:100%; height:auto)
+                var drawCols = (this.difficulty === 'godlevel') ? this.visibleCols : this.cols;
+                var drawRows = (this.difficulty === 'godlevel') ? this.visibleRows : this.rows;
+
+                var cellW = Math.floor(maxW / drawCols);
+                var cellH = Math.floor(maxH / drawRows);
+                this.cellSize = Math.max(3, Math.min(cellW, cellH));
+
+                if (this.difficulty === 'easy')           this.cellSize = Math.min(this.cellSize, 28);
+                if (this.difficulty === 'medium')         this.cellSize = Math.min(this.cellSize, 20);
+                if (this.difficulty === 'hard')           this.cellSize = Math.min(this.cellSize, 14);
+                if (this.difficulty === 'impossible')     this.cellSize = Math.min(this.cellSize, 10);
+                if (this.difficulty === 'godlevel')       this.cellSize = Math.min(this.cellSize, 16);
+
+                this.canvas.width  = drawCols * this.cellSize;
+                this.canvas.height = drawRows * this.cellSize;
             },
 
+            // ── Render ─────────────────────────────────────────────────────
             render: function() {
                 if (!this.ctx) return;
                 var cs = this.cellSize;
                 var ctx = this.ctx;
+                var isGod = (this.difficulty === 'godlevel');
+
+                var drawCols = isGod ? this.visibleCols : this.cols;
+                var drawRows = isGod ? this.visibleRows : this.rows;
+
                 ctx.fillStyle = '#03040e';
                 ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-                var cols = this.cols, rows = this.rows;
+                var gcols = this.cols;
                 var cells = this.cells;
 
-                for (var y = 0; y < rows; y++) {
-                    for (var x = 0; x < cols; x++) {
-                        var cell = cells[y * cols + x];
+                for (var y = 0; y < drawRows; y++) {
+                    for (var x = 0; x < drawCols; x++) {
+                        var cell = cells[y * gcols + x];
                         var px = x * cs, py = y * cs;
-
-                        if (cell === 0) {
-                            // Wall
+                        if (cell === 0 || cell === 3) {
+                            // Wall (or fog — renders as wall)
                             ctx.fillStyle = '#0a1628';
                             ctx.fillRect(px, py, cs, cs);
-                            // Subtle wall highlight on right/bottom edge
                             if (cs >= 6) {
                                 ctx.fillStyle = 'rgba(0,200,255,0.04)';
                                 ctx.fillRect(px, py, cs, 1);
                                 ctx.fillRect(px, py, 1, cs);
                             }
+                        } else if (cell === 2) {
+                            // Locked gate
+                            ctx.fillStyle = '#2a0e00';
+                            ctx.fillRect(px, py, cs, cs);
+                            ctx.fillStyle = '#cc4400';
+                            ctx.fillRect(px+1, py+1, cs-2, cs-2);
+                            if (cs >= 5) {
+                                ctx.fillStyle = '#ff7722';
+                                var bw = Math.max(1, Math.floor(cs*0.28));
+                                ctx.fillRect(px+bw, py+bw, cs-bw*2, cs-bw*2);
+                            }
                         } else {
-                            // Path
+                            // Open path
                             ctx.fillStyle = '#050e1c';
                             ctx.fillRect(px, py, cs, cs);
                         }
                     }
                 }
 
-                // Draw end marker
-                var ex = this.endX * cs, ey = this.endY * cs;
-                ctx.fillStyle = '#ff3d70';
-                ctx.fillRect(ex, ey, cs, cs);
-                if (cs >= 8) {
-                    // Glow pulse via solid inner square
-                    ctx.fillStyle = 'rgba(255,61,112,0.4)';
-                    ctx.fillRect(ex - cs * 0.5, ey - cs * 0.5, cs * 2, cs * 2);
-                    ctx.fillStyle = '#ff3d70';
-                    ctx.fillRect(ex, ey, cs, cs);
-                    // Mini X symbol inside
-                    ctx.fillStyle = '#fff';
-                    var m = Math.max(1, Math.floor(cs * 0.25));
-                    ctx.fillRect(ex + m, ey + m, cs - m*2, cs - m*2);
-                    ctx.fillStyle = '#ff3d70';
-                    ctx.fillRect(ex + m*2, ey + m*2, cs - m*4, cs - m*4);
+                // God level: draw keys (only in unlocked zones within visible area)
+                if (isGod) {
+                    for (var ki = 0; ki < this.keyItems.length; ki++) {
+                        var kItem = this.keyItems[ki];
+                        if (kItem.collected) continue;
+                        if (kItem.x >= drawCols || kItem.y >= drawRows) continue;
+                        var li2 = this.snakeOrder[kItem.snakeIdx];
+                        if (!this.zoneUnlocked[li2]) continue;
+                        var kx = kItem.x * cs, ky = kItem.y * cs;
+                        ctx.fillStyle = '#ffd700';
+                        ctx.fillRect(kx, ky, cs, cs);
+                        if (cs >= 5) {
+                            ctx.fillStyle = '#fffaaa';
+                            var km = Math.max(1, Math.floor(cs*0.22));
+                            ctx.fillRect(kx+km, ky+km, cs-km*2, cs-km*2);
+                        }
+                    }
+
+                    // Subtle zone border lines
+                    ctx.strokeStyle = 'rgba(0,200,255,0.09)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    var stride = this.GOD_ZW - 1; // 16
+                    for (var zc2 = 1; zc2 * stride < drawCols; zc2++) {
+                        var lx2 = zc2 * stride * cs;
+                        ctx.moveTo(lx2, 0); ctx.lineTo(lx2, this.canvas.height);
+                    }
+                    for (var zr2 = 1; zr2 * stride < drawRows; zr2++) {
+                        var ly2 = zr2 * stride * cs;
+                        ctx.moveTo(0, ly2); ctx.lineTo(this.canvas.width, ly2);
+                    }
+                    ctx.stroke();
                 }
 
-                // Draw start marker
-                var sxp = 1 * cs, syp = 1 * cs;
-                ctx.fillStyle = '#00cc66';
-                ctx.fillRect(sxp, syp, cs, cs);
+                // End marker (only visible once in visible area)
+                if (this.endX < drawCols && this.endY < drawRows) {
+                    var ex = this.endX * cs, ey = this.endY * cs;
+                    var endLocked = isGod && (this.keysCollected < this.totalKeys);
+                    ctx.fillStyle = endLocked ? '#440010' : '#ff3d70';
+                    ctx.fillRect(ex, ey, cs, cs);
+                    if (cs >= 8) {
+                        ctx.fillStyle = endLocked ? 'rgba(68,0,16,0.35)' : 'rgba(255,61,112,0.4)';
+                        ctx.fillRect(ex-cs*0.5, ey-cs*0.5, cs*2, cs*2);
+                        ctx.fillStyle = endLocked ? '#440010' : '#ff3d70';
+                        ctx.fillRect(ex, ey, cs, cs);
+                        var m = Math.max(1, Math.floor(cs*0.25));
+                        ctx.fillStyle = endLocked ? '#ff8888' : '#fff';
+                        ctx.fillRect(ex+m, ey+m, cs-m*2, cs-m*2);
+                        ctx.fillStyle = endLocked ? '#440010' : '#ff3d70';
+                        ctx.fillRect(ex+m*2, ey+m*2, cs-m*4, cs-m*4);
+                    }
+                }
 
-                // Draw player
+                // Start marker
+                ctx.fillStyle = '#00cc66';
+                ctx.fillRect(1*cs, 1*cs, cs, cs);
+
+                // Player
                 var px2 = this.playerX * cs, py2 = this.playerY * cs;
                 if (cs >= 6) {
-                    // Glow behind player
                     ctx.fillStyle = 'rgba(0,200,255,0.18)';
-                    ctx.fillRect(px2 - cs, py2 - cs, cs * 3, cs * 3);
+                    ctx.fillRect(px2-cs, py2-cs, cs*3, cs*3);
                 }
                 ctx.fillStyle = '#40dfff';
                 ctx.fillRect(px2, py2, cs, cs);
                 if (cs >= 8) {
-                    // Inner dot
-                    var m2 = Math.max(1, Math.floor(cs * 0.28));
+                    var m2 = Math.max(1, Math.floor(cs*0.28));
                     ctx.fillStyle = '#fff';
-                    ctx.fillRect(px2 + m2, py2 + m2, cs - m2*2, cs - m2*2);
+                    ctx.fillRect(px2+m2, py2+m2, cs-m2*2, cs-m2*2);
                 }
 
                 // Win overlay
                 if (this.won) {
                     ctx.fillStyle = 'rgba(0,200,255,0.18)';
                     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                    ctx.fillStyle = 'rgba(3,4,14,0.75)';
-                    var tw = Math.min(this.canvas.width * 0.8, 300);
-                    var th = 80;
-                    var tx = (this.canvas.width - tw) / 2;
-                    var ty = (this.canvas.height - th) / 2;
-                    ctx.fillRect(tx, ty, tw, th);
-                    ctx.fillStyle = '#40dfff';
-                    var fs = Math.max(14, Math.min(28, Math.floor(this.canvas.width / 10)));
-                    ctx.font = 'bold ' + fs + 'px Segoe UI, sans-serif';
+                    ctx.fillStyle = 'rgba(3,4,14,0.82)';
+                    var tw = Math.min(this.canvas.width*0.82, 340);
+                    var th = 90;
+                    var txw = (this.canvas.width-tw)/2, tyw = (this.canvas.height-th)/2;
+                    ctx.fillRect(txw, tyw, tw, th);
+                    ctx.fillStyle = isGod ? '#ffd700' : '#40dfff';
+                    var fs = Math.max(12, Math.min(26, Math.floor(this.canvas.width/11)));
+                    ctx.font = 'bold '+fs+'px Segoe UI,sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('MAZE COMPLETE!', this.canvas.width / 2, ty + th * 0.45);
+                    ctx.fillText('MAZE COMPLETE!', this.canvas.width/2, tyw+th*0.42);
                     ctx.fillStyle = '#8899bb';
-                    var fs2 = Math.max(10, Math.floor(fs * 0.65));
-                    ctx.font = fs2 + 'px Segoe UI, sans-serif';
-                    ctx.fillText(this.steps + ' steps  |  ' + document.getElementById('gridmaze-time').textContent, this.canvas.width / 2, ty + th * 0.78);
+                    ctx.font = Math.max(9,Math.floor(fs*0.62))+'px Segoe UI,sans-serif';
+                    ctx.fillText(this.steps+' steps  |  '+document.getElementById('gridmaze-time').textContent, this.canvas.width/2, tyw+th*0.78);
                     ctx.textAlign = 'left';
                 }
             },
 
+            // ── Move ───────────────────────────────────────────────────────
             move: function(dx, dy) {
                 if (!this.running || this.won) return;
-                var nx = this.playerX + dx;
-                var ny = this.playerY + dy;
+                var nx = this.playerX + dx, ny = this.playerY + dy;
                 if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) return;
-                if (this.cells[ny * this.cols + nx] === 0) return; // wall
-
-                // Start timer on first actual move
-                if (!this.timerStarted) {
-                    this.timerStarted = true;
-                    this.startTimer();
+                var cell = this.cells[ny * this.cols + nx];
+                if (cell === 0 || cell === 3) return; // wall or fog
+                if (cell === 2) {
+                    if (window.showToast) showToast('🔒 Find the 🔑 key in this zone first!', 1800);
+                    return;
                 }
 
-                this.playerX = nx;
-                this.playerY = ny;
-                this.steps++;
+                if (!this.timerStarted) { this.timerStarted = true; this.startTimer(); }
+
+                this.playerX = nx; this.playerY = ny; this.steps++;
+
+                // God level: key pickup
+                if (this.difficulty === 'godlevel') {
+                    for (var ki = 0; ki < this.keyItems.length; ki++) {
+                        var kItem = this.keyItems[ki];
+                        if (!kItem.collected && kItem.x === nx && kItem.y === ny) {
+                            kItem.collected = true;
+                            this.keysCollected++;
+                            // Find matching gate (snakeIdx of key == fromSnake of gate)
+                            var gate = null;
+                            for (var gi = 0; gi < this.gates.length; gi++) {
+                                if (this.gates[gi].fromSnake === kItem.snakeIdx && !this.gates[gi].unlocked) {
+                                    gate = this.gates[gi]; break;
+                                }
+                            }
+                            if (gate) {
+                                gate.unlocked = true;
+                                this.cells[gate.y * this.cols + gate.x] = 1;
+                                // Reveal next zone
+                                this.unlockZoneBySnakeIdx(gate.toSnake);
+                                // Resize canvas to show newly revealed zone
+                                this.resize();
+                                var rem = this.totalKeys - this.keysCollected;
+                                if (window.showToast) showToast('🔑 Key '+this.keysCollected+'/'+this.totalKeys+' — Zone '+(this.keysCollected+1)+' revealed! ('+rem+' left)', 2400);
+                            } else {
+                                if (window.showToast) showToast('⚡ ALL 36 KEYS! Now reach the exit!', 3000);
+                            }
+                            this.updateGodHUD();
+                            break;
+                        }
+                    }
+                    // Zone HUD
+                    var stride2 = this.GOD_ZW - 1;
+                    var zc3 = Math.floor(nx / stride2), zr3 = Math.floor(ny / stride2);
+                    var li3 = this.zoneLinearIdx(zc3, zr3);
+                    var sp = this.snakeOrder.indexOf(li3) + 1;
+                    document.getElementById('gridmaze-zone').textContent = sp + '/36';
+                }
+
                 this.updateHUD();
                 this.render();
 
                 if (nx === this.endX && ny === this.endY) {
-                    this.won = true;
-                    this.stopTimer();
-                    document.getElementById('gridmaze-status').textContent = 'WON!';
-                    document.getElementById('gridmaze-status').style.color = '#00ff88';
+                    if (this.difficulty === 'godlevel' && this.keysCollected < this.totalKeys) {
+                        var miss = this.totalKeys - this.keysCollected;
+                        if (window.showToast) showToast('🔒 Still need '+miss+' more key'+(miss>1?'s':'')+'!', 2200);
+                        return;
+                    }
+                    this.won = true; this.stopTimer();
+                    var sel = document.getElementById('gridmaze-status');
+                    sel.textContent = (this.difficulty === 'godlevel') ? '⚡ GOD!' : 'WON!';
+                    sel.style.color  = (this.difficulty === 'godlevel') ? '#ffd700' : '#00ff88';
                     this.render();
                 }
             },
@@ -7959,37 +8451,31 @@
             updateHUD: function() {
                 document.getElementById('gridmaze-steps').textContent = this.steps;
             },
+            updateGodHUD: function() {
+                var el = document.getElementById('gridmaze-keys');
+                if (el) el.textContent = this.keysCollected + '/' + this.totalKeys;
+            },
 
             startTimer: function() {
                 var self = this;
-                var start = Date.now() - (self.timerVal * 1000);
+                var start = Date.now() - self.timerVal * 1000;
                 self.timerInterval = setInterval(function() {
                     if (!self.running || self.won) return;
                     self.timerVal = (Date.now() - start) / 1000;
                     document.getElementById('gridmaze-time').textContent = self.timerVal.toFixed(1) + 's';
                 }, 100);
             },
-
             stopTimer: function() {
-                if (this.timerInterval) {
-                    clearInterval(this.timerInterval);
-                    this.timerInterval = null;
-                }
+                if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
             },
-
             reset: function() {
-                this.stopTimer();
-                this.running = false;
+                this.stopTimer(); this.running = false;
                 document.getElementById('gridmaze-status').textContent = 'GO!';
                 document.getElementById('gridmaze-status').style.color = 'var(--accent)';
                 document.getElementById('gridmaze-time').textContent = '0.0s';
                 this.init();
             },
-
-            stop: function() {
-                this.stopTimer();
-                this.running = false;
-            }
+            stop: function() { this.stopTimer(); this.running = false; }
         };
 
         function gridmaze_reset() {
@@ -9281,7 +9767,1515 @@
             else if (/^[a-zA-Z]$/.test(e.key)) { wordle.onKey(e.key.toUpperCase()); e.preventDefault(); }
         });
 
-        // ==================== TOAST NOTIFICATION SYSTEM ====================
+        // ==================== ZTOWER DEFENSE ====================
+        (function() {
+
+            // ── 6 Map definitions ────────────────────────────────────
+            // Each map: name, cols, rows, PATH array of [col,row] waypoints, accent color
+            var MAPS = [
+                {
+                    id: 0, name: 'River Bend', cols: 16, rows: 10, color: '#00b4ff',
+                    path: [[0,4],[1,4],[2,4],[3,4],[3,3],[3,2],[4,2],[5,2],[6,2],[6,3],[6,4],[6,5],
+                           [7,5],[8,5],[9,5],[9,4],[9,3],[10,3],[11,3],[11,4],[11,5],[11,6],
+                           [12,6],[13,6],[14,6],[14,7],[14,8],[15,8]]
+                },
+                {
+                    id: 1, name: 'Snake Run', cols: 16, rows: 10, color: '#00ff88',
+                    path: [[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],[8,2],[8,3],[8,4],
+                           [7,4],[6,4],[5,4],[4,4],[3,4],[2,4],[2,5],[2,6],[2,7],[2,8],
+                           [3,8],[4,8],[5,8],[6,8],[7,8],[8,8],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[15,8]]
+                },
+                {
+                    id: 2, name: 'Cross Roads', cols: 16, rows: 10, color: '#ffd700',
+                    path: [[0,5],[1,5],[2,5],[3,5],[4,5],[5,5],[5,4],[5,3],[5,2],[5,1],
+                           [6,1],[7,1],[8,1],[9,1],[10,1],[10,2],[10,3],[10,4],[10,5],
+                           [11,5],[12,5],[13,5],[14,5],[14,6],[14,7],[14,8],[15,8]]
+                },
+                {
+                    id: 3, name: 'Spiral', cols: 16, rows: 10, color: '#ff6600',
+                    path: [[0,9],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9],
+                           [15,8],[15,7],[15,6],[15,5],[15,4],[15,3],[15,2],[15,1],[15,0],
+                           [14,0],[13,0],[12,0],[11,0],[10,0],[9,0],[8,0],[7,0],[6,0],[5,0],[4,0],[3,0],[2,0],[1,0],[0,0],
+                           [0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8]]
+                },
+                {
+                    id: 4, name: 'Zigzag', cols: 16, rows: 10, color: '#ff3d70',
+                    path: [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],
+                           [8,1],[8,2],[8,3],[8,4],[8,5],
+                           [7,5],[6,5],[5,5],[4,5],[3,5],[2,5],[1,5],[0,5],
+                           [0,6],[0,7],[0,8],[0,9],
+                           [1,9],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9],[8,9],[9,9],[10,9],[11,9],[12,9],[13,9],[14,9],[15,9]]
+                },
+                {
+                    id: 5, name: 'Gauntlet', cols: 16, rows: 10, color: '#cc44ff',
+                    path: [[0,4],[1,4],[2,4],[2,2],[3,2],[4,2],[5,2],[6,2],[7,2],[7,4],[7,6],
+                           [8,6],[9,6],[10,6],[10,4],[10,2],[11,2],[12,2],[13,2],[13,4],[13,6],[13,8],
+                           [14,8],[15,8]]
+                }
+            ];
+
+            // Draw a tiny map preview onto a canvas element
+            function drawMapPreview(canvas, map) {
+                var ctx = canvas.getContext('2d');
+                var W = canvas.width, H = canvas.height;
+                var cs = Math.min(W / map.cols, H / map.rows);
+                ctx.fillStyle = '#060d1a';
+                ctx.fillRect(0, 0, W, H);
+                // path cells
+                var pset = {};
+                for (var i = 0; i < map.path.length; i++) pset[map.path[i][0]+','+map.path[i][1]] = true;
+                for (var r = 0; r < map.rows; r++) {
+                    for (var c = 0; c < map.cols; c++) {
+                        if (pset[c+','+r]) {
+                            ctx.fillStyle = map.color || '#b47828';
+                            ctx.globalAlpha = 0.55;
+                            ctx.fillRect(c*cs, r*cs, cs, cs);
+                            ctx.globalAlpha = 1;
+                        }
+                    }
+                }
+                // path line
+                ctx.beginPath();
+                ctx.moveTo(map.path[0][0]*cs+cs/2, map.path[0][1]*cs+cs/2);
+                for (var i = 1; i < map.path.length; i++)
+                    ctx.lineTo(map.path[i][0]*cs+cs/2, map.path[i][1]*cs+cs/2);
+                ctx.strokeStyle = map.color || '#ffd700';
+                ctx.lineWidth = Math.max(1, cs * 0.4);
+                ctx.lineJoin = 'round';
+                ctx.stroke();
+                // start/end dots
+                ctx.fillStyle = '#00ff88';
+                ctx.beginPath(); ctx.arc(map.path[0][0]*cs+cs/2, map.path[0][1]*cs+cs/2, cs*0.5, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#ff3d70';
+                var lp = map.path[map.path.length-1];
+                ctx.beginPath(); ctx.arc(lp[0]*cs+cs/2, lp[1]*cs+cs/2, cs*0.5, 0, Math.PI*2); ctx.fill();
+            }
+
+            function buildMapPicker() {
+                var list = document.getElementById('ztd-map-list');
+                list.innerHTML = '';
+                MAPS.forEach(function(map) {
+                    var card = document.createElement('div');
+                    card.style.cssText = 'background:var(--bg-elevated);border:2px solid var(--border-mid);border-radius:10px;padding:10px;text-align:center;cursor:pointer;transition:border-color 0.18s,transform 0.15s;min-width:160px;';
+                    card.onmouseover = function() { card.style.borderColor = map.color || '#40dfff'; card.style.transform = 'scale(1.04)'; };
+                    card.onmouseout  = function() { card.style.borderColor = 'var(--border-mid)'; card.style.transform = 'scale(1)'; };
+
+                    var cv = document.createElement('canvas');
+                    cv.width = 160; cv.height = 80;
+                    cv.style.cssText = 'display:block;border-radius:6px;margin:0 auto 8px;';
+                    drawMapPreview(cv, map);
+
+                    var nm = document.createElement('div');
+                    nm.textContent = map.name;
+                    nm.style.cssText = 'font-weight:700;color:var(--text-main);font-size:13px;margin-bottom:4px;';
+
+                    var sub = document.createElement('div');
+                    sub.textContent = map.cols + '×' + map.rows + ' · ' + map.path.length + ' waypoints';
+                    sub.style.cssText = 'color:var(--text-soft);font-size:11px;margin-bottom:8px;';
+
+                    var btn = document.createElement('button');
+                    btn.className = 'btn-small';
+                    btn.textContent = 'Play';
+                    btn.style.cssText = 'width:100%;border-color:' + (map.color||'var(--border-mid)') + ';';
+                    btn.onclick = function() { ZTD.startWithMap(map); };
+
+                    card.appendChild(cv);
+                    card.appendChild(nm);
+                    card.appendChild(sub);
+                    card.appendChild(btn);
+                    list.appendChild(card);
+                });
+            }
+
+            // ── Main game object ─────────────────────────────────────
+            var ZTD = {
+                CELL: 40,
+                COLS: 16, ROWS: 10,
+                START_GOLD: 150, START_HEALTH: 200,
+                PATH: [], pathSet: null,
+                currentMap: null,
+
+                canvas: null, ctx: null,
+                grid: null,
+                enemies: [], projectiles: [], towers: [],
+                gold: 150, health: 200, wave: 0, score: 0,
+                running: false, waveActive: false,
+                autoNextWave: false,
+                sandboxMode: false,
+                selectedTower: null,
+                placingType: null,
+                cursorCol: -1, cursorRow: -1,
+                rafId: null, lastTime: 0,
+                spawnTimer: 0, spawnQueue: [],
+                speedMult: 1,   // 1 = normal, 2 = fast forward
+                rainbowPhase: 0,
+                dayPhase: 0,       // 0-600 cycling: 0-300 = day, 300-600 = night (seconds)
+                sandboxHeart: false,
+                sandboxCamo: false,
+                sandboxDragging: false,
+                cloneTower: null,
+                _lastClickTime: 0,
+                _lastClickTower: null, // drives rainbow bloon color animation (0-1 cycling)
+
+                // upgradeLimits: max level allowed for each stat (Lv 1 = base, so limit 2 = 1 upgrade)
+                TOWER_DEFS: {
+                    sword: {
+                        name: 'Sword Guy', emoji: '🗡️', cost: 50, damage: 1, range: 1.5, fireRate: 1.2, color: '#40dfff',
+                        upgradeLimits: { range: 2, damage: 2, speed: 3 }, canSeeBlack: false
+                    },
+                    gun: {
+                        name: 'Gun Man', emoji: '🔫', cost: 125, damage: 2, range: 2.8, fireRate: 1.0, color: '#ffaa00',
+                        upgradeLimits: { range: 4, damage: 5, speed: 10 }, canSeeBlack: false
+                    },
+                    cannon: {
+                        name: 'Cannon', emoji: '💣', cost: 200, damage: 10, range: 5.6, fireRate: 0.6, color: '#ff6600',
+                        upgradeLimits: { range: 1, damage: 11, speed: 6 },
+                        canSeeBlack: false
+                    },
+                    ninja: {
+                        name: 'Ninja', emoji: '🥷', cost: 350, damage: 3, range: 3.73, fireRate: 1.2, color: '#aa00ff',
+                        upgradeLimits: { range: 3, damage: 3, speed: 4 },
+                        canSeeBlack: true
+                    },
+                    sniper: {
+                        name: 'Sniper', emoji: '🎯', cost: 225, damage: 8, range: 12, fireRate: 0.4, color: '#00ffaa',
+                        upgradeLimits: { range: 6, damage: 7, speed: 15 },
+                        canSeeBlack: true   // sniper can see camo and black (scope)
+                    },
+                    ice: {
+                        name: 'Ice Tower', emoji: '🧊', cost: 150, damage: 0, range: 2.0, fireRate: 0.8, color: '#aaeeff',
+                        upgradeLimits: { range: 6, damage: 1, speed: 15 },  // damage locked (no dmg upgrades make sense)
+                        canSeeBlack: false,
+                        freezeDuration: 2.0  // seconds enemies stay frozen
+                    },
+                    necro: {
+                        name: 'Necromancer', emoji: '💀', cost: 725, damage: 2, range: 2.5, fireRate: 0.5, color: '#55ff55',
+                        upgradeLimits: { range: 6, damage: 7, speed: 15 },
+                        canSeeBlack: false,
+                        spawnsGhost: true
+                    },
+                    supergun: {
+                        name: 'Super Gun', emoji: '🔥', cost: 1225, damage: 5, range: 4.2, fireRate: 2.5, color: '#ff2200',
+                        upgradeLimits: { range: 6, damage: 7, speed: 15 },
+                        canSeeBlack: false
+                    }
+                },
+                ENEMY_DEFS: {
+                    basic: {
+                        name: 'Basic', hp: 1, maxHp: 1, speed: 55, reward: 1, color: '#ff3d70', radius: 9,
+                        splitInto: null
+                    },
+                    basic2: {
+                        // Blue — faster than red, splits into red when killed
+                        name: 'Basic2', hp: 1, maxHp: 1, speed: 72, reward: 1, color: '#3399ff', radius: 11,
+                        splitInto: 'basic'
+                    },
+                    basic2shell: {
+                        name: 'Basic2', hp: 2, maxHp: 2, speed: 65, reward: 1, color: '#3399ff', radius: 11,
+                        splitInto: 'basic2'
+                    },
+                    yellow: {
+                        // Yellow — SUPER FAST, 5 hp, on death spawns 2 blue enemies
+                        name: 'Yellow', hp: 5, maxHp: 5, speed: 140, reward: 1, color: '#ffdd00', radius: 10,
+                        splitInto: null,
+                        spawnOnDeath: [{ type: 'basic2shell', count: 2 }]
+                    },
+                    basic3: {
+                        // Green (inner layer after basic3shell peels)
+                        name: 'Basic3', hp: 1, maxHp: 1, speed: 85, reward: 1, color: '#00dd55', radius: 13,
+                        splitInto: null
+                    },
+                    basic3shell: {
+                        // Green — 3 hits, splits to blue on first hit
+                        name: 'Basic3', hp: 3, maxHp: 3, speed: 75, reward: 1, color: '#00dd55', radius: 13,
+                        splitInto: 'basic2shell'
+                    },
+                    basic4: {
+                        // Purple (inner layer after basic4shell peels)
+                        name: 'Basic4', hp: 1, maxHp: 1, speed: 42, reward: 1, color: '#9933ff', radius: 17,
+                        splitInto: null
+                    },
+                    basic4shell: {
+                        // Purple — 4 hits, big, slow, splits to green on first hit
+                        name: 'Basic4', hp: 4, maxHp: 4, speed: 38, reward: 1, color: '#9933ff', radius: 17,
+                        splitInto: 'basic3shell'
+                    },
+                    lead: {
+                        // Gray/Lead — 100 hp, metal, speed just above red (58), on death spawns 2 purples
+                        name: 'Lead', hp: 100, maxHp: 100, speed: 58, reward: 1, color: '#8899aa', radius: 15,
+                        splitInto: null,
+                        spawnOnDeath: [{ type: 'basic4shell', count: 2 }]
+                    },
+                    boss1: {
+                        // BLUE BOSS — 500 hp, ultra slow, 4× purple size, spawns 10 leads on death
+                        name: 'BOSS', hp: 500, maxHp: 500, speed: 18, reward: 1, color: '#0066ff', radius: 68,
+                        splitInto: null,
+                        spawnOnDeath: [{ type: 'lead', count: 10 }]
+                    },
+                    rainbow: {
+                        // Rainbow — very fast (93px/s ≈ 1.5× slower than yellow's 140), 200 hp,
+                        // on death spawns one of every bloon color (no boss)
+                        name: 'Rainbow', hp: 200, maxHp: 200, speed: 93, reward: 1, color: '#ff44cc', radius: 12,
+                        splitInto: null,
+                        spawnOnDeath: [
+                            { type: 'basic',       count: 1 },
+                            { type: 'basic2shell', count: 1 },
+                            { type: 'basic3shell', count: 1 },
+                            { type: 'yellow',      count: 1 },
+                            { type: 'basic4shell', count: 1 },
+                            { type: 'lead',        count: 1 }
+                        ]
+                    },
+                    ceramic: {
+                        // Ceramic — brown, 400 hp, on death spawns 2 rainbow bloons
+                        name: 'Ceramic', hp: 400, maxHp: 400, speed: 78, reward: 1, color: '#8B5E3C', radius: 16,
+                        splitInto: null,
+                        spawnOnDeath: [{ type: 'rainbow', count: 2 }]
+                    },
+                    boss2: {
+                        // RED BOSS — 1000 hp, 1.2× bigger than boss1 (82px), ultra slow (14px/s)
+                        // on death spawns 5 ceramic bloons
+                        name: 'BOSS 2', hp: 1000, maxHp: 1000, speed: 14, reward: 1, color: '#cc0000', radius: 82,
+                        splitInto: null,
+                        spawnOnDeath: [{ type: 'ceramic', count: 5 }]
+                    },
+                    black: {
+                        // Black — invisible to normal towers, only Ninja can see it
+                        name: 'Black', hp: 150, maxHp: 150, speed: 62, reward: 1, color: '#111122', radius: 12,
+                        isBlack: true, splitInto: null
+                    }
+                },
+
+                startWithMap: function(map) {
+                    this.currentMap = map;
+                    this.PATH = map.path;
+                    this.COLS = map.cols;
+                    this.ROWS = map.rows;
+                    document.getElementById('ztd-map-picker').style.display = 'none';
+                    document.getElementById('ztd-game-screen').style.display = 'flex';
+                    this.init();
+                },
+
+                resize: function() {
+                    if (!this.canvas) return;
+                    var cont = this.canvas.parentElement; // the flex row
+                    var sidebar = 148; // sidebar min-width + gap
+                    var availW = cont ? cont.clientWidth - sidebar - 8 : 500;
+                    var maxW = Math.min(availW, 640);
+                    this.CELL = Math.max(24, Math.floor(maxW / this.COLS));
+                    this.canvas.width  = this.COLS * this.CELL;
+                    this.canvas.height = this.ROWS * this.CELL;
+                },
+
+                init: function() {
+                    this.canvas = document.getElementById('ztd-canvas');
+                    this.ctx = this.canvas.getContext('2d');
+                    var cont = this.canvas.parentElement;
+                    var sidebar = 148;
+                    var availW = cont ? cont.clientWidth - sidebar - 8 : 500;
+                    var maxW = Math.min(availW, 640);
+                    this.CELL = Math.max(24, Math.floor(maxW / this.COLS));
+                    this.canvas.width  = this.COLS * this.CELL;
+                    this.canvas.height = this.ROWS * this.CELL;
+
+                    this.pathSet = {};
+                    for (var i = 0; i < this.PATH.length; i++)
+                        this.pathSet[this.PATH[i][0]+','+this.PATH[i][1]] = true;
+
+                    this.grid = [];
+                    for (var r = 0; r < this.ROWS; r++) {
+                        this.grid[r] = [];
+                        for (var c = 0; c < this.COLS; c++) this.grid[r][c] = null;
+                    }
+                    this.enemies = []; this.projectiles = []; this.towers = [];
+                    this.gold = this.sandboxMode ? 999999 : this.START_GOLD;
+                    this.health = this.START_HEALTH;
+                    this.wave = 0; this.score = 0;
+                    this.waveActive = false; this.selectedTower = null;
+                    this.placingType = null; this.cursorCol = -1; this.cursorRow = -1;
+                    this.spawnQueue = []; this.spawnTimer = 0;
+                    this.speedMult = 1; this.autoNextWave = false;
+                    this.dayPhase = 0;
+                    this.cloneTower = null; this._lastClickTower = null;
+                    this.running = true;
+
+                    document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                    document.getElementById('ztd-sandbox-panel').style.display = this.sandboxMode ? 'block' : 'none';
+                    document.getElementById('ztd-wave-btn').textContent = '▶ Start Wave 1';
+                    document.getElementById('ztd-speed-btn').textContent = '▶▶ 1×';
+                    document.getElementById('ztd-speed-btn').style.background = '';
+                    document.getElementById('ztd-speed-btn').style.borderColor = '';
+                    this.updateHUD();
+                    this.setStatus('Place Sword Guys on grass, then start the wave!');
+
+                    var self = this;
+
+                    this.canvas.onmousedown = function(e) {
+                        var pos = self._canvasPos(e);
+                        self.cursorCol = pos.col;
+                        self.cursorRow = pos.row;
+                        self._mousedownCol = pos.col;
+                        self._mousedownRow = pos.row;
+
+                        if (self.sandboxMode && (self.placingType || self.cloneTower)) {
+                            self.sandboxDragging = true;
+                            self.placeTowerAt(pos.col, pos.row);
+                        }
+                    };
+
+                    this.canvas.onmouseup = function(e) {
+                        self.sandboxDragging = false;
+                        if (self.sandboxMode && self.placingType && !self.cloneTower) {
+                            self.placingType = null;
+                            document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                        }
+                    };
+
+                    this.canvas.onmouseleave = function() {
+                        self.cursorCol = -1; self.cursorRow = -1;
+                        self.sandboxDragging = false;
+                        if (self.sandboxMode && self.placingType && !self.cloneTower) {
+                            self.placingType = null;
+                            document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                        }
+                    };
+
+                    this.canvas.onmousemove = function(e) {
+                        var pos = self._canvasPos(e);
+                        self.cursorCol = pos.col;
+                        self.cursorRow = pos.row;
+                        if (self.sandboxDragging && self.sandboxMode && (self.placingType || self.cloneTower)) {
+                            self.placeTowerAt(pos.col, pos.row);
+                        }
+                    };
+
+                    // onclick handles: normal placement mode + tower selection + clone double-click
+                    this.canvas.onclick = function(e) {
+                        // In sandbox with placingType, mousedown already placed — skip onclick to avoid double-place
+                        if (self.sandboxMode && self.placingType) return;
+                        self.handleClick(e);
+                    };
+
+                    if (this.rafId) cancelAnimationFrame(this.rafId);
+                    this.lastTime = performance.now();
+                    this._loop();
+                },
+
+                _loop: function() {
+                    if (!this.running) return;
+                    var self = this;
+                    this.rafId = requestAnimationFrame(function(ts) {
+                        var rawDt = Math.min((ts - self.lastTime) / 1000, 0.1);
+                        self.lastTime = ts;
+                        var dt = rawDt * self.speedMult;
+                        self.update(dt);
+                        self.render();
+                        self._loop();
+                    });
+                },
+
+                stop: function() {
+                    this.running = false;
+                    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
+                },
+
+                update: function(dt) {
+                    if (!this.waveActive) return;
+                    // Advance rainbow animation phase (full cycle every ~1.5s)
+                    this.rainbowPhase = (this.rainbowPhase + dt / 1.5) % 1;
+                    // Day/night cycle: 5min day + 5min night = 600s total
+                    this.dayPhase = (this.dayPhase + dt) % 600;
+                    this.spawnTimer -= dt;
+                    if (this.spawnTimer <= 0 && this.spawnQueue.length > 0) {
+                        var defKey = this.spawnQueue.shift();
+                        this.spawnEnemy(this.ENEMY_DEFS[defKey], defKey, false, false);
+                        this.spawnTimer = 0.8;
+                    }
+                    // Heart regen: 20 HP/sec, not fixed rate (dt-based)
+                    for (var h = 0; h < this.enemies.length; h++) {
+                        var he = this.enemies[h];
+                        if (he.heart && he.hp > 0 && he.hp < he.maxHp) {
+                            he.hp = Math.min(he.maxHp, he.hp + 20 * dt);
+                        }
+                    }
+                    for (var i = this.enemies.length - 1; i >= 0; i--) {
+                        var e = this.enemies[i];
+
+                        // Ghost bloon: walks backward, pops on collision with a real bloon (and pops it)
+                        if (e.ghost) {
+                            e.ghostLife -= dt;
+                            if (e.ghostLife <= 0 || e.pathIdx < 0) {
+                                this.enemies.splice(i, 1);
+                                continue;
+                            }
+                            // Walk backward along path
+                            if (e.pathIdx > 0) {
+                                var wp2 = this.PATH[e.pathIdx - 1];
+                                var gtx = wp2[0]*this.CELL+this.CELL/2, gty = wp2[1]*this.CELL+this.CELL/2;
+                                var gdx = gtx-e.x, gdy = gty-e.y;
+                                var gdist = Math.sqrt(gdx*gdx+gdy*gdy);
+                                var gstep = e.speed * dt;
+                                if (gstep >= gdist) { e.x=gtx; e.y=gty; e.pathIdx--; }
+                                else { e.x += (gdx/gdist)*gstep; e.y += (gdy/gdist)*gstep; }
+                            }
+                            // Collision: check if touching any real bloon (skip if still in spawn grace period)
+                            var ghostPopped = false;
+                            if (!e.spawnGrace || e.spawnGrace <= 0) {
+                                for (var si = 0; si < this.enemies.length; si++) {
+                                    var se = this.enemies[si];
+                                    if (se.ghost) continue;
+                                    var sdx2 = se.x - e.x, sdy2 = se.y - e.y;
+                                    var collDist = se.radius + e.radius;
+                                    if (Math.sqrt(sdx2*sdx2 + sdy2*sdy2) <= collDist) {
+                                        se.hp = 0;
+                                        ghostPopped = true;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                e.spawnGrace -= dt;
+                            }
+                            if (ghostPopped) {
+                                this.enemies.splice(i, 1); // ghost pops itself too
+                            }
+                            continue;
+                        }
+
+                        // Tick frozen timer
+                        if (e.frozen > 0) e.frozen -= dt;
+
+                        if (this.moveEnemy(e, dt)) {
+                            this.health = Math.max(0, this.health - 10);
+                            this.enemies.splice(i, 1);
+                            this.updateHUD();
+                            if (this.health <= 0) { this.gameOver(); return; }
+                        } else if (e.hp <= 0) {
+                            this.gold += e.reward; this.score += e.reward * 10;
+                            // spawnOnDeath: spawn children at same position/pathIdx
+                            if (e.spawnOnDeath) {
+                                for (var sd = 0; sd < e.spawnOnDeath.length; sd++) {
+                                    var sdEntry = e.spawnOnDeath[sd];
+                                    var sdDef = this.ENEMY_DEFS[sdEntry.type];
+                                    var isBossChild = (sdEntry.type === 'boss1' || sdEntry.type === 'boss2');
+                                    for (var sc = 0; sc < sdEntry.count; sc++) {
+                                        var child = {
+                                            x: e.x, y: e.y,
+                                            name: sdDef.name, defKey: sdEntry.type,
+                                            hp: sdDef.hp, maxHp: sdDef.maxHp,
+                                            speed: sdDef.speed, reward: sdDef.reward,
+                                            color: sdDef.color, radius: sdDef.radius,
+                                            pathIdx: e.pathIdx,
+                                            splitInto: sdDef.splitInto || null,
+                                            spawnOnDeath: sdDef.spawnOnDeath || null,
+                                            isBlack: sdDef.isBlack || false,
+                                            heart: !isBossChild && e.heart,
+                                            camo:  !isBossChild && e.camo
+                                        };
+                                        this.enemies.push(child);
+                                    }
+                                }
+                            }
+                            this.enemies.splice(i, 1); this.updateHUD();
+                        }
+                    }
+                    for (var t = 0; t < this.towers.length; t++) {
+                        var tower = this.towers[t];
+                        tower.cooldown -= dt;
+                        if (tower.cooldown <= 0) {
+                            if (tower.type === 'cannon') {
+                                // ── Cannon: multi-target (5), pierce all layers, bomb vs lead ──
+                                var targets = this.findCannonTargets(tower);
+                                if (targets.length > 0) {
+                                    tower.cooldown = 1 / tower.fireRate;
+                                    tower.attackFlash = 0.18;
+                                    for (var ct = 0; ct < targets.length; ct++) {
+                                        var ctgt = targets[ct];
+                                        var isLead = (ctgt.defKey === 'lead' || ctgt.name === 'Lead' || ctgt.color === '#8899aa');
+                                        var effDmg = isLead ? tower.damage * 5 : tower.damage;
+                                        this.applyPierceDamage(ctgt, effDmg);
+                                        this.projectiles.push({ x: tower.px, y: tower.py, tx: ctgt.x, ty: ctgt.y, life: 0.15, maxLife: 0.15, bomb: true });
+                                    }
+                                }
+                            } else if (tower.type === 'ice') {
+                                // ── Ice Tower: freeze all enemies in range ──
+                                var frozen = false;
+                                var CS2 = this.CELL;
+                                for (var fi = 0; fi < this.enemies.length; fi++) {
+                                    var fe = this.enemies[fi];
+                                    if (fe.ghost) continue;
+                                    if (fe.isBlack && !tower.canSeeBlack) continue;
+                                    if (fe.camo && !tower.canSeeBlack) continue;
+                                    var fdx = fe.x - tower.px, fdy = fe.y - tower.py;
+                                    if (Math.sqrt(fdx*fdx + fdy*fdy) <= tower.range * CS2) {
+                                        var dur = (tower.def && tower.def.freezeDuration) ? tower.def.freezeDuration : 2.0;
+                                        fe.frozen = Math.max(fe.frozen || 0, dur + (tower.rangeLv - 1) * 0.3);
+                                        frozen = true;
+                                    }
+                                }
+                                if (frozen) {
+                                    tower.cooldown = 1 / tower.fireRate;
+                                    tower.attackFlash = 0.2;
+                                    this.projectiles.push({ x: tower.px, y: tower.py, tx: tower.px, ty: tower.py, life: 0.3, maxLife: 0.3, bomb: false, ice: true, range: tower.range * CS2 });
+                                } else {
+                                    tower.cooldown = 0.1; // retry soon
+                                }
+                            } else if (tower.type === 'necro') {
+                                // ── Necromancer: damages + spawns ghost bloon on kill ──
+                                var target = this.findTarget(tower);
+                                if (target) {
+                                    tower.cooldown = 1 / tower.fireRate;
+                                    target.hp -= tower.damage;
+                                    this.projectiles.push({ x: tower.px, y: tower.py, tx: target.x, ty: target.y, life: 0.18, maxLife: 0.18, bomb: false, necro: true });
+                                    tower.attackFlash = 0.2;
+                                    if (target.hp <= 0) {
+                                        // Spawn ghost regardless of whether it splits — necro kills spawn ghosts
+                                        this.enemies.push({
+                                            x: target.x, y: target.y,
+                                            name: 'Ghost', defKey: 'ghost',
+                                            hp: 1, maxHp: 1, speed: 35, reward: 0,
+                                            color: '#aaffaa', radius: (target.radius || 10) * 0.8,
+                                            pathIdx: target.pathIdx,
+                                            ghost: true, ghostLife: 8.0 + (tower.damageLv - 1) * 1.0, spawnGrace: 0.1,
+                                            slowRadius: tower.range * this.CELL * 0.8,
+                                            splitInto: null, spawnOnDeath: null,
+                                            isBlack: false, heart: false, camo: false
+                                        });
+                                    }
+                                    if (target.splitInto && target.hp <= 0) {
+                                        var splitDef = this.ENEMY_DEFS[target.splitInto];
+                                        target.name = splitDef.name; target.hp = splitDef.hp; target.maxHp = splitDef.maxHp;
+                                        target.color = splitDef.color; target.radius = splitDef.radius;
+                                        target.reward = splitDef.reward; target.speed = splitDef.speed;
+                                        target.splitInto = splitDef.splitInto || null;
+                                    }
+                                }
+                            } else {
+                                // ── Standard single-target attack (gun, sword, sniper, supergun) ──
+                                // ── Ninja: 5-shuriken burst when fully maxed ──
+                                if (tower.type === 'ninja') {
+                                    var def2 = this.TOWER_DEFS['ninja'];
+                                    var lim2 = def2.upgradeLimits;
+                                    var allMaxed = !this.sandboxMode &&
+                                        tower.rangeLv >= lim2.range &&
+                                        tower.damageLv >= lim2.damage &&
+                                        tower.speedLv >= lim2.speed;
+                                    // In sandbox, trigger at lv 5+ in all stats
+                                    var sandboxMaxed = this.sandboxMode &&
+                                        tower.rangeLv >= 5 && tower.damageLv >= 5 && tower.speedLv >= 5;
+                                    if (allMaxed || sandboxMaxed) {
+                                        // Fire at up to 5 enemies regardless of range (shurikens fly anywhere)
+                                        var nTargets = [];
+                                        var nSorted = this.enemies.slice().filter(function(en) {
+                                            return !en.ghost; // ninja sees camo and black
+                                        }).sort(function(a,b){ return b.pathIdx - a.pathIdx; });
+                                        for (var ni = 0; ni < Math.min(5, nSorted.length); ni++) nTargets.push(nSorted[ni]);
+                                        if (nTargets.length > 0) {
+                                            tower.cooldown = 1 / tower.fireRate;
+                                            tower.attackFlash = 0.2;
+                                            for (var nt = 0; nt < nTargets.length; nt++) {
+                                                var ntgt = nTargets[nt];
+                                                ntgt.hp -= tower.damage;
+                                                this.projectiles.push({ x: tower.px, y: tower.py, tx: ntgt.x, ty: ntgt.y, life: 0.15, maxLife: 0.15, bomb: false, shuriken: true });
+                                                if (ntgt.splitInto && ntgt.hp <= 0) {
+                                                    var sd2 = this.ENEMY_DEFS[ntgt.splitInto];
+                                                    ntgt.name=sd2.name; ntgt.hp=sd2.hp; ntgt.maxHp=sd2.maxHp;
+                                                    ntgt.color=sd2.color; ntgt.radius=sd2.radius;
+                                                    ntgt.reward=sd2.reward; ntgt.speed=sd2.speed;
+                                                    ntgt.splitInto=sd2.splitInto||null;
+                                                }
+                                            }
+                                        }
+                                        if (tower.attackFlash > 0) tower.attackFlash -= dt;
+                                        continue;
+                                    }
+                                }
+                                var target = this.findTarget(tower);
+                                if (target) {
+                                    tower.cooldown = 1 / tower.fireRate;
+                                    target.hp -= tower.damage;
+                                    this.projectiles.push({ x: tower.px, y: tower.py, tx: target.x, ty: target.y, life: 0.12, maxLife: 0.12, bomb: false });
+                                    tower.attackFlash = 0.15;
+
+                                    if (target.splitInto && target.hp <= 0) {
+                                        var splitDef = this.ENEMY_DEFS[target.splitInto];
+                                        target.name      = splitDef.name;
+                                        target.hp        = splitDef.hp;
+                                        target.maxHp     = splitDef.maxHp;
+                                        target.color     = splitDef.color;
+                                        target.radius    = splitDef.radius;
+                                        target.reward    = splitDef.reward;
+                                        target.speed     = splitDef.speed;
+                                        target.splitInto = splitDef.splitInto || null;
+                                    }
+                                }
+                            }
+                        }
+                        if (tower.attackFlash > 0) tower.attackFlash -= dt;
+                    }
+                    for (var p = this.projectiles.length - 1; p >= 0; p--) {
+                        this.projectiles[p].life -= dt;
+                        if (this.projectiles[p].life <= 0) this.projectiles.splice(p, 1);
+                    }
+                    if (this.spawnQueue.length === 0 && this.enemies.length === 0 && this.waveActive) {
+                        this.waveActive = false;
+                        var nw = this.wave + 1;
+                        var wb = document.getElementById('ztd-wave-btn');
+                        if (!this.sandboxMode) {
+                            this.gold += 25 + (this.wave * 5); this.updateHUD();
+                        }
+                        if (this.autoNextWave) {
+                            var self = this;
+                            wb.textContent = '⏩ Auto ON - Wave ' + nw + ' incoming...';
+                            setTimeout(function() { if (self.running && !self.waveActive) self.startWave(); }, 500);
+                        } else {
+                            wb.textContent = '▶ Start Wave ' + nw;
+                            wb.style.background = ''; wb.style.borderColor = '';
+                            if (!this.sandboxMode) this.setStatus('Wave ' + this.wave + ' cleared! +$' + (25 + this.wave * 5) + ' bonus. Ready for wave ' + nw + '.');
+                        }
+                    }
+                },
+
+                spawnEnemy: function(def, defKey, forceHeart, forceCamo) {
+                    var sp = this.PATH[0];
+                    var isBoss = (defKey === 'boss1' || defKey === 'boss2');
+                    // Bosses CANNOT be heart or camo — period
+                    var heart = !isBoss && (forceHeart || (this.wave >= 10 && Math.random() < 0.10));
+                    // Camo: 10% from wave 12 (combinable with heart — independent roll)
+                    var camo  = !isBoss && (forceCamo  || (this.wave >= 12 && Math.random() < 0.10));
+                    this.enemies.push({ x: sp[0]*this.CELL+this.CELL/2, y: sp[1]*this.CELL+this.CELL/2,
+                        name: def.name, defKey: defKey || '',
+                        hp: def.hp, maxHp: def.maxHp, speed: def.speed, reward: def.reward,
+                        color: def.color, radius: def.radius, pathIdx: 0,
+                        splitInto: def.splitInto || null,
+                        spawnOnDeath: def.spawnOnDeath || null,
+                        isBlack: def.isBlack || false,
+                        heart: heart, camo: camo });
+                },
+
+                moveEnemy: function(e, dt) {
+                    if (e.pathIdx >= this.PATH.length) return true;
+                    // Frozen: can't move
+                    if (e.frozen > 0) return false;
+                    // Slowed by ghost aura
+                    var spd = e.speed;
+                    if (e.slowed) { spd *= 0.5; e.slowed = 0; }
+                    var wp = this.PATH[e.pathIdx];
+                    var tx = wp[0]*this.CELL+this.CELL/2, ty = wp[1]*this.CELL+this.CELL/2;
+                    var dx = tx-e.x, dy = ty-e.y;
+                    var dist = Math.sqrt(dx*dx+dy*dy);
+                    var step = spd * dt;
+                    if (step >= dist) { e.x=tx; e.y=ty; e.pathIdx++; return e.pathIdx >= this.PATH.length; }
+                    e.x += (dx/dist)*step; e.y += (dy/dist)*step;
+                    return false;
+                },
+
+                findTarget: function(tower) {
+                    var best = null, bestIdx = -1, CS = this.CELL;
+                    var canSeeBlack = tower.canSeeBlack;
+                    var isNight = (this.dayPhase >= 280);
+                    for (var i = 0; i < this.enemies.length; i++) {
+                        var e = this.enemies[i];
+                        if (e.ghost) continue;                               // towers ignore ghost bloons
+                        if (e.isBlack && isNight && !canSeeBlack) continue;
+                        if (e.camo && !canSeeBlack) continue;
+                        var dx = e.x-tower.px, dy = e.y-tower.py;
+                        if (Math.sqrt(dx*dx+dy*dy) <= tower.range*CS && e.pathIdx > bestIdx) { best=e; bestIdx=e.pathIdx; }
+                    }
+                    return best;
+                },
+
+                // Cannon: find up to 5 enemies in range, clustered within 1.5 cells of the lead target
+                findCannonTargets: function(tower) {
+                    var CS = this.CELL;
+                    var inRange = [];
+                    var isNight = (this.dayPhase >= 280);
+                    for (var i = 0; i < this.enemies.length; i++) {
+                        var e = this.enemies[i];
+                        if (e.ghost) continue;
+                        if (e.isBlack && isNight && !tower.canSeeBlack) continue;
+                        if (e.camo && !tower.canSeeBlack) continue;
+                        var dx = e.x - tower.px, dy = e.y - tower.py;
+                        if (Math.sqrt(dx*dx + dy*dy) <= tower.range * CS) inRange.push(e);
+                    }
+                    if (inRange.length === 0) return [];
+                    // Pick the furthest-along enemy as the anchor target
+                    inRange.sort(function(a, b) { return b.pathIdx - a.pathIdx; });
+                    var anchor = inRange[0];
+                    // Collect up to 4 more within 1.5 cell radius of the anchor
+                    var clusterR = CS * 1.5;
+                    var targets = [anchor];
+                    for (var j = 1; j < inRange.length && targets.length < 5; j++) {
+                        var ex = inRange[j].x - anchor.x, ey = inRange[j].y - anchor.y;
+                        if (Math.sqrt(ex*ex + ey*ey) <= clusterR) targets.push(inRange[j]);
+                    }
+                    return targets;
+                },
+
+                // Cannon pierce: apply damage, stripping splitInto layers completely (no mercy)
+                // Ignores all intermediate layer hp — just tears straight through
+                applyPierceDamage: function(e, damage) {
+                    var remaining = damage;
+                    var maxLoops = 20; // safety cap
+                    while (remaining > 0 && maxLoops-- > 0) {
+                        e.hp -= remaining;
+                        if (e.hp <= 0) {
+                            if (e.splitInto) {
+                                // Strip this layer, carry over remaining damage into next layer
+                                remaining = -e.hp; // leftover damage
+                                var splitDef = this.ENEMY_DEFS[e.splitInto];
+                                e.name      = splitDef.name;
+                                e.hp        = splitDef.hp;
+                                e.maxHp     = splitDef.maxHp;
+                                e.color     = splitDef.color;
+                                e.radius    = splitDef.radius;
+                                e.reward    = splitDef.reward;
+                                e.speed     = splitDef.speed;
+                                e.splitInto = splitDef.splitInto || null;
+                                e.spawnOnDeath = splitDef.spawnOnDeath || null;
+                            } else {
+                                // Truly dead — hp stays ≤ 0, death loop will handle it
+                                break;
+                            }
+                        } else {
+                            break; // damage absorbed, enemy survives
+                        }
+                    }
+                },
+
+                startWave: function() {
+                    if (this.health <= 0) return;
+                    // If a wave is already running, toggle auto-play on/off
+                    if (this.waveActive) {
+                        this.autoNextWave = !this.autoNextWave;
+                        var wb2 = document.getElementById('ztd-wave-btn');
+                        if (this.autoNextWave) {
+                            wb2.textContent = '⏩ Auto ON - Wave ' + this.wave;
+                            wb2.style.background = 'rgba(0,200,255,0.18)';
+                            wb2.style.borderColor = '#40dfff';
+                            this.setStatus('⏩ Auto-play ON — waves keep going automatically!');
+                        } else {
+                            wb2.textContent = '⏳ Wave ' + this.wave;
+                            wb2.style.background = '';
+                            wb2.style.borderColor = '';
+                            this.setStatus('⏸ Auto-play OFF — wave will stop after this one.');
+                        }
+                        return;
+                    }
+                    this.wave++;
+                    document.getElementById('ztd-wave').textContent = this.wave;
+                    var wb = document.getElementById('ztd-wave-btn');
+                    if (this.autoNextWave) {
+                        wb.textContent = '⏩ Auto ON - Wave ' + this.wave;
+                        wb.style.background = 'rgba(0,200,255,0.18)';
+                        wb.style.borderColor = '#40dfff';
+                    } else {
+                        wb.textContent = '⏳ Wave ' + this.wave;
+                        wb.style.background = '';
+                        wb.style.borderColor = '';
+                    }
+                    this.waveActive = true; this.spawnTimer = 0;
+                    this.spawnQueue = [];
+
+                    // Boss1: first at wave 20, every 10 waves. Every 20 waves adds one more.
+                    var bossCount = 0;
+                    if (this.wave >= 20 && (this.wave - 20) % 10 === 0) {
+                        bossCount = 1 + Math.floor((this.wave - 20) / 20);
+                    }
+                    // Boss2: first at wave 50, every 15 waves after that.
+                    var boss2Count = 0;
+                    if (this.wave >= 50 && (this.wave - 50) % 15 === 0) {
+                        boss2Count = 1 + Math.floor((this.wave - 50) / 30);
+                    }
+                    var bossWarning  = (this.wave === 19);
+                    var boss2Warning = (this.wave === 49);
+                    var heartWarning = (this.wave === 9);   // warn about heart bloons
+                    var camoWarning  = (this.wave === 11);  // warn about camo bloons
+
+                    var count = 4 + (this.wave-1) * 3;
+                    var blackCount   = this.wave >= 15 ? Math.floor((this.wave - 14) * 0.6) : 0;
+                    var ceramicCount = this.wave >= 35 ? Math.floor((this.wave - 34) * 0.5) : 0;
+                    var leadCount    = this.wave >= 12 ? Math.floor((this.wave - 11) * 0.5) - ceramicCount : 0;
+                    var rainbowCount = this.wave >= 25 ? Math.floor((this.wave - 24) * 0.7) - ceramicCount - leadCount : 0;
+                    var basic4Count  = this.wave >= 9  ? Math.floor((this.wave - 8) * 0.8) - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var yellowCount  = this.wave >= 7  ? Math.floor((this.wave - 6) * 1.2) - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var basic3Count  = this.wave >= 6  ? Math.floor((this.wave - 5) * 1.0) - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var basic2Count  = this.wave >= 3  ? Math.floor((this.wave - 2) * 1.5) - basic3Count - yellowCount - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    blackCount   = Math.max(0, blackCount);
+                    ceramicCount = Math.max(0, ceramicCount);
+                    leadCount    = Math.max(0, leadCount);
+                    rainbowCount = Math.max(0, rainbowCount);
+                    basic4Count  = Math.max(0, basic4Count);
+                    yellowCount  = Math.max(0, yellowCount);
+                    basic3Count  = Math.max(0, basic3Count);
+                    basic2Count  = Math.max(0, basic2Count);
+                    var basicCount = Math.max(0, count - basic2Count - basic3Count - yellowCount - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount);
+                    for (var i = 0; i < basicCount;    i++) this.spawnQueue.push('basic');
+                    for (var i = 0; i < basic2Count;   i++) this.spawnQueue.push('basic2shell');
+                    for (var i = 0; i < basic3Count;   i++) this.spawnQueue.push('basic3shell');
+                    for (var i = 0; i < yellowCount;   i++) this.spawnQueue.push('yellow');
+                    for (var i = 0; i < basic4Count;   i++) this.spawnQueue.push('basic4shell');
+                    for (var i = 0; i < leadCount;     i++) this.spawnQueue.push('lead');
+                    for (var i = 0; i < rainbowCount;  i++) this.spawnQueue.push('rainbow');
+                    for (var i = 0; i < ceramicCount;  i++) this.spawnQueue.push('ceramic');
+                    for (var i = 0; i < blackCount;    i++) this.spawnQueue.push('black');
+                    // Shuffle normal enemies, then append bosses at the end
+                    for (var s = this.spawnQueue.length - 1; s > 0; s--) {
+                        var j2 = Math.floor(Math.random() * (s + 1));
+                        var tmp = this.spawnQueue[s]; this.spawnQueue[s] = this.spawnQueue[j2]; this.spawnQueue[j2] = tmp;
+                    }
+                    for (var i = 0; i < bossCount;  i++) this.spawnQueue.push('boss1');
+                    for (var i = 0; i < boss2Count; i++) this.spawnQueue.push('boss2');
+
+                    var extras = [];
+                    if (basic2Count   > 0) extras.push(basic2Count   + ' 🔵');
+                    if (basic3Count   > 0) extras.push(basic3Count   + ' 🟢');
+                    if (yellowCount   > 0) extras.push(yellowCount   + ' 🟡');
+                    if (basic4Count   > 0) extras.push(basic4Count   + ' 🟣');
+                    if (leadCount     > 0) extras.push(leadCount     + ' ⬛');
+                    if (rainbowCount  > 0) extras.push(rainbowCount  + ' 🌈');
+                    if (ceramicCount  > 0) extras.push(ceramicCount  + ' 🟫');
+                    if (blackCount    > 0) extras.push(blackCount    + ' 🖤');
+                    if (bossCount     > 0) extras.push(bossCount     + ' 👾 B1');
+                    if (boss2Count    > 0) extras.push(boss2Count    + ' 💀 B2!');
+                    var extraMsg = extras.length ? ' (' + extras.join(', ') + ')' : '';
+                    var isBossWave = bossCount > 0 || boss2Count > 0;
+                    var waveLabel = isBossWave ? '⚠️ BOSS WAVE ' + this.wave : 'Wave ' + this.wave;
+                    var warnings = [];
+                    if (heartWarning) warnings.push('💗 HEART BLOONS NEXT WAVE — they regenerate!');
+                    if (camoWarning)  warnings.push('👁 CAMO BLOONS NEXT WAVE — only Ninja can see them!');
+                    if (bossWarning)  warnings.push('👾 BOSS 1 NEXT WAVE!');
+                    if (boss2Warning) warnings.push('💀 BOSS 2 NEXT WAVE!');
+                    var suffix = warnings.length ? ' ⚠️ ' + warnings.join(' ') : '!';
+                    this.setStatus(waveLabel + ' — ' + (count + bossCount + boss2Count) + ' enemies' + extraMsg + suffix);
+                },
+
+                selectTower: function(type) {
+                    this.placingType = type;
+                    this.selectedTower = null;
+                    document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-cancel-wrap').style.display = 'flex';
+                    this.setStatus('Click a grass tile to place. Press ✕ Cancel to abort.');
+                },
+
+                cancelPlace: function() {
+                    this.placingType = null;
+                    this.cloneTower = null;
+                    document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                    this.setStatus('Placement cancelled.');
+                },
+
+                _canvasPos: function(e) {
+                    var rect = this.canvas.getBoundingClientRect();
+                    var scaleX = this.canvas.width  / rect.width;
+                    var scaleY = this.canvas.height / rect.height;
+                    return {
+                        col: Math.floor((e.clientX - rect.left) * scaleX / this.CELL),
+                        row: Math.floor((e.clientY - rect.top)  * scaleY / this.CELL)
+                    };
+                },
+
+                placeTowerAt: function(col, row) {
+                    if (col < 0 || col >= this.COLS || row < 0 || row >= this.ROWS) return;
+                    if (this.pathSet[col+','+row]) return;
+                    if (this.grid[row][col]) return;
+
+                    var src = this.cloneTower;   // clone source (sandbox double-click)
+                    var type = src ? src.type : this.placingType;
+                    var def = this.TOWER_DEFS[type];
+                    if (!this.sandboxMode && this.gold < def.cost) { this.setStatus('Need $' + def.cost + '!'); return; }
+                    if (!this.sandboxMode) this.gold -= def.cost;
+
+                    var tower = {
+                        col: col, row: row,
+                        px: col*this.CELL+this.CELL/2, py: row*this.CELL+this.CELL/2,
+                        type: type, name: def.name, emoji: def.emoji, color: def.color,
+                        canSeeBlack: def.canSeeBlack || false,
+                        def: def,
+                        freezeDuration: def.freezeDuration || 0,
+                        spawnsGhost: def.spawnsGhost || false,
+                        // Copy stats from clone source, or use base def
+                        damage:   src ? src.damage   : def.damage,
+                        range:    src ? src.range    : def.range,
+                        fireRate: src ? src.fireRate : def.fireRate,
+                        rangeLv:  src ? src.rangeLv  : 1,
+                        damageLv: src ? src.damageLv : 1,
+                        speedLv:  src ? src.speedLv  : 1,
+                        totalSpent: def.cost,
+                        cooldown: 0, attackFlash: 0
+                    };
+                    this.grid[row][col] = tower;
+                    this.towers.push(tower);
+                    this.updateHUD();
+                    // In drag/clone mode keep active; in normal click mode clear
+                    if (!this.sandboxDragging && !src) {
+                        this.placingType = null;
+                        document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                        this.setStatus(def.name + ' placed! Click it to upgrade or sell.');
+                    }
+                },
+
+                handleClick: function(e) {
+                    var pos = this._canvasPos(e);
+                    var col = pos.col, row = pos.row;
+                    if (col < 0 || col >= this.COLS || row < 0 || row >= this.ROWS) return;
+
+                    if (this.placingType || this.cloneTower) {
+                        this.placeTowerAt(col, row);
+                        return;
+                    }
+
+                    var clicked = this.grid[row][col];
+                    if (clicked) {
+                        // Double-click in sandbox = clone mode
+                        var now = Date.now();
+                        var isDouble = this.sandboxMode && (this._lastClickTower === clicked) && (now - this._lastClickTime < 400);
+                        this._lastClickTime = now;
+                        this._lastClickTower = clicked;
+                        if (isDouble) {
+                            this.cloneTower = clicked;
+                            this.placingType = null;
+                            document.getElementById('ztd-cancel-wrap').style.display = 'flex';
+                            this.setStatus('🔁 Clone mode — click/drag to stamp ' + clicked.name + ' with upgrades. ✕ Cancel to stop.');
+                            return;
+                        }
+                        this.selectedTower = clicked;
+                        this.showUpgradePanel(clicked);
+                        return;
+                    }
+                    this.selectedTower = null;
+                    this._lastClickTower = null;
+                    document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                },
+
+                showUpgradePanel: function(t) {
+                    document.getElementById('ztd-upgrade-panel').style.display = 'block';
+                    document.getElementById('ztd-up-title').textContent = t.emoji + ' ' + t.name;
+                    var def = this.TOWER_DEFS[t.type];
+                    var lim = def.upgradeLimits || { range: 99, damage: 99, speed: 99 };
+
+                    // In sandbox, no limits apply
+                    var rangeMaxed  = !this.sandboxMode && t.rangeLv  >= lim.range;
+                    var dmgMaxed    = !this.sandboxMode && t.damageLv >= lim.damage;
+                    var spdMaxed    = !this.sandboxMode && t.speedLv  >= lim.speed;
+
+                    document.getElementById('ztd-up-range-lv').textContent = t.rangeLv + (rangeMaxed ? ' MAX' : '');
+                    document.getElementById('ztd-up-dmg-lv').textContent   = t.damageLv + (dmgMaxed  ? ' MAX' : '');
+                    document.getElementById('ztd-up-spd-lv').textContent   = t.speedLv  + (spdMaxed  ? ' MAX' : '');
+
+                    var rangeBtn = document.getElementById('ztd-up-range-btn') || document.querySelector('[onclick="ztd_upgrade(\'range\')"]');
+                    var dmgBtn   = document.getElementById('ztd-up-dmg-btn')   || document.querySelector('[onclick="ztd_upgrade(\'damage\')"]');
+                    var spdBtn   = document.getElementById('ztd-up-spd-btn')   || document.querySelector('[onclick="ztd_upgrade(\'speed\')"]');
+
+                    document.getElementById('ztd-up-range-cost').textContent = rangeMaxed ? '(MAX)' : '($' + (30+(t.rangeLv-1)*20)  + ')';
+                    document.getElementById('ztd-up-dmg-cost').textContent   = dmgMaxed   ? '(MAX)' : '($' + (40+(t.damageLv-1)*25) + ')';
+                    document.getElementById('ztd-up-spd-cost').textContent   = spdMaxed   ? '(MAX)' : '($' + (35+(t.speedLv-1)*20)  + ')';
+
+                    // Dim maxed buttons
+                    var rb = document.getElementById('ztd-up-range-btn');
+                    var db = document.getElementById('ztd-up-dmg-btn');
+                    var sb = document.getElementById('ztd-up-spd-btn');
+                    if (rb) rb.style.opacity = rangeMaxed ? '0.4' : '1';
+                    if (db) db.style.opacity = dmgMaxed   ? '0.4' : '1';
+                    if (sb) sb.style.opacity = spdMaxed   ? '0.4' : '1';
+
+                    document.getElementById('ztd-sell-val').textContent = '$' + Math.floor(t.totalSpent * 0.60);
+                },
+
+                upgrade: function(stat) {
+                    var t = this.selectedTower; if (!t) return;
+                    var def = this.TOWER_DEFS[t.type];
+                    var lim = def.upgradeLimits || { range: 99, damage: 99, speed: 99 };
+                    // Check limit — ignored in sandbox mode (infinitely upgradeable)
+                    if (!this.sandboxMode) {
+                        if (stat==='range'  && t.rangeLv  >= lim.range)  { this.setStatus('Range is maxed for this tower!'); return; }
+                        if (stat==='damage' && t.damageLv >= lim.damage) { this.setStatus('Damage is maxed for this tower!'); return; }
+                        if (stat==='speed'  && t.speedLv  >= lim.speed)  { this.setStatus('Speed is maxed for this tower!'); return; }
+                    }
+                    var cost = stat==='range' ? 30+(t.rangeLv-1)*20 : stat==='damage' ? 40+(t.damageLv-1)*25 : 35+(t.speedLv-1)*20;
+                    if (!this.sandboxMode && this.gold < cost) { this.setStatus('Need $' + cost + '!'); return; }
+                    if (!this.sandboxMode) { this.gold -= cost; t.totalSpent += cost; }
+                    else t.totalSpent += cost;
+                    var isCannon = (t.type === 'cannon');
+                    if (stat==='range')  { t.rangeLv++;  t.range   += 0.6; }
+                    if (stat==='damage') { t.damageLv++; t.damage  += 1; }
+                    if (stat==='speed')  { t.speedLv++;  t.fireRate += isCannon ? 0.1 : 0.4; }
+                    this.updateHUD(); this.showUpgradePanel(t);
+                    this.setStatus(t.name + ' ' + stat + ' upgraded!');
+                },
+
+                sellTower: function() {
+                    var t = this.selectedTower; if (!t) return;
+                    var val = Math.floor(t.totalSpent * 0.60);
+                    this.gold += val;
+                    this.grid[t.row][t.col] = null;
+                    this.towers.splice(this.towers.indexOf(t), 1);
+                    this.selectedTower = null;
+                    document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    this.updateHUD();
+                    this.setStatus('Tower sold for $' + val + ' (60% back).');
+                },
+
+                gameOver: function() {
+                    this.running = false; this.waveActive = false; this.autoNextWave = false;
+                    this.speedMult = 1;
+                    document.getElementById('ztd-wave-btn').textContent = '▶ Start Wave';
+                    document.getElementById('ztd-speed-btn').textContent = '▶▶ 1×';
+                    document.getElementById('ztd-speed-btn').style.background = '';
+                    document.getElementById('ztd-speed-btn').style.borderColor = '';
+                    this.setStatus('💀 GAME OVER! Wave ' + this.wave + ' | Score: ' + this.score + ' | Press ↺ Menu to try again.');
+                },
+
+                toggleSandbox: function() {
+                    this.sandboxMode = !this.sandboxMode;
+                    var btn = document.getElementById("ztd-sandbox-btn");
+                    if (btn) {
+                        btn.textContent = this.sandboxMode ? "ON" : "OFF";
+                        btn.style.background = this.sandboxMode ? "rgba(255,200,0,0.2)" : "rgba(0,0,0,0.4)";
+                        btn.style.borderColor = this.sandboxMode ? "#ffd700" : "var(--border-mid)";
+                        btn.style.color       = this.sandboxMode ? "#ffd700" : "var(--text-soft)";
+                    }
+                },
+
+                sandboxSpawn: function(defKey) {
+                    if (!this.sandboxMode) return;
+                    var def = this.ENEMY_DEFS[defKey];
+                    if (!def) return;
+                    if (!this.waveActive) {
+                        this.waveActive = true;
+                        document.getElementById('ztd-wave-btn').textContent = '⏳ Sandbox';
+                    }
+                    var isBoss = (defKey === 'boss1' || defKey === 'boss2');
+                    var forceHeart = !isBoss && this.sandboxHeart;
+                    var forceCamo  = !isBoss && this.sandboxCamo;
+                    this.spawnEnemy(def, defKey, forceHeart, forceCamo);
+                    this.setStatus('🧪 Spawned ' + def.name + (forceHeart ? ' ❤️' : '') + (forceCamo ? ' 👁' : '') + '!');
+                },
+
+                toggleSpeed: function() {
+                    this.speedMult = (this.speedMult >= 3) ? 1 : this.speedMult + 1;
+                    var btn = document.getElementById('ztd-speed-btn');
+                    if (this.speedMult === 1) {
+                        btn.textContent = '▶▶ 1×';
+                        btn.style.background = '';
+                        btn.style.borderColor = '';
+                    } else if (this.speedMult === 2) {
+                        btn.textContent = '▶▶ 2×';
+                        btn.style.background = 'rgba(0,200,255,0.2)';
+                        btn.style.borderColor = '#40dfff';
+                    } else {
+                        btn.textContent = '▶▶▶ 3×';
+                        btn.style.background = 'rgba(255,200,0,0.2)';
+                        btn.style.borderColor = '#ffd700';
+                    }
+                },
+
+                updateHUD: function() {
+                    document.getElementById('ztd-health').textContent = this.health;
+                    document.getElementById('ztd-gold').textContent   = this.gold;
+                    document.getElementById('ztd-wave').textContent   = this.wave;
+                    document.getElementById('ztd-score').textContent  = this.score;
+                },
+                setStatus: function(msg) { document.getElementById('ztd-status').textContent = msg; },
+
+                // ── Render ────────────────────────────────────────────
+                render: function() {
+                    var ctx = this.ctx, CS = this.CELL;
+                    var W = this.canvas.width, H = this.canvas.height;
+                    var mapColor = (this.currentMap && this.currentMap.color) ? this.currentMap.color : '#b47828';
+
+                    // Compute night factor (0=full day, 1=full night) for colour interpolation
+                    var dp = this.dayPhase;
+                    var nightFactor = 0;
+                    if (dp >= 280 && dp < 300) nightFactor = (dp - 280) / 20;
+                    else if (dp >= 300 && dp < 560) nightFactor = 1;
+                    else if (dp >= 560 && dp < 600) nightFactor = 1 - (dp - 560) / 40;
+
+                    // Update HUD day/night display with time remaining
+                    var dnEl = document.getElementById('ztd-daynight');
+                    if (dnEl) {
+                        var isNow = dp < 300;
+                        var secLeft = isNow ? Math.ceil(300 - dp) : Math.ceil(600 - dp);
+                        var mm = Math.floor(secLeft / 60), ss = secLeft % 60;
+                        var timeStr = mm + ':' + (ss < 10 ? '0' : '') + ss;
+                        if (nightFactor < 0.5) {
+                            dnEl.textContent = '☀️ Day ' + timeStr;
+                            dnEl.style.color = '#ffe566';
+                        } else {
+                            dnEl.textContent = '🌙 Night ' + timeStr;
+                            dnEl.style.color = '#99aaff';
+                        }
+                    }
+
+                    // Interpolate grid colours: bright day → dark night
+                    // Day:  grass=#3a5c1a / #2e4814, path=#5a4010
+                    // Night: grass=#060d1a / #070f1e, path=#100d04
+                    function lerpHex(a, b, t) {
+                        var ar=parseInt(a.slice(1,3),16), ag=parseInt(a.slice(3,5),16), ab=parseInt(a.slice(5,7),16);
+                        var br=parseInt(b.slice(1,3),16), bg=parseInt(b.slice(3,5),16), bb=parseInt(b.slice(5,7),16);
+                        var rr=Math.round(ar+(br-ar)*t), rg=Math.round(ag+(bg-ag)*t), rb=Math.round(ab+(bb-ab)*t);
+                        return '#'+rr.toString(16).padStart(2,'0')+rg.toString(16).padStart(2,'0')+rb.toString(16).padStart(2,'0');
+                    }
+                    var grassA  = lerpHex('#3a5c1a', '#060d1a', nightFactor);
+                    var grassB  = lerpHex('#2e4814', '#070f1e', nightFactor);
+                    var pathBg  = lerpHex('#5a4010', '#100d04', nightFactor);
+                    var pathTint = nightFactor < 0.5
+                        ? 'rgba(180,140,40,' + (0.35 - nightFactor * 0.25) + ')'
+                        : 'rgba(100,80,20,' + (0.15) + ')';
+
+                    // Grid background
+                    for (var r = 0; r < this.ROWS; r++) {
+                        for (var c = 0; c < this.COLS; c++) {
+                            var onPath = this.pathSet[c+','+r];
+                            ctx.fillStyle = onPath ? pathBg : (((r+c)%2===0) ? grassA : grassB);
+                            ctx.fillRect(c*CS, r*CS, CS, CS);
+                            if (onPath) {
+                                ctx.fillStyle = pathTint;
+                                ctx.fillRect(c*CS, r*CS, CS, CS);
+                            }
+                        }
+                    }
+
+                    // Path line
+                    if (this.PATH.length > 1) {
+                        ctx.beginPath();
+                        ctx.moveTo(this.PATH[0][0]*CS+CS/2, this.PATH[0][1]*CS+CS/2);
+                        for (var pi = 1; pi < this.PATH.length; pi++)
+                            ctx.lineTo(this.PATH[pi][0]*CS+CS/2, this.PATH[pi][1]*CS+CS/2);
+                        ctx.strokeStyle = 'rgba(180,120,40,0.18)';
+                        ctx.lineWidth = CS * 0.6;
+                        ctx.lineJoin = 'round'; ctx.stroke();
+                    }
+
+                    // Start / end markers on path
+                    ctx.fillStyle = '#00cc66';
+                    ctx.fillRect(this.PATH[0][0]*CS+2, this.PATH[0][1]*CS+2, CS-4, CS-4);
+                    var lp = this.PATH[this.PATH.length-1];
+                    ctx.fillStyle = '#ff3d70';
+                    ctx.fillRect(lp[0]*CS+2, lp[1]*CS+2, CS-4, CS-4);
+
+                    // Day/night overlay over the full canvas
+                    if (nightFactor > 0) {
+                        ctx.fillStyle = 'rgba(0,5,30,' + (nightFactor * 0.48) + ')';
+                        ctx.fillRect(0, 0, W, H);
+                    }
+                    // Sun/moon icon on canvas
+                    ctx.font = '16px serif';
+                    ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+                    ctx.globalAlpha = 0.8;
+                    ctx.fillText(nightFactor < 0.5 ? '☀️' : '🌙', W - 4, 4);
+                    ctx.globalAlpha = 1;
+                    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+                    // Placement cursor: highlight tile + range preview
+                    // In sandbox mode, only show while mouse is held (sandboxDragging) — except clone mode always shows
+                    var showCursor = (this.placingType || this.cloneTower) && this.cursorCol >= 0 && this.cursorRow >= 0 && (!this.sandboxMode || this.sandboxDragging || this.cloneTower);
+                    if (showCursor) {
+                        var cc = this.cursorCol, cr = this.cursorRow;
+                        var onP = this.pathSet[cc+','+cr];
+                        var occupied = this.grid[cr] && this.grid[cr][cc];
+                        var srcTower = this.cloneTower;
+                        var curDef = srcTower ? this.TOWER_DEFS[srcTower.type] : this.TOWER_DEFS[this.placingType];
+                        var curEmoji = srcTower ? srcTower.emoji : curDef.emoji;
+                        var curRange = srcTower ? srcTower.range : curDef.range;
+                        // Tile highlight
+                        ctx.fillStyle = onP || occupied ? 'rgba(255,61,112,0.25)' : (srcTower ? 'rgba(255,200,0,0.18)' : 'rgba(0,200,255,0.18)');
+                        ctx.fillRect(cc*CS, cr*CS, CS, CS);
+                        ctx.strokeStyle = onP || occupied ? '#ff3d70' : (srcTower ? '#ffd700' : '#40dfff');
+                        ctx.lineWidth = 2; ctx.setLineDash([]);
+                        ctx.strokeRect(cc*CS+1, cr*CS+1, CS-2, CS-2);
+                        // Range circle preview
+                        if (!onP && !occupied) {
+                            var cx2 = cc*CS+CS/2, cy2 = cr*CS+CS/2;
+                            ctx.beginPath();
+                            ctx.arc(cx2, cy2, curRange * CS, 0, Math.PI*2);
+                            ctx.strokeStyle = srcTower ? 'rgba(255,200,0,0.45)' : 'rgba(0,200,255,0.45)';
+                            ctx.lineWidth = 1.5;
+                            ctx.setLineDash([5,4]);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            ctx.fillStyle = srcTower ? 'rgba(255,200,0,0.07)' : 'rgba(0,200,255,0.07)';
+                            ctx.fill();
+                            // Ghost emoji
+                            ctx.globalAlpha = 0.55;
+                            ctx.font = Math.floor(CS*0.52)+'px serif';
+                            ctx.textAlign='center'; ctx.textBaseline='middle';
+                            ctx.fillText(curEmoji, cx2, cy2);
+                            ctx.globalAlpha = 1;
+                        }
+                    }
+
+                    // Towers
+                    for (var t = 0; t < this.towers.length; t++) {
+                        var tw = this.towers[t];
+                        var tx = tw.col*CS, ty2 = tw.row*CS;
+                        var isSel = (tw === this.selectedTower);
+                        var flash = tw.attackFlash > 0;
+                        // Tile background — keep subtle, don't lighten
+                        ctx.fillStyle = flash ? 'rgba(255,255,255,0.12)' : (isSel ? 'rgba(0,200,255,0.2)' : 'rgba(0,200,255,0.07)');
+                        ctx.fillRect(tx+2, ty2+2, CS-4, CS-4);
+                        ctx.strokeStyle = isSel ? '#40dfff' : (flash ? '#fff' : '#2a4a6a');
+                        ctx.lineWidth = isSel ? 2 : 1; ctx.setLineDash([]);
+                        ctx.strokeRect(tx+2, ty2+2, CS-4, CS-4);
+                        if (isSel) {
+                            ctx.beginPath(); ctx.arc(tw.px, tw.py, tw.range*CS, 0, Math.PI*2);
+                            ctx.strokeStyle = 'rgba(0,200,255,0.35)'; ctx.lineWidth = 1;
+                            ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+                        }
+                        // Emoji — set fillStyle to white so no dark tinting from previous draw calls
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = Math.floor(CS * 0.70) + 'px serif';
+                        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                        ctx.fillText(tw.emoji, tw.px, tw.py);
+                        if (CS >= 30) {
+                            ctx.font='9px monospace'; ctx.fillStyle='#ffd700'; ctx.textAlign='left';
+                            ctx.fillText('D'+tw.damageLv+'R'+tw.rangeLv, tx+3, ty2+CS-3);
+                        }
+                    }
+
+                    // Projectile flashes
+                    for (var pp = 0; pp < this.projectiles.length; pp++) {
+                        var proj = this.projectiles[pp];
+                        var alpha = proj.life / proj.maxLife;
+                        if (proj.bomb) {
+                            var boomR = (1 - alpha) * this.CELL * 1.2 + 4;
+                            ctx.beginPath(); ctx.arc(proj.tx, proj.ty, boomR, 0, Math.PI*2);
+                            ctx.strokeStyle = 'rgba(255,140,0,' + (alpha * 0.9) + ')';
+                            ctx.lineWidth = 2.5; ctx.stroke();
+                            ctx.fillStyle = 'rgba(255,200,0,' + (alpha * 0.25) + ')'; ctx.fill();
+                            ctx.beginPath(); ctx.moveTo(proj.x, proj.y); ctx.lineTo(proj.tx, proj.ty);
+                            ctx.strokeStyle = 'rgba(255,140,0,' + (alpha * 0.5) + ')';
+                            ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke();
+                        } else if (proj.shuriken) {
+                            // Shuriken: short gold line with a star at tip
+                            ctx.beginPath(); ctx.moveTo(proj.x, proj.y); ctx.lineTo(proj.tx, proj.ty);
+                            ctx.strokeStyle = 'rgba(255,220,0,' + (alpha * 0.9) + ')';
+                            ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke();
+                            ctx.font = '10px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.globalAlpha = alpha;
+                            ctx.fillStyle = '#fff';
+                            ctx.fillText('🌟', proj.tx, proj.ty);
+                            ctx.globalAlpha = 1;
+                        } else if (proj.ice) {
+                            // Ice blast: expanding cyan ring
+                            var iceR = (1 - alpha) * (proj.range || 50) + 4;
+                            ctx.beginPath(); ctx.arc(proj.x, proj.y, iceR, 0, Math.PI*2);
+                            ctx.strokeStyle = 'rgba(140,240,255,' + (alpha * 0.8) + ')';
+                            ctx.lineWidth = 2; ctx.stroke();
+                            ctx.fillStyle = 'rgba(180,240,255,' + (alpha * 0.15) + ')'; ctx.fill();
+                        } else if (proj.necro) {
+                            // Necro beam: green wispy line
+                            ctx.beginPath(); ctx.moveTo(proj.x, proj.y); ctx.lineTo(proj.tx, proj.ty);
+                            ctx.strokeStyle = 'rgba(80,255,80,' + (alpha * 0.9) + ')';
+                            ctx.lineWidth = 2.5; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+                        } else {
+                            ctx.beginPath(); ctx.moveTo(proj.x, proj.y); ctx.lineTo(proj.tx, proj.ty);
+                            ctx.strokeStyle = 'rgba(255,255,255,' + (alpha * 0.85) + ')';
+                            ctx.lineWidth = 2; ctx.setLineDash([]); ctx.stroke();
+                        }
+                    }
+
+                    // Enemies
+                    var isNight = (nightFactor >= 0.5);
+                    for (var ei = 0; ei < this.enemies.length; ei++) {
+                        var en = this.enemies[ei];
+                        var r = en.radius;
+
+                        // Ghost bloon — translucent green walking backward
+                        if (en.ghost) {
+                            ctx.save();
+                            ctx.globalAlpha = 0.45 + 0.2 * Math.sin(Date.now() / 200);
+                            ctx.beginPath(); ctx.arc(en.x, en.y, r, 0, Math.PI*2);
+                            ctx.fillStyle = '#aaffaa'; ctx.fill();
+                            ctx.strokeStyle = '#55ff55'; ctx.lineWidth = 1.5; ctx.stroke();
+                            ctx.font = Math.floor(r * 1.2) + 'px serif';
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#fff';
+                            ctx.fillText('👻', en.x, en.y);
+                            ctx.globalAlpha = 1;
+                            ctx.restore();
+                            continue;
+                        }
+
+                        // Camo: faint ghost — use heart shape if also heart flagged
+                        if (en.camo) {
+                            ctx.save();
+                            ctx.globalAlpha = 0.22;
+                            ctx.beginPath(); ctx.ellipse(en.x, en.y + r - 2, r * 0.7, r * 0.3, 0, 0, Math.PI * 2);
+                            ctx.fillStyle = '#000'; ctx.fill();
+                            if (en.heart) {
+                                var hr = r * 1.1;
+                                ctx.beginPath();
+                                ctx.moveTo(en.x, en.y + hr * 0.3);
+                                ctx.bezierCurveTo(en.x - hr, en.y - hr * 0.4, en.x - hr, en.y - hr, en.x, en.y - hr * 0.35);
+                                ctx.bezierCurveTo(en.x + hr, en.y - hr, en.x + hr, en.y - hr * 0.4, en.x, en.y + hr * 0.3);
+                            } else {
+                                ctx.beginPath(); ctx.arc(en.x, en.y, r, 0, Math.PI * 2);
+                            }
+                            ctx.fillStyle = en.color;
+                            ctx.fill();
+                            ctx.globalAlpha = 1;
+                            ctx.restore();
+                            continue;
+                        }
+
+                        // Black bloons: near-invisible at NIGHT only
+                        if (en.isBlack && isNight) {
+                            ctx.save();
+                            ctx.globalAlpha = 0.14;
+                            ctx.beginPath(); ctx.ellipse(en.x, en.y + r - 2, r * 0.7, r * 0.3, 0, 0, Math.PI * 2);
+                            ctx.fillStyle = '#000'; ctx.fill();
+                            ctx.globalAlpha = 1;
+                            ctx.restore();
+                            continue;
+                        }
+
+                        // Shadow
+                        ctx.beginPath(); ctx.ellipse(en.x, en.y + r - 2, r * 0.7, r * 0.3, 0, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+
+                        // Build the body path — heart shape if flagged, else circle
+                        if (en.heart) {
+                            // Heart shape using bezier curves, centred at en.x, en.y
+                            var hr = r * 1.1;
+                            ctx.beginPath();
+                            ctx.moveTo(en.x, en.y + hr * 0.3);
+                            ctx.bezierCurveTo(en.x - hr, en.y - hr * 0.4, en.x - hr, en.y - hr, en.x, en.y - hr * 0.35);
+                            ctx.bezierCurveTo(en.x + hr, en.y - hr, en.x + hr, en.y - hr * 0.4, en.x, en.y + hr * 0.3);
+                        } else {
+                            ctx.beginPath(); ctx.arc(en.x, en.y, r, 0, Math.PI * 2);
+                        }
+
+                        // Fill colour
+                        if (en.name === 'Rainbow') {
+                            var ph = this.rainbowPhase;
+                            var rg = ctx.createLinearGradient(en.x, en.y - r, en.x, en.y + r);
+                            for (var ri = 0; ri <= 6; ri++) {
+                                var hue = ((ph - ri / 6) % 1 + 1) % 1 * 360;
+                                rg.addColorStop(ri / 6, 'hsl(' + hue + ',100%,55%)');
+                            }
+                            ctx.fillStyle = rg;
+                        } else {
+                            ctx.fillStyle = en.color;
+                        }
+                        ctx.fill();
+                        ctx.strokeStyle = en.frozen > 0 ? '#aaeeff' : (en.heart ? '#ff66aa' : '#fff');
+                        ctx.lineWidth = en.frozen > 0 ? 2.5 : (en.heart ? 2 : 1.5); ctx.stroke();
+                        // Frozen sparkle indicator
+                        if (en.frozen > 0) {
+                            ctx.save();
+                            ctx.globalAlpha = 0.5;
+                            ctx.font = Math.floor(r * 0.8) + 'px serif';
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillStyle = '#fff';
+                            ctx.fillText('❄️', en.x, en.y - r - 4);
+                            ctx.globalAlpha = 1;
+                            ctx.restore();
+                        }
+
+                        // HP bar (only if multi-hp)
+                        if (en.maxHp > 1 || en.hp < en.maxHp) {
+                            var bW = r * 2.2, bH = 3, bx2 = en.x - bW / 2, by2 = en.y - r - 6;
+                            ctx.fillStyle = '#300'; ctx.fillRect(bx2, by2, bW, bH);
+                            ctx.fillStyle = en.heart ? '#ff44aa' : '#0f0';
+                            ctx.fillRect(bx2, by2, bW * (en.hp / en.maxHp), bH);
+                        }
+                    }
+
+                    // Low health vignette
+                    if (this.health < 100) {
+                        var hf = this.health / this.START_HEALTH;
+                        ctx.fillStyle='#ff3d70'; ctx.fillRect(0,0,W*hf,4);
+                    }
+
+                    // Game over overlay
+                    if (!this.running && this.wave > 0) {
+                        ctx.fillStyle='rgba(3,4,14,0.78)'; ctx.fillRect(0,0,W,H);
+                        ctx.fillStyle='#ff3d70'; ctx.font='bold 32px Segoe UI,sans-serif';
+                        ctx.textAlign='center'; ctx.textBaseline='middle';
+                        ctx.fillText('GAME OVER', W/2, H/2-18);
+                        ctx.fillStyle='#8899bb'; ctx.font='16px Segoe UI,sans-serif';
+                        ctx.fillText('Wave '+this.wave+'  |  Score: '+this.score, W/2, H/2+16);
+                    }
+                    ctx.textAlign='left'; ctx.textBaseline='alphabetic'; ctx.setLineDash([]);
+                }
+            };
+
+            window.ztd_reset       = function() {
+                ZTD.stop();
+                ZTD.speedMult = 1;
+                document.getElementById('ztd-game-screen').style.display = 'none';
+                document.getElementById('ztd-map-picker').style.display = 'flex';
+                buildMapPicker();
+            };
+            window.ztd_stop        = function() { ZTD.stop(); };
+            window.ztd_startWave   = function() { ZTD.startWave(); };
+            window.ztd_selectTower = function(type) { ZTD.selectTower(type); };
+            window.ztd_cancelPlace = function() { ZTD.cancelPlace(); };
+            window.ztd_upgrade     = function(stat) { ZTD.upgrade(stat); };
+            window.ztd_sellTower   = function() { ZTD.sellTower(); };
+            window.ztd_toggleSpeed   = function() { ZTD.toggleSpeed(); };
+            window.ztd_toggleSandbox = function() { ZTD.toggleSandbox(); };
+            window.ztd_sandboxSpawn  = function(k) { ZTD.sandboxSpawn(k); };
+            window.ztd_setSandboxHeart = function(v) { ZTD.sandboxHeart = v; };
+            window.ztd_setSandboxCamo  = function(v) { ZTD.sandboxCamo  = v; };
+
+            var TOWER_DESCS = {
+                sword:    { desc: 'Basic melee fighter. Short range but cheap. Good for early waves.', special: 'Standard attack' },
+                gun:      { desc: 'Reliable mid-range shooter. Balanced damage and fire rate.', special: 'Standard attack' },
+                ice:      { desc: 'Freezes all bloons in range solid. No damage but stops them cold.', special: '❄️ Freezes all in range' },
+                cannon:   { desc: 'Massive damage, huge range. Bombs shred Lead bloons (5× damage). Hits 5 clustered bloons at once.', special: '💣 Pierce + AoE + Lead bonus' },
+                sniper:   { desc: 'Covers the entire map. Slow fire rate but high damage. Sees Camo and Black bloons.', special: '🔭 Sees Camo & Black' },
+                ninja:    { desc: 'Fast and stealthy. Sees all hidden bloons. When fully maxed, throws 5 shurikens at once across the whole map.', special: '🌟 Max upgrade: 5-shuriken burst' },
+                necro:    { desc: 'Dark magic user. Kills spawn ghost bloons that walk backward and slow nearby enemies.', special: '👻 Spawns ghost on kill' },
+                supergun: { desc: 'Starts as a minigun. Insane fire rate, solid damage and long range. The ultimate DPS tower.', special: '🔥 Minigun — 2.5 shots/sec' }
+            };
+
+            window.ztd_previewTower = function(type) {
+                var def = ZTD.TOWER_DEFS[type];
+                var desc = TOWER_DESCS[type] || {};
+                ZTD._previewType = type;
+                document.getElementById('ztd-prev-emoji').textContent = def.emoji;
+                document.getElementById('ztd-prev-name').textContent  = def.name;
+                document.getElementById('ztd-prev-cost').textContent  = '$' + def.cost;
+                document.getElementById('ztd-prev-desc').textContent  = desc.desc || '';
+                var lim = def.upgradeLimits || {};
+                var stats = document.getElementById('ztd-prev-stats');
+                stats.innerHTML =
+                    '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">⚔️ DMG ' + def.damage + '</span>' +
+                    '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">📏 RNG ' + def.range.toFixed(1) + '</span>' +
+                    '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">⚡ SPD ' + def.fireRate.toFixed(1) + '/s</span>' +
+                    (desc.special ? '<span style="color:#ffd700;background:rgba(255,200,0,0.1);border-radius:3px;padding:2px 4px;width:100%;">' + desc.special + '</span>' : '');
+                var buyBtn = document.getElementById('ztd-prev-buy');
+                buyBtn.textContent = 'Place ' + def.name + ' ($' + def.cost + ')';
+                buyBtn.style.borderColor = def.color || 'var(--border-mid)';
+                document.getElementById('ztd-tower-preview').style.display = 'block';
+            };
+            window.ztd_closePreview = function() {
+                document.getElementById('ztd-tower-preview').style.display = 'none';
+                ZTD._previewType = null;
+            };
+            window.ztd_buyFromPreview = function() {
+                if (!ZTD._previewType) return;
+                ZTD.selectTower(ZTD._previewType);
+                document.getElementById('ztd-tower-preview').style.display = 'none';
+            };
+            window.ztd_resize        = function() {
+                if (!ZTD.running) return;
+                ZTD.resize();
+                ZTD.render();
+            };
+
+            // On first open, show map picker
+            window.ztd_open = function() {
+                document.getElementById('ztd-game-screen').style.display = 'none';
+                document.getElementById('ztd-map-picker').style.display = 'flex';
+                buildMapPicker();
+            };
+        })();
+
+
+
         (function() {
             var style = document.createElement('style');
             style.textContent = `
