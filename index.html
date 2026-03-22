@@ -459,12 +459,20 @@
             box-shadow: 0 0 0 2px rgba(0,200,255,0.1);
         }
 
-        #zweb-frame {
+        #zweb-frame { display: none; }
+        #zweb-frames {
             width: 100%;
-            height: -webkit-calc(100% - 88px);
-            height: calc(100% - 88px);
-            border: none;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
             background: #02030a;
+        }
+        #zweb-frames iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: absolute;
+            top: 0; left: 0;
         }
 
 
@@ -624,7 +632,9 @@
             -webkit-box-sizing: border-box;
             box-sizing: border-box;
             padding: 12px 12px 16px;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Subtle grid overlay on game background */
@@ -671,12 +681,13 @@
 
         .game-inner {
             width: 100%;
-            height: 100%;
+            min-height: 100%;
+            height: auto;
             display: none;
             -webkit-box-sizing: border-box;
             box-sizing: border-box;
             padding-top: 44px;
-            overflow: hidden;
+            overflow: visible;
             position: relative;
             z-index: 1;
         }
@@ -1349,7 +1360,8 @@
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
         </div>
 
-        <iframe id="zweb-frame" src="about:blank"></iframe>
+        <iframe id="zweb-frame" src="about:blank" style="display:none;"></iframe>
+        <div id="zweb-frames" style="flex:1;position:relative;overflow:hidden;"></div>
 
         <div id="hyperzsearch" style="display:none; padding:20px; color:white; overflow-y:auto; height:calc(100vh - 64px);">
             <h2 style="color:#00e0ff; margin-top:0;">HyperZSearch Results</h2>
@@ -2020,33 +2032,33 @@
                 </div>
 
                 <!-- Canvas + Sidebar row -->
-                <div style="display:flex;gap:8px;width:100%;align-items:flex-start;justify-content:center;">
+                <div id="ztd-main-row" style="display:flex;gap:8px;width:100%;align-items:flex-start;justify-content:center;">
 
                     <!-- Canvas -->
                     <canvas id="ztd-canvas" style="border:1px solid var(--border-mid);border-radius:8px;box-shadow:0 0 20px rgba(0,200,255,0.08);display:block;cursor:crosshair;flex-shrink:0;max-width:calc(100% - 148px);"></canvas>
 
-                    <!-- Right sidebar — fixed width, no overflow -->
-                    <div style="display:flex;flex-direction:column;gap:6px;width:136px;min-width:136px;flex-shrink:0;overflow:hidden;box-sizing:border-box;">
+                    <!-- Right sidebar — scrollable vertically, resizes with canvas -->
+                    <div id="ztd-sidebar" style="display:flex;flex-direction:column;gap:6px;width:136px;min-width:136px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;">
 
-                        <!-- Tower shop -->
-                        <div style="background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:7px;box-sizing:border-box;overflow:hidden;">
+                        <!-- Tower shop: 2-col grid of square icon buttons -->
+                        <div id="ztd-tower-shop" style="background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:6px;box-sizing:border-box;">
                             <div style="color:var(--text-soft);font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Towers</div>
-                            <div style="display:flex;flex-direction:column;gap:3px;">
-                                <button class="btn-small" onclick="ztd_previewTower('sword')"    style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;">🗡️ Sword Guy $50</button>
-                                <button class="btn-small" onclick="ztd_previewTower('gun')"      style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#ffaa00;">🔫 Gun Man $125</button>
-                                <button class="btn-small" onclick="ztd_previewTower('ice')"      style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#aaeeff;">🧊 Ice Tower $150</button>
-                                <button class="btn-small" onclick="ztd_previewTower('cannon')"   style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#ff6600;">💣 Cannon $200</button>
-                                <button class="btn-small" onclick="ztd_previewTower('sniper')"   style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#00ffaa;">🎯 Sniper $225</button>
-                                <button class="btn-small" onclick="ztd_previewTower('ninja')"    style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#aa00ff;">🥷 Ninja $350</button>
-                                <button class="btn-small" onclick="ztd_previewTower('necro')"    style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#55ff55;">💀 Necromancer $725</button>
-                                <button class="btn-small" onclick="ztd_previewTower('supergun')" style="width:100%;font-size:10px;padding:4px 2px;box-sizing:border-box;border-color:#ff2200;">🔥 Super Gun $1225</button>
+                            <div id="ztd-tower-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+                                <button onclick="ztd_previewTower('sword')"    style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(64,223,255,0.08);border:1px solid #40dfff44;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">🗡️</span><span style="font-size:8px;color:#ffd700;">$50</span></button>
+                                <button onclick="ztd_previewTower('gun')"      style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,170,0,0.08);border:1px solid #ffaa0044;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">🔫</span><span style="font-size:8px;color:#ffd700;">$125</span></button>
+                                <button onclick="ztd_previewTower('ice')"      style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(170,238,255,0.08);border:1px solid #aaeeff44;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">🧊</span><span style="font-size:8px;color:#ffd700;">$150</span></button>
+                                <button onclick="ztd_previewTower('cannon')"   style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,102,0,0.08);border:1px solid #ff660044;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">💣</span><span style="font-size:8px;color:#ffd700;">$200</span></button>
+                                <button onclick="ztd_previewTower('sniper')"   style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,255,170,0.08);border:1px solid #00ffaa44;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">🎯</span><span style="font-size:8px;color:#ffd700;">$225</span></button>
+                                <button onclick="ztd_previewTower('ninja')"    style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(170,0,255,0.08);border:1px solid #aa00ff44;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">🥷</span><span style="font-size:8px;color:#ffd700;">$350</span></button>
+                                <button onclick="ztd_previewTower('necro')"    style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(85,255,85,0.08);border:1px solid #55ff5544;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">💀</span><span style="font-size:8px;color:#ffd700;">$725</span></button>
+                                <button onclick="ztd_previewTower('supergun')" style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,34,0,0.08);border:1px solid #ff220044;border-radius:6px;cursor:pointer;font-family:inherit;padding:2px;gap:1px;"><span style="font-size:18px;">🔥</span><span style="font-size:8px;color:#ffd700;">$1225</span></button>
                             </div>
-                            <div id="ztd-cancel-wrap" style="display:none;margin-top:4px;">
-                                <button class="btn-small" onclick="ztd_cancelPlace()" style="width:100%;background:rgba(255,61,112,0.18);border-color:rgba(255,61,112,0.4);font-size:11px;padding:4px 2px;box-sizing:border-box;">✕ Cancel</button>
+                            <div id="ztd-cancel-wrap" style="display:none;margin-top:5px;">
+                                <button class="btn-small" onclick="ztd_cancelPlace()" style="width:100%;background:rgba(255,61,112,0.18);border-color:rgba(255,61,112,0.4);font-size:11px;padding:4px;box-sizing:border-box;">✕ Cancel</button>
                             </div>
                         </div>
 
-                        <!-- Tower preview panel — shown when clicking a tower button -->
+                        <!-- Tower preview — replaces shop when tower icon clicked -->
                         <div id="ztd-tower-preview" style="display:none;background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:8px;box-sizing:border-box;overflow:hidden;">
                             <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
                                 <span id="ztd-prev-emoji" style="font-size:22px;">🗡️</span>
@@ -2054,14 +2066,14 @@
                                     <div style="font-weight:700;color:var(--text-main);font-size:11px;" id="ztd-prev-name">Tower</div>
                                     <div style="color:#ffd700;font-size:11px;font-weight:700;" id="ztd-prev-cost">$50</div>
                                 </div>
-            </div>
+                            </div>
                             <div style="color:var(--text-soft);font-size:9px;line-height:1.5;" id="ztd-prev-desc">Description</div>
                             <div style="display:flex;flex-wrap:wrap;gap:3px;margin:5px 0;font-size:9px;" id="ztd-prev-stats"></div>
-                            <button id="ztd-prev-buy" class="btn-small" style="width:100%;font-size:10px;padding:4px;margin-top:2px;" onclick="ztd_buyFromPreview()">Place Tower</button>
-                            <button class="btn-small" onclick="ztd_closePreview()" style="width:100%;font-size:9px;padding:3px;margin-top:3px;background:rgba(255,61,112,0.1);border-color:rgba(255,61,112,0.3);">✕ Close</button>
+                            <button id="ztd-prev-buy" class="btn-small" style="display:none;"></button>
+                            <button class="btn-small" onclick="ztd_closePreview()" style="width:100%;font-size:9px;padding:3px;margin-top:3px;background:rgba(255,61,112,0.08);border-color:rgba(255,61,112,0.3);">✕ Cancel</button>
                         </div>
 
-                        <!-- Upgrade panel -->
+                        <!-- Upgrade panel — replaces shop when tower selected on canvas -->
                         <div id="ztd-upgrade-panel" style="display:none;background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:8px;padding:7px;box-sizing:border-box;overflow:hidden;">
                             <div style="font-weight:700;color:var(--accent-strong);margin-bottom:5px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="ztd-up-title">Tower</div>
                             <div style="display:flex;flex-direction:column;gap:3px;">
@@ -2072,6 +2084,7 @@
                                 <button class="btn-small" id="ztd-up-spd-btn" onclick="ztd_upgrade('speed')" style="width:100%;font-size:9px;padding:3px 2px;box-sizing:border-box;">⬆ Spd <span id="ztd-up-spd-cost">($35)</span></button>
                                 <div style="color:var(--text-soft);font-size:9px;margin-bottom:2px;">Speed Lv <span id="ztd-up-spd-lv">1</span></div>
                                 <button class="btn-small" onclick="ztd_sellTower()" style="width:100%;background:rgba(255,61,112,0.15);border-color:rgba(255,61,112,0.3);font-size:9px;padding:3px 2px;box-sizing:border-box;margin-top:2px;">💰 Sell (<span id="ztd-sell-val"></span>)</button>
+                                <button class="btn-small" onclick="ztd_deselectTower()" style="width:100%;font-size:9px;padding:3px 2px;box-sizing:border-box;margin-top:2px;background:rgba(64,223,255,0.08);border-color:rgba(64,223,255,0.3);">← Towers</button>
                             </div>
                         </div>
 
@@ -2272,7 +2285,7 @@
             }
 
             if (id === "zweb") {
-                document.getElementById("zweb-frame").style.display = "block";
+                
                 document.getElementById("hyperzsearch").style.display = "none";
             }
         }
@@ -2377,9 +2390,16 @@
 
         function createTab(url) {
             if (!url) url = "New Tab";
-            var id = new Date().getTime();
-            var tab = { id: id, url: url };
+            var id = Date.now();
+            var tab = { id: id, url: url, frame: null };
             tabs.push(tab);
+
+            // Create a dedicated iframe for this tab
+            var frame = document.createElement("iframe");
+            frame.style.cssText = "width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;";
+            frame.src = "about:blank";
+            document.getElementById("zweb-frames").appendChild(frame);
+            tab.frame = frame;
 
             var tabEl = document.createElement("div");
             tabEl.className = "tab";
@@ -2387,29 +2407,16 @@
 
             var title = document.createElement("span");
             title.innerHTML = url;
-
             var close = document.createElement("span");
             close.className = "close-btn";
             close.innerHTML = "&times;";
-            close.onclick = (function (tid) {
-                return function (e) {
-                    if (e && e.stopPropagation) e.stopPropagation();
-                    closeTab(tid);
-                };
-            })(id);
-
+            close.onclick = (function(tid){ return function(e){ if(e&&e.stopPropagation)e.stopPropagation(); closeTab(tid); }; })(id);
             tabEl.appendChild(title);
             tabEl.appendChild(close);
-
-            tabEl.onclick = (function (tid) {
-                return function () {
-                    switchTab(tid);
-                };
-            })(id);
+            tabEl.onclick = (function(tid){ return function(){ switchTab(tid); }; })(id);
 
             var tabsBar = document.getElementById("tabs");
             tabsBar.insertBefore(tabEl, tabsBar.querySelector(".new-tab-btn"));
-
             switchTab(id);
         }
 
@@ -2417,47 +2424,42 @@
             var i;
             currentTab = null;
             for (i = 0; i < tabs.length; i++) {
-                if (tabs[i].id === id) {
-                    currentTab = tabs[i];
-                    break;
-                }
+                if (tabs[i].id === id) { currentTab = tabs[i]; break; }
             }
+
+            // Show only active tab's frame
+            for (i = 0; i < tabs.length; i++) {
+                if (tabs[i].frame) tabs[i].frame.style.display = tabs[i].id === id ? 'block' : 'none';
+            }
+
+            // Update tab bar active state
             var tabEls = document.getElementsByClassName("tab");
             for (i = 0; i < tabEls.length; i++) {
                 var el = tabEls[i];
                 var tid = parseInt(el.getAttribute("data-id"), 10);
-                if (tid === id) {
-                    if (el.className.indexOf("active") === -1) {
-                        el.className += " active";
-                    }
-                } else {
-                    el.className = el.className.replace(" active", "");
-                }
+                el.className = tid === id ? "tab active" : "tab";
             }
 
             if (!currentTab) return;
-
             document.getElementById("hyperzsearch").style.display = "none";
-            document.getElementById("zweb-frame").style.display = "block";
 
             if (currentTab.url === "New Tab") {
-                document.getElementById("zweb-frame").src = "about:blank";
                 document.getElementById("zweb-url").value = "";
             } else {
-                loadTab(currentTab.url);
+                document.getElementById("zweb-url").value = currentTab.url;
             }
         }
 
         function closeTab(id) {
-            var i;
-            var index = -1;
+            var i, index = -1;
             for (i = 0; i < tabs.length; i++) {
-                if (tabs[i].id === id) {
-                    index = i;
-                    break;
-                }
+                if (tabs[i].id === id) { index = i; break; }
             }
             if (index === -1) return;
+
+            // Remove the tab's iframe
+            var tab = tabs[index];
+            if (tab.frame && tab.frame.parentNode) tab.frame.parentNode.removeChild(tab.frame);
 
             tabs.splice(index, 1);
 
@@ -2471,8 +2473,7 @@
 
             if (currentTab && currentTab.id === id) {
                 if (tabs.length > 0) {
-                    var newIndex = index - 1;
-                    if (newIndex < 0) newIndex = 0;
+                    var newIndex = index > 0 ? index - 1 : 0;
                     switchTab(tabs[newIndex].id);
                 } else {
                     createTab();
@@ -2488,19 +2489,16 @@
         ];
 
         function loadTab(url) {
-            var frame = document.getElementById("zweb-frame");
-            var input = document.getElementById("zweb-url");
-
+            if (!currentTab) return;
             if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
                 url = "https://" + url;
             }
-
-            input.value = url;
+            document.getElementById("zweb-url").value = url;
             currentTab.url = url;
 
+            // Update tab label
             var tabEls = document.getElementsByClassName("tab");
-            var i;
-            for (i = 0; i < tabEls.length; i++) {
+            for (var i = 0; i < tabEls.length; i++) {
                 if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
                     var span = tabEls[i].getElementsByTagName("span")[0];
                     var short = url.replace(/^https?:\/\//, "");
@@ -2510,25 +2508,25 @@
                 }
             }
 
-            zwebTryProxy(frame, url, 0);
+            zwebTryProxy(currentTab, url, 0);
         }
 
-        function zwebTryProxy(frame, targetUrl, idx) {
+        function zwebTryProxy(tab, targetUrl, idx) {
+            if (!tab || !tab.frame) return;
             var proxied;
             if (idx >= ZWEB_PROXIES.length) {
-                proxied = targetUrl; // all proxies exhausted — go direct
+                proxied = targetUrl;
             } else {
                 proxied = ZWEB_PROXIES[idx].wrap(targetUrl);
             }
 
-            var newFrame = frame.cloneNode(false);
-            newFrame.src = proxied;
-            frame.parentNode.replaceChild(newFrame, frame);
+            var frame = tab.frame;
+            frame.src = proxied;
 
             var timer = setTimeout(function() {
-                newFrame.removeEventListener('load', onLoad);
+                frame.removeEventListener('load', onLoad);
                 if (idx < ZWEB_PROXIES.length) {
-                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                    zwebTryProxy(tab, targetUrl, idx + 1);
                 }
             }, 8000);
 
@@ -2536,7 +2534,7 @@
                 clearTimeout(timer);
                 var blocked = false;
                 try {
-                    var doc = newFrame.contentDocument || newFrame.contentWindow.document;
+                    var doc = frame.contentDocument || frame.contentWindow.document;
                     var bodyHTML = doc && doc.body ? doc.body.innerHTML.trim() : '';
                     if (bodyHTML === '') {
                         blocked = true;
@@ -2549,15 +2547,13 @@
                             blocked = true;
                         }
                     }
-                } catch(e) {
-                    blocked = false;
-                }
+                } catch(e) { blocked = false; }
                 if (blocked && idx < ZWEB_PROXIES.length) {
-                    zwebTryProxy(newFrame, targetUrl, idx + 1);
+                    zwebTryProxy(tab, targetUrl, idx + 1);
                 }
             }
 
-            newFrame.addEventListener('load', onLoad, { once: true });
+            frame.addEventListener('load', onLoad, { once: true });
         }
 
         function zwebNavigate() {
@@ -3757,7 +3753,7 @@
 
         function runHyperZSearch(query) {
             showSection("zweb");
-            document.getElementById("zweb-frame").style.display = "none";
+            
             document.getElementById("hyperzsearch").style.display = "block";
 
             var resultsBox = document.getElementById("hyperzsearch-results");
@@ -3820,7 +3816,7 @@
             createTab(url);
             loadTab(url);
             document.getElementById("hyperzsearch").style.display = "none";
-            document.getElementById("zweb-frame").style.display = "block";
+            
         }
 
         // SNAKE GAME
@@ -9950,7 +9946,7 @@
                     },
                     necro: {
                         name: 'Necromancer', emoji: '💀', cost: 725, damage: 2, range: 2.5, fireRate: 0.5, color: '#55ff55',
-                        upgradeLimits: { range: 6, damage: 7, speed: 15 },
+                        upgradeLimits: { range: 6, damage: 7, speed: 21 },  // speed = Ghost Power (20 upgrades)
                         canSeeBlack: false,
                         spawnsGhost: true
                     },
@@ -10058,25 +10054,65 @@
 
                 resize: function() {
                     if (!this.canvas) return;
-                    var cont = this.canvas.parentElement; // the flex row
-                    var sidebar = 148; // sidebar min-width + gap
-                    var availW = cont ? cont.clientWidth - sidebar - 8 : 500;
-                    var maxW = Math.min(availW, 640);
-                    this.CELL = Math.max(24, Math.floor(maxW / this.COLS));
+                    var isMobile = window.innerWidth < 520;
+                    var mainRow = document.getElementById('ztd-main-row');
+                    var sidebar = document.getElementById('ztd-sidebar');
+
+                    if (isMobile) {
+                        // Mobile: stack vertically — canvas full width, sidebar below as horizontal wrap
+                        if (mainRow) mainRow.style.flexDirection = 'column';
+                        if (sidebar) {
+                            sidebar.style.width = '100%';
+                            sidebar.style.minWidth = '0';
+                            sidebar.style.flexDirection = 'row';
+                            sidebar.style.flexWrap = 'wrap';
+                            sidebar.style.maxHeight = '';
+                            sidebar.style.overflowY = 'visible';
+                        }
+                        // Tower buttons go horizontal (wrap) on mobile
+                        var btns = document.getElementById('ztd-tower-btns');
+                        var shop = document.getElementById('ztd-tower-shop');
+                        if (btns) { btns.style.flexDirection = 'row'; btns.style.flexWrap = 'wrap'; }
+                        if (shop) { shop.style.width = '100%'; }
+                        this.canvas.style.maxWidth = '100%';
+                        var maxW = Math.min(window.innerWidth - 16, 640);
+                        this.CELL = Math.max(20, Math.floor(maxW / this.COLS));
+                    } else {
+                        // Desktop: side by side
+                        if (mainRow) mainRow.style.flexDirection = 'row';
+                        if (sidebar) {
+                            sidebar.style.width = '136px';
+                            sidebar.style.minWidth = '136px';
+                            sidebar.style.flexDirection = 'column';
+                            sidebar.style.flexWrap = '';
+                            sidebar.style.overflowY = 'auto';
+                        }
+                        // Tower buttons back to vertical
+                        var btns = document.getElementById('ztd-tower-btns');
+                        var shop = document.getElementById('ztd-tower-shop');
+                        if (btns) { btns.style.flexDirection = 'column'; btns.style.flexWrap = ''; }
+                        if (shop) { shop.style.width = ''; }
+                        this.canvas.style.maxWidth = 'calc(100% - 148px)';
+                        var cont = this.canvas.parentElement;
+                        var sidebarW = 148;
+                        var availW = cont ? cont.clientWidth - sidebarW - 8 : 500;
+                        var maxW = Math.min(availW, 640);
+                        this.CELL = Math.max(24, Math.floor(maxW / this.COLS));
+                    }
+
                     this.canvas.width  = this.COLS * this.CELL;
                     this.canvas.height = this.ROWS * this.CELL;
+
+                    // Match sidebar max-height to canvas height on desktop
+                    if (!isMobile && sidebar) {
+                        sidebar.style.maxHeight = this.canvas.height + 'px';
+                    }
                 },
 
                 init: function() {
                     this.canvas = document.getElementById('ztd-canvas');
                     this.ctx = this.canvas.getContext('2d');
-                    var cont = this.canvas.parentElement;
-                    var sidebar = 148;
-                    var availW = cont ? cont.clientWidth - sidebar - 8 : 500;
-                    var maxW = Math.min(availW, 640);
-                    this.CELL = Math.max(24, Math.floor(maxW / this.COLS));
-                    this.canvas.width  = this.COLS * this.CELL;
-                    this.canvas.height = this.ROWS * this.CELL;
+                    this.resize();
 
                     this.pathSet = {};
                     for (var i = 0; i < this.PATH.length; i++)
@@ -10100,6 +10136,8 @@
                     this.running = true;
 
                     document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-tower-preview').style.display = 'none';
+                    document.getElementById('ztd-tower-shop').style.display = 'block';
                     document.getElementById('ztd-cancel-wrap').style.display = 'none';
                     document.getElementById('ztd-sandbox-panel').style.display = this.sandboxMode ? 'block' : 'none';
                     document.getElementById('ztd-wave-btn').textContent = '▶ Start Wave 1';
@@ -10220,7 +10258,6 @@
                                 else { e.x += (gdx/gdist)*gstep; e.y += (gdy/gdist)*gstep; }
                             }
                             // Collision: check if touching any real bloon (skip if still in spawn grace period)
-                            var ghostPopped = false;
                             if (!e.spawnGrace || e.spawnGrace <= 0) {
                                 for (var si = 0; si < this.enemies.length; si++) {
                                     var se = this.enemies[si];
@@ -10228,16 +10265,18 @@
                                     var sdx2 = se.x - e.x, sdy2 = se.y - e.y;
                                     var collDist = se.radius + e.radius;
                                     if (Math.sqrt(sdx2*sdx2 + sdy2*sdy2) <= collDist) {
-                                        se.hp = 0;
-                                        ghostPopped = true;
+                                        se.hp -= (e.ghostDmg || 1); // damage the bloon
+                                        e.hp--;                      // ghost loses 1 HP per hit
+                                        e.spawnGrace = 0.15;         // brief grace so it doesn't multi-hit same frame
                                         break;
                                     }
                                 }
                             } else {
                                 e.spawnGrace -= dt;
                             }
-                            if (ghostPopped) {
-                                this.enemies.splice(i, 1); // ghost pops itself too
+                            // Ghost dies when its own HP runs out
+                            if (e.hp <= 0) {
+                                this.enemies.splice(i, 1);
                             }
                             continue;
                         }
@@ -10246,7 +10285,7 @@
                         if (e.frozen > 0) e.frozen -= dt;
 
                         if (this.moveEnemy(e, dt)) {
-                            this.health = Math.max(0, this.health - 10);
+                            this.health = Math.max(0, this.health - 1);
                             this.enemies.splice(i, 1);
                             this.updateHUD();
                             if (this.health <= 0) { this.gameOver(); return; }
@@ -10329,11 +10368,13 @@
                                     this.projectiles.push({ x: tower.px, y: tower.py, tx: target.x, ty: target.y, life: 0.18, maxLife: 0.18, bomb: false, necro: true });
                                     tower.attackFlash = 0.2;
                                     if (target.hp <= 0) {
-                                        // Spawn ghost regardless of whether it splits — necro kills spawn ghosts
+                                        var glv = (tower.ghostLv || 1) - 1; // upgrades above base
                                         this.enemies.push({
                                             x: target.x, y: target.y,
                                             name: 'Ghost', defKey: 'ghost',
-                                            hp: 1, maxHp: 1, speed: 35, reward: 0,
+                                            hp: 1 + glv * 5, maxHp: 1 + glv * 5,
+                                            speed: 35 + glv * 5, reward: 0,
+                                            ghostDmg: 1 + glv * 5,  // damage dealt per second on contact
                                             color: '#aaffaa', radius: (target.radius || 10) * 0.8,
                                             pathIdx: target.pathIdx,
                                             ghost: true, ghostLife: 8.0 + (tower.damageLv - 1) * 1.0, spawnGrace: 0.1,
@@ -10440,9 +10481,9 @@
                     var sp = this.PATH[0];
                     var isBoss = (defKey === 'boss1' || defKey === 'boss2');
                     // Bosses CANNOT be heart or camo — period
-                    var heart = !isBoss && (forceHeart || (this.wave >= 10 && Math.random() < 0.10));
+                    var heart = !isBoss && (forceHeart || (this.wave >= 14 && Math.random() < 0.10));
                     // Camo: 10% from wave 12 (combinable with heart — independent roll)
-                    var camo  = !isBoss && (forceCamo  || (this.wave >= 12 && Math.random() < 0.10));
+                    var camo  = !isBoss && (forceCamo  || (this.wave >= 14 && Math.random() < 0.10));
                     this.enemies.push({ x: sp[0]*this.CELL+this.CELL/2, y: sp[1]*this.CELL+this.CELL/2,
                         name: def.name, defKey: defKey || '',
                         hp: def.hp, maxHp: def.maxHp, speed: def.speed, reward: def.reward,
@@ -10589,18 +10630,18 @@
                     }
                     var bossWarning  = (this.wave === 19);
                     var boss2Warning = (this.wave === 49);
-                    var heartWarning = (this.wave === 9);   // warn about heart bloons
-                    var camoWarning  = (this.wave === 11);  // warn about camo bloons
+                    var heartWarning = (this.wave === 11);   // warn about heart bloons
+                    var camoWarning  = (this.wave === 13);  // warn about camo bloons
 
                     var count = 4 + (this.wave-1) * 3;
-                    var blackCount   = this.wave >= 15 ? Math.floor((this.wave - 14) * 0.6) : 0;
-                    var ceramicCount = this.wave >= 35 ? Math.floor((this.wave - 34) * 0.5) : 0;
-                    var leadCount    = this.wave >= 12 ? Math.floor((this.wave - 11) * 0.5) - ceramicCount : 0;
-                    var rainbowCount = this.wave >= 25 ? Math.floor((this.wave - 24) * 0.7) - ceramicCount - leadCount : 0;
-                    var basic4Count  = this.wave >= 9  ? Math.floor((this.wave - 8) * 0.8) - leadCount - rainbowCount - ceramicCount - blackCount : 0;
-                    var yellowCount  = this.wave >= 7  ? Math.floor((this.wave - 6) * 1.2) - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
-                    var basic3Count  = this.wave >= 6  ? Math.floor((this.wave - 5) * 1.0) - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
-                    var basic2Count  = this.wave >= 3  ? Math.floor((this.wave - 2) * 1.5) - basic3Count - yellowCount - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var blackCount   = this.wave >= 17 ? Math.floor((this.wave - 16) * 0.6) : 0;
+                    var ceramicCount = this.wave >= 37 ? Math.floor((this.wave - 36) * 0.5) : 0;
+                    var leadCount    = this.wave >= 14 ? Math.floor((this.wave - 13) * 0.5) - ceramicCount : 0;
+                    var rainbowCount = this.wave >= 27 ? Math.floor((this.wave - 26) * 0.7) - ceramicCount - leadCount : 0;
+                    var basic4Count  = this.wave >= 11 ? Math.floor((this.wave - 10) * 0.8) - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var yellowCount  = this.wave >= 9  ? Math.floor((this.wave - 8) * 1.2) - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var basic3Count  = this.wave >= 8  ? Math.floor((this.wave - 7) * 1.0) - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
+                    var basic2Count  = this.wave >= 5  ? Math.floor((this.wave - 4) * 1.5) - basic3Count - yellowCount - basic4Count - leadCount - rainbowCount - ceramicCount - blackCount : 0;
                     blackCount   = Math.max(0, blackCount);
                     ceramicCount = Math.max(0, ceramicCount);
                     leadCount    = Math.max(0, leadCount);
@@ -10654,6 +10695,8 @@
                     this.placingType = type;
                     this.selectedTower = null;
                     document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-tower-preview').style.display = 'none';
+                    document.getElementById('ztd-tower-shop').style.display = 'block';
                     document.getElementById('ztd-cancel-wrap').style.display = 'flex';
                     this.setStatus('Click a grass tile to place. Press ✕ Cancel to abort.');
                 },
@@ -10662,6 +10705,7 @@
                     this.placingType = null;
                     this.cloneTower = null;
                     document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                    document.getElementById('ztd-tower-shop').style.display = 'block';
                     this.setStatus('Placement cancelled.');
                 },
 
@@ -10702,7 +10746,8 @@
                         damageLv: src ? src.damageLv : 1,
                         speedLv:  src ? src.speedLv  : 1,
                         totalSpent: def.cost,
-                        cooldown: 0, attackFlash: 0
+                        cooldown: 0, attackFlash: 0,
+                        ghostLv: 1
                     };
                     this.grid[row][col] = tower;
                     this.towers.push(tower);
@@ -10711,6 +10756,8 @@
                     if (!this.sandboxDragging && !src) {
                         this.placingType = null;
                         document.getElementById('ztd-cancel-wrap').style.display = 'none';
+                        document.getElementById('ztd-tower-preview').style.display = 'none';
+                        document.getElementById('ztd-tower-shop').style.display = 'block';
                         this.setStatus(def.name + ' placed! Click it to upgrade or sell.');
                     }
                 },
@@ -10746,9 +10793,18 @@
                     this.selectedTower = null;
                     this._lastClickTower = null;
                     document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-tower-shop').style.display = 'block';
+                },
+
+                deselectTower: function() {
+                    this.selectedTower = null;
+                    document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-tower-shop').style.display = 'block';
                 },
 
                 showUpgradePanel: function(t) {
+                    document.getElementById('ztd-tower-shop').style.display = 'none';
+                    document.getElementById('ztd-tower-preview').style.display = 'none';
                     document.getElementById('ztd-upgrade-panel').style.display = 'block';
                     document.getElementById('ztd-up-title').textContent = t.emoji + ' ' + t.name;
                     var def = this.TOWER_DEFS[t.type];
@@ -10761,15 +10817,17 @@
 
                     document.getElementById('ztd-up-range-lv').textContent = t.rangeLv + (rangeMaxed ? ' MAX' : '');
                     document.getElementById('ztd-up-dmg-lv').textContent   = t.damageLv + (dmgMaxed  ? ' MAX' : '');
-                    document.getElementById('ztd-up-spd-lv').textContent   = t.speedLv  + (spdMaxed  ? ' MAX' : '');
+                    var isNecro = (t.type === 'necro');
+                    document.getElementById('ztd-up-spd-lv').textContent   = (isNecro ? 'Lv ' + (t.ghostLv || 1) : t.speedLv) + (spdMaxed ? ' MAX' : '');
 
-                    var rangeBtn = document.getElementById('ztd-up-range-btn') || document.querySelector('[onclick="ztd_upgrade(\'range\')"]');
-                    var dmgBtn   = document.getElementById('ztd-up-dmg-btn')   || document.querySelector('[onclick="ztd_upgrade(\'damage\')"]');
-                    var spdBtn   = document.getElementById('ztd-up-spd-btn')   || document.querySelector('[onclick="ztd_upgrade(\'speed\')"]');
+                    var rangeBtn = document.getElementById('ztd-up-range-btn');
+                    var dmgBtn   = document.getElementById('ztd-up-dmg-btn');
+                    var spdBtn   = document.getElementById('ztd-up-spd-btn');
+                    if (spdBtn) spdBtn.innerHTML = (isNecro ? '⬆ Ghost Power ' : '⬆ Spd ') + '<span id="ztd-up-spd-cost">' + (spdMaxed ? '(MAX)' : '($' + (35+(t.speedLv-1)*20) + ')') + '</span>';
 
                     document.getElementById('ztd-up-range-cost').textContent = rangeMaxed ? '(MAX)' : '($' + (30+(t.rangeLv-1)*20)  + ')';
                     document.getElementById('ztd-up-dmg-cost').textContent   = dmgMaxed   ? '(MAX)' : '($' + (40+(t.damageLv-1)*25) + ')';
-                    document.getElementById('ztd-up-spd-cost').textContent   = spdMaxed   ? '(MAX)' : '($' + (35+(t.speedLv-1)*20)  + ')';
+                    if (!spdBtn) document.getElementById('ztd-up-spd-cost').textContent = spdMaxed ? '(MAX)' : '($' + (35+(t.speedLv-1)*20) + ')';
 
                     // Dim maxed buttons
                     var rb = document.getElementById('ztd-up-range-btn');
@@ -10797,11 +10855,21 @@
                     if (!this.sandboxMode) { this.gold -= cost; t.totalSpent += cost; }
                     else t.totalSpent += cost;
                     var isCannon = (t.type === 'cannon');
+                    var isNecro  = (t.type === 'necro');
                     if (stat==='range')  { t.rangeLv++;  t.range   += 0.6; }
                     if (stat==='damage') { t.damageLv++; t.damage  += 1; }
-                    if (stat==='speed')  { t.speedLv++;  t.fireRate += isCannon ? 0.1 : 0.4; }
+                    if (stat==='speed') {
+                        t.speedLv++;
+                        if (isNecro) {
+                            t.ghostLv = (t.ghostLv || 1) + 1; // Ghost Power up
+                        } else {
+                            t.fireRate += isCannon ? 0.1 : 0.4;
+                        }
+                    }
                     this.updateHUD(); this.showUpgradePanel(t);
-                    this.setStatus(t.name + ' ' + stat + ' upgraded!');
+                    var statName = stat;
+                    if (t.type === 'necro' && stat === 'damage') statName = 'Ghost Power';
+                    this.setStatus(t.name + ' ' + statName + ' upgraded!');
                 },
 
                 sellTower: function() {
@@ -10812,6 +10880,7 @@
                     this.towers.splice(this.towers.indexOf(t), 1);
                     this.selectedTower = null;
                     document.getElementById('ztd-upgrade-panel').style.display = 'none';
+                    document.getElementById('ztd-tower-shop').style.display = 'block';
                     this.updateHUD();
                     this.setStatus('Tower sold for $' + val + ' (60% back).');
                 },
@@ -11239,27 +11308,34 @@
                 document.getElementById('ztd-prev-name').textContent  = def.name;
                 document.getElementById('ztd-prev-cost').textContent  = '$' + def.cost;
                 document.getElementById('ztd-prev-desc').textContent  = desc.desc || '';
-                var lim = def.upgradeLimits || {};
                 var stats = document.getElementById('ztd-prev-stats');
                 stats.innerHTML =
                     '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">⚔️ DMG ' + def.damage + '</span>' +
                     '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">📏 RNG ' + def.range.toFixed(1) + '</span>' +
-                    '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">⚡ SPD ' + def.fireRate.toFixed(1) + '/s</span>' +
+                    '<span style="background:rgba(255,255,255,0.07);border-radius:3px;padding:2px 4px;">⚡ ' + def.fireRate.toFixed(1) + '/s</span>' +
                     (desc.special ? '<span style="color:#ffd700;background:rgba(255,200,0,0.1);border-radius:3px;padding:2px 4px;width:100%;">' + desc.special + '</span>' : '');
-                var buyBtn = document.getElementById('ztd-prev-buy');
-                buyBtn.textContent = 'Place ' + def.name + ' ($' + def.cost + ')';
-                buyBtn.style.borderColor = def.color || 'var(--border-mid)';
+                // Show preview (hides shop) AND auto-enter placement mode
+                document.getElementById('ztd-tower-shop').style.display = 'none';
                 document.getElementById('ztd-tower-preview').style.display = 'block';
+                ZTD.placingType = type;
+                ZTD.selectedTower = null;
+                document.getElementById('ztd-upgrade-panel').style.display = 'none';
             };
             window.ztd_closePreview = function() {
-                document.getElementById('ztd-tower-preview').style.display = 'none';
+                // Cancel placement and return to shop
+                ZTD.placingType = null;
+                ZTD.cloneTower = null;
                 ZTD._previewType = null;
+                document.getElementById('ztd-tower-preview').style.display = 'none';
+                document.getElementById('ztd-tower-shop').style.display = 'block';
+                document.getElementById('ztd-cancel-wrap').style.display = 'none';
             };
             window.ztd_buyFromPreview = function() {
-                if (!ZTD._previewType) return;
-                ZTD.selectTower(ZTD._previewType);
-                document.getElementById('ztd-tower-preview').style.display = 'none';
+                // kept for compatibility but no longer called
+                if (ZTD._previewType) ZTD.selectTower(ZTD._previewType);
+                ZTD._previewType = null;
             };
+            window.ztd_deselectTower = function() { ZTD.deselectTower(); };
             window.ztd_resize        = function() {
                 if (!ZTD.running) return;
                 ZTD.resize();
