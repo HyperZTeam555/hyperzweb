@@ -420,32 +420,31 @@
 
         /* ===== URL BAR ===== */
         #zweb-url-bar {
-            height: 48px;
-            background: #050816;
-            border-bottom: 1px solid #141e35;
-            border-bottom: 1px solid var(--border-subtle);
+            height: 52px;
+            background: rgba(5, 8, 22, 0.96);
+            border-bottom: 1px solid rgba(64,223,255,0.14);
             display: -webkit-box;
             display: -ms-flexbox;
             display: flex;
             -webkit-box-align: center;
             -ms-flex-align: center;
             align-items: center;
-            padding: 0 12px;
-            gap: 8px;
+            padding: 0 16px;
+            gap: 10px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
 
         #zweb-url {
             -webkit-box-flex: 1;
             -ms-flex: 1;
             flex: 1;
-            height: 32px;
-            border-radius: 6px;
-            border: 1px solid #1e2d4a;
-            border: 1px solid var(--border-mid);
-            background: rgba(0,0,0,0.5);
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid rgba(64,223,255,0.18);
+            background: rgba(0,0,0,0.38);
             color: #eef2ff;
             color: var(--text-main);
-            padding: 0 12px;
+            padding: 0 14px;
             font-size: 13px;
             outline: none;
             font-family: inherit;
@@ -454,9 +453,9 @@
         }
 
         #zweb-url:focus {
-            border-color: rgba(0,200,255,0.4);
-            -webkit-box-shadow: 0 0 0 2px rgba(0,200,255,0.1);
-            box-shadow: 0 0 0 2px rgba(0,200,255,0.1);
+            border-color: rgba(64,223,255,0.52);
+            -webkit-box-shadow: 0 0 0 3px rgba(0,200,255,0.08);
+            box-shadow: 0 0 0 3px rgba(0,200,255,0.08);
         }
 
         #zweb-frame { display: none; }
@@ -465,7 +464,7 @@
             flex: 1;
             position: relative;
             overflow: hidden;
-            background: #02030a;
+            background: #02040d;
         }
         #zweb-frames iframe {
             width: 100%;
@@ -473,8 +472,435 @@
             border: none;
             position: absolute;
             top: 0; left: 0;
+            z-index: 1;
+            background: #fff;
         }
 
+        #zweb-home {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            padding: 28px;
+            transition: opacity 0.2s ease, visibility 0.2s;
+        }
+
+        #zweb-home.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .zweb-home-label {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+        }
+
+        #zweb-home-input {
+            width: min(90vw, 580px);
+            height: 48px;
+            border: 1px solid rgba(64,223,255,0.22);
+            border-radius: 12px;
+            background: rgba(8,12,26,0.95);
+            color: var(--text-main);
+            font: inherit;
+            font-size: 15px;
+            text-align: center;
+            outline: none;
+            padding: 0 18px;
+            box-shadow: 0 14px 40px rgba(0,0,0,0.28);
+        }
+
+        #zweb-home-input:focus {
+            border-color: rgba(64,223,255,0.62);
+            box-shadow: 0 0 0 3px rgba(0,200,255,0.08), 0 14px 40px rgba(0,0,0,0.28);
+        }
+
+        /* ===== ZWEB HOME ACTION BUTTONS ===== */
+        .zweb-home-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .zweb-home-action-btn {
+            background: rgba(8,12,26,0.85);
+            border: 1px solid rgba(64,223,255,0.22);
+            color: var(--text-soft);
+            font: inherit;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            padding: 9px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.18s, color 0.18s, background 0.18s, box-shadow 0.18s;
+        }
+        .zweb-home-action-btn:hover {
+            border-color: rgba(64,223,255,0.55);
+            color: var(--text-main);
+            background: rgba(0,200,255,0.08);
+            box-shadow: 0 0 14px rgba(0,200,255,0.15);
+        }
+
+        /* ===== ZWEB MODALS (Domain List / GitHub) ===== */
+        .zweb-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(2,3,10,0.72);
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .zweb-modal-overlay.open { display: flex; }
+
+        .zweb-modal-panel {
+            background: var(--bg-elevated);
+            border: 1px solid rgba(64,223,255,0.25);
+            border-radius: 14px;
+            width: min(560px, 100%);
+            max-height: min(640px, 85vh);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,200,255,0.05);
+            overflow: hidden;
+        }
+        .zweb-modal-panel-narrow { width: min(420px, 100%); }
+
+        .zweb-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--accent-strong);
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+            flex-shrink: 0;
+        }
+        .zweb-modal-close {
+            cursor: pointer;
+            color: var(--text-soft);
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            transition: background 0.15s, color 0.15s;
+        }
+        .zweb-modal-close:hover { background: rgba(255,61,112,0.12); color: var(--danger); }
+
+        .zweb-modal-search {
+            margin: 14px 18px 0;
+            height: 38px;
+            border-radius: 8px;
+            border: 1px solid var(--border-mid);
+            background: rgba(0,0,0,0.4);
+            color: var(--text-main);
+            padding: 0 14px;
+            font: inherit;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
+        }
+        .zweb-modal-search:focus {
+            border-color: rgba(0,200,255,0.5);
+            box-shadow: 0 0 0 3px rgba(0,200,255,0.1);
+        }
+
+        .zweb-modal-body {
+            padding: 14px 18px 18px;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+            scrollbar-color: rgba(0,200,255,0.2) transparent;
+            scrollbar-width: thin;
+        }
+        .zweb-modal-body::-webkit-scrollbar { width: 6px; }
+        .zweb-modal-body::-webkit-scrollbar-track { background: transparent; }
+        .zweb-modal-body::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.2); border-radius: 3px; }
+
+        .zweb-modal-status {
+            color: var(--text-soft);
+            font-size: 13px;
+            text-align: center;
+            padding: 30px 10px;
+        }
+        .zweb-modal-status.zweb-modal-error { color: var(--danger); }
+
+        .zweb-domain-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: rgba(0,0,0,0.25);
+            margin-bottom: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-main);
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .zweb-domain-item:hover {
+            border-color: rgba(0,200,255,0.4);
+            background: rgba(0,200,255,0.08);
+        }
+        .zweb-domain-item .zweb-domain-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent-strong);
+            flex-shrink: 0;
+        }
+        .zweb-domain-item .zweb-domain-proto {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .zweb-github-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10px;
+            padding-top: 6px;
+        }
+
+        .zweb-github-switcher {
+            display: flex;
+            gap: 6px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border-subtle);
+            border-radius: 999px;
+            padding: 4px;
+            margin-bottom: 14px;
+        }
+        .zweb-github-switch-btn {
+            background: transparent;
+            border: none;
+            border-radius: 999px;
+            color: var(--text-soft);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 16px;
+            cursor: pointer;
+            transition: background 0.18s, color 0.18s;
+        }
+        .zweb-github-switch-btn:hover { color: var(--text-main); background: rgba(0,200,255,0.08); }
+        .zweb-github-switch-btn.active {
+            background: rgba(0,200,255,0.16);
+            color: var(--accent-strong);
+            box-shadow: 0 0 10px rgba(0,200,255,0.2);
+        }
+
+        .zweb-github-avatar {
+            width: 64px; height: 64px;
+            border-radius: 12px;
+            border: 1px solid var(--border-mid);
+        }
+        .zweb-github-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .zweb-github-desc {
+            font-size: 13px;
+            color: var(--text-soft);
+            line-height: 1.5;
+            max-width: 340px;
+        }
+        .zweb-github-stats {
+            display: flex;
+            gap: 18px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .zweb-github-stats span b { color: var(--accent-strong); font-weight: 700; }
+
+        .zweb-github-btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .zweb-github-open-btn {
+            margin-top: 10px;
+            background: var(--accent);
+            border: none;
+            color: #020a14;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 10px 22px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 0 14px rgba(0,200,255,0.35);
+            transition: opacity 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+        .zweb-github-open-btn:hover { opacity: 0.88; }
+        .zweb-github-open-btn.zweb-github-open-btn-outline {
+            background: transparent;
+            color: var(--accent-strong);
+            border: 1px solid rgba(0,200,255,0.4);
+            box-shadow: none;
+        }
+        .zweb-github-open-btn.zweb-github-open-btn-outline:hover {
+            background: rgba(0,200,255,0.08);
+            opacity: 1;
+        }
+
+        /* ===== README / Markdown viewer ===== */
+        .zweb-readme-body {
+            display: block;
+            text-align: left;
+            padding-top: 6px;
+        }
+        .zweb-readme-body .zweb-github-switcher {
+            display: flex;
+            justify-content: center;
+        }
+        .zweb-md-back-btn {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border-mid);
+            color: var(--text-soft);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 7px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .zweb-md-back-btn:hover { border-color: rgba(0,200,255,0.4); color: var(--text-main); }
+
+        .zweb-md-content {
+            color: var(--text-soft);
+            font-size: 13.5px;
+            line-height: 1.7;
+        }
+        .zweb-md-content h1, .zweb-md-content h2, .zweb-md-content h3,
+        .zweb-md-content h4, .zweb-md-content h5, .zweb-md-content h6 {
+            color: var(--text-main);
+            font-weight: 700;
+            margin: 18px 0 8px;
+            line-height: 1.35;
+        }
+        .zweb-md-content h1 { font-size: 22px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; }
+        .zweb-md-content h2 { font-size: 18px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px; }
+        .zweb-md-content h3 { font-size: 15.5px; }
+        .zweb-md-content h4, .zweb-md-content h5, .zweb-md-content h6 { font-size: 14px; }
+        .zweb-md-content p { margin: 0 0 12px; }
+        .zweb-md-content b { color: var(--text-main); }
+        .zweb-md-content i { color: var(--text-main); }
+        .zweb-md-content a.zweb-md-link { color: var(--accent-strong); text-decoration: underline; }
+        .zweb-md-content a.zweb-md-link:hover { opacity: 0.85; }
+        .zweb-md-content ul { margin: 0 0 12px 22px; padding: 0; }
+        .zweb-md-content li { margin-bottom: 4px; }
+        .zweb-md-content hr { border: none; border-top: 1px solid var(--border-subtle); margin: 18px 0; }
+        .zweb-md-content blockquote {
+            border-left: 3px solid rgba(0,200,255,0.4);
+            margin: 0 0 12px;
+            padding: 4px 14px;
+            color: var(--text-muted);
+            background: rgba(0,200,255,0.04);
+        }
+        .zweb-md-content code.zweb-md-code-inline {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-family: "SF Mono","Fira Code","Fira Mono","Roboto Mono",monospace;
+            font-size: 12.5px;
+            color: var(--accent-strong);
+        }
+        .zweb-md-content pre.zweb-md-pre {
+            background: rgba(0,0,0,0.45);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 12px 14px;
+            overflow-x: auto;
+            margin: 0 0 14px;
+        }
+        .zweb-md-content pre.zweb-md-pre code {
+            font-family: "SF Mono","Fira Code","Fira Mono","Roboto Mono",monospace;
+            font-size: 12.5px;
+            color: var(--text-soft);
+            white-space: pre;
+        }
+        .zweb-md-img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 6px 0;
+        }
+
+        #zweb-loading, #zweb-error {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.15s ease, visibility 0.15s;
+        }
+        #zweb-loading.visible, #zweb-error.visible {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .zweb-loader-ring {
+            width: 26px; height: 26px;
+            border: 2px solid var(--border-mid);
+            border-top-color: var(--accent-strong);
+            border-radius: 50%;
+            animation: zweb-spin 0.6s linear infinite;
+        }
+        @keyframes zweb-spin { to { transform: rotate(360deg); } }
+
+        .zweb-state-text {
+            font-family: inherit;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-soft);
+        }
+
+        .zweb-error-text {
+            color: var(--danger);
+            max-width: 420px;
+            text-align: center;
+            line-height: 1.5;
+            padding: 0 20px;
+            font-size: 13px;
+        }
+        .zweb-retry-link {
+            color: var(--accent-strong);
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .zweb-retry-link:hover { opacity: 0.8; }
 
 
         /* ===== CTA / ACTION BUTTONS ===== */
@@ -501,6 +927,57 @@
             opacity: 0.88;
             -webkit-box-shadow: 0 0 20px rgba(0,200,255,0.6);
             box-shadow: 0 0 20px rgba(0,200,255,0.6);
+        }
+
+        /* ===== PROXY TOGGLE BUTTON ===== */
+        .btn-proxy-toggle {
+            height: 32px;
+            padding: 0 14px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            cursor: pointer;
+            font-family: inherit;
+            white-space: nowrap;
+            -webkit-transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
+            transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
+        }
+
+        .btn-proxy-toggle.proxy-on {
+            background: rgba(0,200,255,0.12);
+            border: 1px solid rgba(0,200,255,0.4);
+            color: var(--accent-strong);
+            -webkit-box-shadow: 0 0 10px rgba(0,200,255,0.2);
+            box-shadow: 0 0 10px rgba(0,200,255,0.2);
+        }
+        .btn-proxy-toggle.proxy-on:hover {
+            background: rgba(0,200,255,0.2);
+            -webkit-box-shadow: 0 0 14px rgba(0,200,255,0.35);
+            box-shadow: 0 0 14px rgba(0,200,255,0.35);
+        }
+
+        .btn-proxy-toggle.proxy-semi {
+            background: rgba(255,170,0,0.12);
+            border: 1px solid rgba(255,170,0,0.4);
+            color: #ffaa00;
+            -webkit-box-shadow: 0 0 10px rgba(255,170,0,0.18);
+            box-shadow: 0 0 10px rgba(255,170,0,0.18);
+        }
+        .btn-proxy-toggle.proxy-semi:hover {
+            background: rgba(255,170,0,0.2);
+            -webkit-box-shadow: 0 0 14px rgba(255,170,0,0.3);
+            box-shadow: 0 0 14px rgba(255,170,0,0.3);
+        }
+
+        .btn-proxy-toggle.proxy-off {
+            background: rgba(0,0,0,0.35);
+            border: 1px solid var(--border-mid);
+            color: var(--text-soft);
+        }
+        .btn-proxy-toggle.proxy-off:hover {
+            border-color: rgba(255,255,255,0.3);
+            color: var(--text-main);
         }
 
         /* ===== GAMES GRID ===== */
@@ -1357,11 +1834,53 @@
 
         <div id="zweb-url-bar">
             <input id="zweb-url" type="text" placeholder="Search or enter URL...">
+            <button class="btn-proxy-toggle proxy-on" id="zweb-proxy-toggle" onclick="zwebToggleProxy()" title="Cycle proxy mode: ON (proxies) -> SEMI (direct fetch) -> OFF (plain iframe)">Proxy: ON</button>
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
         </div>
-
         <iframe id="zweb-frame" src="about:blank" style="display:none;"></iframe>
-        <div id="zweb-frames" style="flex:1;position:relative;overflow:hidden;"></div>
+        <div id="zweb-frames" style="flex:1;position:relative;overflow:hidden;">
+            <div id="zweb-home">
+                <div class="zweb-home-label">ZTTP Protocol Browser</div>
+                <input id="zweb-home-input" type="text" placeholder="search or enter zttp domain..." spellcheck="false" autocomplete="off">
+                <div class="zweb-home-actions">
+                    <button class="zweb-home-action-btn" id="zweb-domainlist-btn" onclick="zwebOpenDomainList()">📂 ZTTP Domain List</button>
+                    <button class="zweb-home-action-btn" id="zweb-github-btn" onclick="zwebOpenGithub()">🐙 Our GitHub</button>
+                </div>
+            </div>
+            <div id="zweb-loading">
+                <div class="zweb-loader-ring"></div>
+                <div class="zweb-state-text" id="zweb-loading-text">FETCHING...</div>
+            </div>
+            <div id="zweb-error">
+                <div class="zweb-state-text zweb-error-text" id="zweb-error-text"></div>
+                <div class="zweb-retry-link" id="zweb-retry-btn">retry</div>
+            </div>
+        </div>
+
+        <div id="zweb-domainlist-modal" class="zweb-modal-overlay">
+            <div class="zweb-modal-panel">
+                <div class="zweb-modal-header">
+                    <span>📂 ZTTP Domain List</span>
+                    <span class="zweb-modal-close" onclick="zwebCloseDomainList()">✕</span>
+                </div>
+                <input id="zweb-domainlist-search" class="zweb-modal-search" type="text" placeholder="Search domains..." spellcheck="false" autocomplete="off">
+                <div id="zweb-domainlist-body" class="zweb-modal-body">
+                    <div class="zweb-modal-status">Loading domains...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="zweb-github-modal" class="zweb-modal-overlay">
+            <div class="zweb-modal-panel zweb-modal-panel-narrow" id="zweb-github-panel">
+                <div class="zweb-modal-header">
+                    <span>🐙 Our GitHub</span>
+                    <span class="zweb-modal-close" onclick="zwebCloseGithub()">✕</span>
+                </div>
+                <div id="zweb-github-body" class="zweb-modal-body zweb-github-body">
+                    <div class="zweb-modal-status">Loading repository info...</div>
+                </div>
+            </div>
+        </div>
 
         <div id="hyperzsearch" style="display:none; padding:20px; color:white; overflow-y:auto; height:calc(100vh - 64px);">
             <h2 style="color:#00e0ff; margin-top:0;">HyperZSearch Results</h2>
@@ -2270,6 +2789,10 @@
                 document.getElementById("chatbot").style.display = "-webkit-box";
                 document.getElementById("chatbot").style.display = "-ms-flexbox";
                 document.getElementById("chatbot").style.display = "flex";
+            } else if (id === "zweb") {
+                document.getElementById("zweb").style.display = "-webkit-box";
+                document.getElementById("zweb").style.display = "-ms-flexbox";
+                document.getElementById("zweb").style.display = "flex";
             } else {
                 document.getElementById(id).style.display = "block";
             }
@@ -2396,7 +2919,7 @@
 
             // Create a dedicated iframe for this tab
             var frame = document.createElement("iframe");
-            frame.style.cssText = "width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;";
+            frame.style.cssText = "width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;z-index:1;background:#fff;";
             frame.src = "about:blank";
             document.getElementById("zweb-frames").appendChild(frame);
             tab.frame = frame;
@@ -2406,7 +2929,7 @@
             tabEl.setAttribute("data-id", id);
 
             var title = document.createElement("span");
-            title.innerHTML = url;
+            title.textContent = url;
             var close = document.createElement("span");
             close.className = "close-btn";
             close.innerHTML = "&times;";
@@ -2442,11 +2965,15 @@
 
             if (!currentTab) return;
             document.getElementById("hyperzsearch").style.display = "none";
+            zwebHideLoading();
+            zwebHideError();
 
             if (currentTab.url === "New Tab") {
                 document.getElementById("zweb-url").value = "";
+                zwebShowHome(true);
             } else {
                 document.getElementById("zweb-url").value = currentTab.url;
+                zwebShowHome(false);
             }
         }
 
@@ -2481,100 +3008,634 @@
             }
         }
 
-        // ── Proxy waterfall ──────────────────────────────────────────────────
+        var ZTTP_REPO_API = "https://api.github.com/repos/HyperZTeam555/hyperzhubapps/contents/ZTTPDomains";
+        var ZTTP_RAW_BASE = "https://raw.githubusercontent.com/HyperZTeam555/hyperzhubapps/main/ZTTPDomains";
+        var zttpDomainCache = {};
+
+        // ── GitHub repos available in the "Our GitHub" switcher ─────────────
+        var ZWEB_GITHUB_REPOS = [
+            { id: "hyperzhubapps", fullName: "HyperZTeam555/hyperzhubapps", label: "hyperzhubapps" },
+            { id: "hyperzhub",     fullName: "hyperzteam456/hyperzhub",     label: "hyperzhub" }
+        ];
+        function zwebGithubRepoById(id) {
+            for (var i = 0; i < ZWEB_GITHUB_REPOS.length; i++) {
+                if (ZWEB_GITHUB_REPOS[i].id === id) return ZWEB_GITHUB_REPOS[i];
+            }
+            return ZWEB_GITHUB_REPOS[0];
+        }
+        function zwebGithubInfoApi(repo)   { return "https://api.github.com/repos/" + repo.fullName; }
+        function zwebGithubReadmeApi(repo) { return "https://api.github.com/repos/" + repo.fullName + "/readme"; }
+        function zwebGithubHtmlUrl(repo)   { return "https://github.com/" + repo.fullName; }
+
+        // ── ZTTP Domain List modal ──────────────────────────────────────────
+        var zwebAllDomains = null; // cached list of {name} once fetched
+
+        function zwebOpenDomainList() {
+            var modal = document.getElementById("zweb-domainlist-modal");
+            var body = document.getElementById("zweb-domainlist-body");
+            var search = document.getElementById("zweb-domainlist-search");
+            if (!modal) return;
+            modal.className = "zweb-modal-overlay open";
+            search.value = "";
+
+            if (zwebAllDomains) {
+                zwebRenderDomainList(zwebAllDomains, "");
+                setTimeout(function(){ search.focus(); }, 50);
+                return;
+            }
+
+            body.innerHTML = '<div class="zweb-modal-status">Loading domains...</div>';
+            fetch(ZTTP_REPO_API).then(function(res) {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            }).then(function(files) {
+                var domains = files
+                    .filter(function(f) { return f.type === "dir"; })
+                    .map(function(f) { return f.name; })
+                    .sort();
+                zwebAllDomains = domains;
+                zwebRenderDomainList(domains, "");
+                setTimeout(function(){ search.focus(); }, 50);
+            }).catch(function(err) {
+                body.innerHTML = '<div class="zweb-modal-status zweb-modal-error">Failed to load domain list' +
+                    (err && err.message ? " (" + err.message + ")" : "") + '.</div>';
+            });
+        }
+
+        function zwebRenderDomainList(domains, filterText) {
+            var body = document.getElementById("zweb-domainlist-body");
+            var q = zwebTrim(filterText).toLowerCase();
+            var filtered = q ? domains.filter(function(d){ return d.toLowerCase().indexOf(q) !== -1; }) : domains;
+
+            if (filtered.length === 0) {
+                body.innerHTML = '<div class="zweb-modal-status">No domains match "' + zwebEscapeHtml(q) + '".</div>';
+                return;
+            }
+
+            var html = "";
+            for (var i = 0; i < filtered.length; i++) {
+                var name = zwebEscapeHtml(filtered[i]);
+                html += '<div class="zweb-domain-item" onclick="zwebGoToDomain(\'' + name.replace(/'/g, "\\'") + '\')">' +
+                    '<span class="zweb-domain-dot"></span>' +
+                    '<span>' + name + '</span>' +
+                    '<span class="zweb-domain-proto">zttp://</span>' +
+                    '</div>';
+            }
+            body.innerHTML = html;
+        }
+
+        function zwebEscapeHtml(str) {
+            var div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function zwebGoToDomain(domain) {
+            zwebCloseDomainList();
+            zwebSubmitInput(domain);
+        }
+
+        function zwebCloseDomainList() {
+            var modal = document.getElementById("zweb-domainlist-modal");
+            if (modal) modal.className = "zweb-modal-overlay";
+        }
+
+        // ── Our GitHub modal ─────────────────────────────────────────────────
+        var zwebGithubInfoCache = {};      // keyed by repo id
+        var zwebReadmeCache = {};          // keyed by repo id
+        var zwebGithubActiveRepoId = ZWEB_GITHUB_REPOS[0].id;
+        var zwebGithubView = "info";       // "info" | "readme"
+
+        function zwebGithubSwitcherHtml() {
+            var html = '<div class="zweb-github-switcher">';
+            for (var i = 0; i < ZWEB_GITHUB_REPOS.length; i++) {
+                var r = ZWEB_GITHUB_REPOS[i];
+                var active = (r.id === zwebGithubActiveRepoId) ? " active" : "";
+                html += '<button class="zweb-github-switch-btn' + active + '" onclick="zwebSwitchGithubRepo(\'' + r.id + '\')">' +
+                    zwebEscapeHtml(r.label) + '</button>';
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function zwebSwitchGithubRepo(id) {
+            if (id === zwebGithubActiveRepoId) return;
+            zwebGithubActiveRepoId = id;
+            zwebGithubView = "info";
+            zwebLoadGithubInfo();
+        }
+
+        function zwebOpenGithub() {
+            var modal = document.getElementById("zweb-github-modal");
+            if (!modal) return;
+            modal.className = "zweb-modal-overlay open";
+            zwebGithubView = "info";
+            zwebLoadGithubInfo();
+        }
+
+        function zwebLoadGithubInfo() {
+            var body = document.getElementById("zweb-github-body");
+            var panel = document.getElementById("zweb-github-panel");
+            if (panel) { panel.classList.remove("zweb-modal-panel-wide"); panel.classList.add("zweb-modal-panel-narrow"); }
+            body.className = "zweb-modal-body zweb-github-body";
+
+            var repo = zwebGithubRepoById(zwebGithubActiveRepoId);
+
+            if (zwebGithubInfoCache[repo.id]) {
+                zwebRenderGithubInfo(repo, zwebGithubInfoCache[repo.id]);
+                return;
+            }
+
+            body.innerHTML = zwebGithubSwitcherHtml() + '<div class="zweb-modal-status">Loading repository info...</div>';
+            fetch(zwebGithubInfoApi(repo)).then(function(res) {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            }).then(function(data) {
+                zwebGithubInfoCache[repo.id] = data;
+                if (zwebGithubActiveRepoId === repo.id) zwebRenderGithubInfo(repo, data);
+            }).catch(function(err) {
+                if (zwebGithubActiveRepoId !== repo.id) return;
+                body.innerHTML = zwebGithubSwitcherHtml() +
+                    '<div class="zweb-modal-status zweb-modal-error">Failed to load repository info' +
+                    (err && err.message ? " (" + err.message + ")" : "") + '.</div>' +
+                    '<button class="zweb-github-open-btn" onclick="window.open(\'' + zwebGithubHtmlUrl(repo) + '\', \'_blank\')">Open on GitHub ↗</button>';
+            });
+        }
+
+        function zwebRenderGithubInfo(repo, data) {
+            var body = document.getElementById("zweb-github-body");
+            var panel = document.getElementById("zweb-github-panel");
+            if (panel) { panel.classList.remove("zweb-modal-panel-wide"); panel.classList.add("zweb-modal-panel-narrow"); }
+
+            var name = zwebEscapeHtml(data.full_name || repo.fullName);
+            var desc = zwebEscapeHtml(data.description || "No description provided.");
+            var avatar = (data.owner && data.owner.avatar_url) ? data.owner.avatar_url : "";
+            var stars = data.stargazers_count != null ? data.stargazers_count : "—";
+            var forks = data.forks_count != null ? data.forks_count : "—";
+            var url = data.html_url || zwebGithubHtmlUrl(repo);
+
+            body.innerHTML =
+                zwebGithubSwitcherHtml() +
+                (avatar ? '<img class="zweb-github-avatar" src="' + avatar + '" alt="repo owner avatar">' : "") +
+                '<div class="zweb-github-name">' + name + '</div>' +
+                '<div class="zweb-github-desc">' + desc + '</div>' +
+                '<div class="zweb-github-stats">' +
+                    '<span>★ <b>' + stars + '</b> stars</span>' +
+                    '<span>⑂ <b>' + forks + '</b> forks</span>' +
+                '</div>' +
+                '<div class="zweb-github-btn-row">' +
+                    '<button class="zweb-github-open-btn" onclick="zwebViewReadme()">📄 View README</button>' +
+                    '<button class="zweb-github-open-btn zweb-github-open-btn-outline" onclick="window.open(\'' + url + '\', \'_blank\')">Open on GitHub ↗</button>' +
+                '</div>';
+        }
+
+        function zwebCloseGithub() {
+            var modal = document.getElementById("zweb-github-modal");
+            if (modal) modal.className = "zweb-modal-overlay";
+        }
+
+        // ── README viewer ────────────────────────────────────────────────────
+        function zwebViewReadme() {
+            var body = document.getElementById("zweb-github-body");
+            var panel = document.getElementById("zweb-github-panel");
+            if (panel) { panel.classList.remove("zweb-modal-panel-narrow"); panel.classList.add("zweb-modal-panel-wide"); }
+
+            zwebGithubView = "readme";
+            var repo = zwebGithubRepoById(zwebGithubActiveRepoId);
+
+            if (zwebReadmeCache[repo.id]) {
+                zwebRenderReadme(repo, zwebReadmeCache[repo.id]);
+                return;
+            }
+
+            body.className = "zweb-modal-body";
+            body.innerHTML = zwebGithubSwitcherHtml() + '<div class="zweb-modal-status">Loading README...</div>';
+
+            fetch(zwebGithubReadmeApi(repo)).then(function(res) {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            }).then(function(data) {
+                var text;
+                if (data.encoding === "base64" && data.content) {
+                    text = zwebB64DecodeUtf8(data.content);
+                } else {
+                    text = data.content || "";
+                }
+                zwebReadmeCache[repo.id] = text;
+                if (zwebGithubActiveRepoId === repo.id && zwebGithubView === "readme") zwebRenderReadme(repo, text);
+            }).catch(function(err) {
+                if (zwebGithubActiveRepoId !== repo.id || zwebGithubView !== "readme") return;
+                body.innerHTML =
+                    zwebGithubSwitcherHtml() +
+                    '<button class="zweb-md-back-btn" onclick="zwebBackToGithubInfo()">← Back</button>' +
+                    '<div class="zweb-modal-status zweb-modal-error">Failed to load README' +
+                    (err && err.message ? " (" + err.message + ")" : "") + '.</div>';
+            });
+        }
+
+        function zwebRenderReadme(repo, text) {
+            var body = document.getElementById("zweb-github-body");
+            body.className = "zweb-modal-body zweb-readme-body";
+            body.innerHTML =
+                zwebGithubSwitcherHtml() +
+                '<button class="zweb-md-back-btn" onclick="zwebBackToGithubInfo()">← Back</button>' +
+                '<div class="zweb-md-content">' + zwebMdToHtml(text) + '</div>';
+        }
+
+        function zwebBackToGithubInfo() {
+            zwebGithubView = "info";
+            var panel = document.getElementById("zweb-github-panel");
+            if (panel) { panel.classList.remove("zweb-modal-panel-wide"); panel.classList.add("zweb-modal-panel-narrow"); }
+            var body = document.getElementById("zweb-github-body");
+            body.className = "zweb-modal-body zweb-github-body";
+            var repo = zwebGithubRepoById(zwebGithubActiveRepoId);
+            if (zwebGithubInfoCache[repo.id]) zwebRenderGithubInfo(repo, zwebGithubInfoCache[repo.id]);
+            else zwebLoadGithubInfo();
+        }
+
+        function zwebB64DecodeUtf8(b64) {
+            var binary = atob(b64.replace(/\n/g, ""));
+            var bytes = new Uint8Array(binary.length);
+            for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            try {
+                return new TextDecoder("utf-8").decode(bytes);
+            } catch (e) {
+                return binary;
+            }
+        }
+
+        // Minimal, safe (HTML-escaped first) markdown-to-HTML converter —
+        // enough to render a typical GitHub README (headers, bold/italic,
+        // inline code, code blocks, links, images, lists, blockquotes, hr).
+        function zwebMdToHtml(md) {
+            var esc = zwebEscapeHtml(md);
+
+            var codeBlocks = [];
+            esc = esc.replace(/```([\s\S]*?)```/g, function(_, code) {
+                var idx = codeBlocks.length;
+                codeBlocks.push(code.replace(/^[a-zA-Z0-9_-]*\n/, ""));
+                return "\u0000CODEBLOCK" + idx + "\u0000";
+            });
+
+            esc = esc.replace(/`([^`]+)`/g, '<code class="zweb-md-code-inline">$1</code>');
+            esc = esc.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img class="zweb-md-img" alt="$1" src="$2">');
+            esc = esc.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a class="zweb-md-link" href="$2" target="_blank" rel="noopener">$1</a>');
+            esc = esc.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+            esc = esc.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>");
+
+            esc = esc.replace(/^###### (.*)$/gm, "<h6>$1</h6>")
+                     .replace(/^##### (.*)$/gm, "<h5>$1</h5>")
+                     .replace(/^#### (.*)$/gm, "<h4>$1</h4>")
+                     .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+                     .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+                     .replace(/^# (.*)$/gm, "<h1>$1</h1>");
+
+            esc = esc.replace(/^(-{3,}|\*{3,})$/gm, "<hr>");
+
+            esc = esc.replace(/(^|\n)((?:[-*] .*(?:\n|$))+)/g, function(m, pre, block) {
+                var items = block.replace(/\n$/, "").split(/\n/).map(function(line) {
+                    return "<li>" + line.replace(/^[-*]\s+/, "") + "</li>";
+                }).join("");
+                return pre + "<ul>" + items + "</ul>";
+            });
+
+            esc = esc.replace(/^&gt; ?(.*)$/gm, "<blockquote>$1</blockquote>");
+
+            var blocks = esc.split(/\n{2,}/);
+            esc = blocks.map(function(block) {
+                var t = block.trim();
+                if (!t) return "";
+                if (/^<(h[1-6]|ul|hr|blockquote|pre|img)/.test(t)) return t;
+                if (t.indexOf("\u0000CODEBLOCK") === 0) return t;
+                return "<p>" + t.replace(/\n/g, "<br>") + "</p>";
+            }).join("\n");
+
+            esc = esc.replace(/\u0000CODEBLOCK(\d+)\u0000/g, function(_, idx) {
+                return '<pre class="zweb-md-pre"><code>' + codeBlocks[idx] + "</code></pre>";
+            });
+
+            return esc;
+        }
+
+        // Close modals on backdrop click or Escape
+        document.addEventListener("click", function(e) {
+            if (e.target && e.target.id === "zweb-domainlist-modal") zwebCloseDomainList();
+            if (e.target && e.target.id === "zweb-github-modal") zwebCloseGithub();
+        });
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Escape") { zwebCloseDomainList(); zwebCloseGithub(); }
+        });
+
+        // Proxy waterfall for regular HTTP/HTTPS pages.
         var ZWEB_PROXIES = [
             { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
             { name: 'thingproxy',    wrap: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + u; } },
             { name: 'allorigins',    wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
         ];
 
-        function loadTab(url) {
-            if (!currentTab) return;
-            if (url.indexOf("http://") !== 0 && url.indexOf("https://") !== 0) {
-                url = "https://" + url;
-            }
-            document.getElementById("zweb-url").value = url;
-            currentTab.url = url;
+        function zwebTrim(value) {
+            return String(value || "").replace(/^\s+|\s+$/g, "");
+        }
 
-            // Update tab label
+        function zwebIsHttpUrl(value) {
+            return /^https?:\/\//i.test(value);
+        }
+
+        function zwebLooksLikeProxyUrl(value) {
+            if (zwebIsHttpUrl(value)) return true;
+            // Must be a real TLD (2-6 chars) but NOT a ZTTP-style fake TLD like .ztest, .zhub, .znet
+            return (/^[a-z0-9.-]+\.[a-z]{2,6}(\/.*)?$/i).test(value) && !(/\.[a-z]*z[a-z]*(\/|$)/i).test(value);
+        }
+
+        function zwebLooksLikeZttp(value) {
+            return /^zttp:\/\//i.test(value) || /^zttp:/i.test(value) || !/\s/.test(zwebTrim(value));
+        }
+
+        function zwebNormalizeHttpUrl(value) {
+            return zwebIsHttpUrl(value) ? value : "https://" + value;
+        }
+
+        function zwebParseZttp(value) {
+            var clean = zwebTrim(value).replace(/^zttp:\/\//i, "").replace(/^zttp:/i, "").replace(/^https?:\/\//i, "");
+            var parts = clean.split("/");
+            return {
+                domain: (parts.shift() || "").toLowerCase(),
+                path: parts.join("/")
+            };
+        }
+        function zwebSetTabLabel(tab, label) {
+            if (!tab) return;
             var tabEls = document.getElementsByClassName("tab");
             for (var i = 0; i < tabEls.length; i++) {
-                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === currentTab.id) {
+                if (parseInt(tabEls[i].getAttribute("data-id"), 10) === tab.id) {
                     var span = tabEls[i].getElementsByTagName("span")[0];
-                    var short = url.replace(/^https?:\/\//, "");
+                    var short = label || "New Tab";
                     if (short.length > 18) short = short.substring(0, 15) + "...";
-                    span.innerHTML = short;
+                    span.textContent = short;
                     break;
                 }
             }
-
-            zwebTryProxy(currentTab, url, 0);
         }
 
-        function zwebTryProxy(tab, targetUrl, idx) {
-            if (!tab || !tab.frame) return;
-            var proxied;
-            if (idx >= ZWEB_PROXIES.length) {
-                proxied = targetUrl;
-            } else {
-                proxied = ZWEB_PROXIES[idx].wrap(targetUrl);
+        function zwebShowHome(show) {
+            var home = document.getElementById("zweb-home");
+            if (!home) return;
+            if (show) home.className = "";
+            else home.className = "hidden";
+        }
+
+        function zwebShowLoading(msg) {
+            var el = document.getElementById("zweb-loading");
+            var txt = document.getElementById("zweb-loading-text");
+            if (txt) txt.textContent = msg || "FETCHING...";
+            if (el) el.className = "visible";
+            zwebHideError();
+        }
+
+        function zwebHideLoading() {
+            var el = document.getElementById("zweb-loading");
+            if (el) el.className = "";
+        }
+
+        function zwebShowError(msg) {
+            var el = document.getElementById("zweb-error");
+            var txt = document.getElementById("zweb-error-text");
+            if (txt) txt.textContent = msg || "Something went wrong.";
+            if (el) el.className = "visible";
+            zwebHideLoading();
+        }
+
+        function zwebHideError() {
+            var el = document.getElementById("zweb-error");
+            if (el) el.className = "";
+        }
+
+        function zwebSubmitInput(value) {
+            document.getElementById("zweb-url").value = value;
+            zwebNavigate();
+        }
+
+        var zwebLastAttempt = null;
+        var zwebProxyMode = "on"; // "on" | "semi" | "off"
+
+        function zwebToggleProxy() {
+            zwebProxyMode = zwebProxyMode === "on" ? "semi" : (zwebProxyMode === "semi" ? "off" : "on");
+            var btn = document.getElementById("zweb-proxy-toggle");
+            if (btn) {
+                var labels = { on: "Proxy: ON", semi: "Proxy: SEMI", off: "Proxy: OFF" };
+                btn.textContent = labels[zwebProxyMode];
+                btn.className = "btn-proxy-toggle proxy-" + zwebProxyMode;
+            }
+        }
+
+        function loadTab(url) {
+            if (!currentTab) return;
+            zwebShowHome(false);
+            zwebHideError();
+            url = zwebNormalizeHttpUrl(url);
+            document.getElementById("zweb-url").value = url;
+            currentTab.url = url;
+
+            zwebSetTabLabel(currentTab, url.replace(/^https?:\/\//, ""));
+            zwebLastAttempt = { proxyUrl: url };
+
+            currentTab.frame.style.display = "none";
+
+            if (zwebProxyMode === "off") {
+                // OFF: no fetch, no proxy, no client-side anything — straight to a plain iframe.
+                zwebLoadIframeDirect(url);
+                return;
             }
 
-            var frame = tab.frame;
-            frame.src = proxied;
+            zwebShowLoading(zwebProxyMode === "on" ? "FETCHING PAGE..." : "FETCHING (NO PROXY)...");
 
-            var timer = setTimeout(function() {
-                frame.removeEventListener('load', onLoad);
-                if (idx < ZWEB_PROXIES.length) {
-                    zwebTryProxy(tab, targetUrl, idx + 1);
-                }
-            }, 8000);
+            var startIdx = zwebProxyMode === "on" ? 0 : ZWEB_PROXIES.length;
+            zwebFetchViaProxy(url, startIdx).then(function(html) {
+                if (!currentTab || !currentTab.frame) return;
+                zwebHideLoading();
+                var injectedBase = '<base href="' + url.replace(/[^\/]+$/, "") + '">';
+                currentTab.frame.removeAttribute("src");
+                currentTab.frame.style.display = "block";
+                currentTab.frame.srcdoc = injectedBase + html;
+            }).catch(function(err) {
+                // All proxies (if enabled) AND the no-proxy fetch failed (likely CORS/network).
+                // Last resort: navigate the iframe directly to the URL itself.
+                zwebLoadIframeDirect(url);
+            });
+        }
+
+        // Final fallback: plain iframe navigation with no fetch/proxy involved at all.
+        // We can't introspect cross-origin iframe content, so we rely on the
+        // iframe's own load/error events for best-effort feedback.
+        function zwebLoadIframeDirect(url) {
+            if (!currentTab || !currentTab.frame) return;
+            zwebShowLoading("LOADING DIRECTLY...");
+            var frame = currentTab.frame;
+            frame.removeAttribute("srcdoc");
+
+            var settled = false;
+            var timeoutTimer = setTimeout(function() {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                zwebHideLoading();
+                frame.style.display = "block";
+            }, 6000);
 
             function onLoad() {
-                clearTimeout(timer);
-                var blocked = false;
-                try {
-                    var doc = frame.contentDocument || frame.contentWindow.document;
-                    var bodyHTML = doc && doc.body ? doc.body.innerHTML.trim() : '';
-                    if (bodyHTML === '') {
-                        blocked = true;
-                    } else {
-                        var bodyText = (doc.body.innerText || '').toLowerCase();
-                        if (bodyText.length < 600 &&
-                            (bodyText.indexOf('access denied') !== -1 ||
-                             bodyText.indexOf('blocked') !== -1 ||
-                             (bodyText.indexOf('error') !== -1 && bodyText.indexOf('forbidden') !== -1))) {
-                            blocked = true;
-                        }
-                    }
-                } catch(e) { blocked = false; }
-                if (blocked && idx < ZWEB_PROXIES.length) {
-                    zwebTryProxy(tab, targetUrl, idx + 1);
-                }
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutTimer);
+                cleanup();
+                zwebHideLoading();
+                frame.style.display = "block";
+            }
+            function onError() {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutTimer);
+                cleanup();
+                zwebShowError('Unable to load "' + url + '" — all proxies, direct fetch, and direct load failed.');
+            }
+            function cleanup() {
+                frame.removeEventListener('load', onLoad);
+                frame.removeEventListener('error', onError);
             }
 
             frame.addEventListener('load', onLoad, { once: true });
+            frame.addEventListener('error', onError, { once: true });
+            frame.src = url;
         }
 
+        // Client-side fetch-based proxy waterfall: fetches the raw HTML text
+        // for a URL through a sequence of CORS proxies (no iframe navigation),
+        // falling through to the next proxy on failure/empty/blocked response.
+        // Once all proxies are exhausted, tries one final direct (no-proxy) fetch
+        // before giving up entirely (caller then falls back to a plain iframe).
+        async function zwebFetchViaProxy(targetUrl, idx) {
+            if (idx > ZWEB_PROXIES.length) {
+                throw new Error('Unable to load "' + targetUrl + '" via fetch.');
+            }
+
+            var isDirect = idx === ZWEB_PROXIES.length;
+            if (isDirect) zwebShowLoading("FETCHING DIRECTLY (NO PROXY)...");
+            else if (idx === 0) zwebShowLoading("FETCHING PAGE...");
+            else zwebShowLoading("RETRYING (" + ZWEB_PROXIES[idx].name + ")...");
+
+            try {
+                var fetchUrl = isDirect ? targetUrl : ZWEB_PROXIES[idx].wrap(targetUrl);
+                var res = await fetch(fetchUrl);
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                var html = await res.text();
+                var trimmed = html.trim();
+                if (!trimmed) throw new Error("Empty response");
+
+                var lowerSnippet = trimmed.slice(0, 800).toLowerCase();
+                var blocked = (lowerSnippet.indexOf('access denied') !== -1 ||
+                    lowerSnippet.indexOf('blocked') !== -1 ||
+                    (lowerSnippet.indexOf('error') !== -1 && lowerSnippet.indexOf('forbidden') !== -1));
+                if (blocked) throw new Error("Proxy blocked the request");
+
+                return html;
+            } catch (e) {
+                if (isDirect) throw e;
+                return zwebFetchViaProxy(targetUrl, idx + 1);
+            }
+        }
+
+        function loadZttp(input, fallbackInput, fallbackMode) {
+            if (!currentTab) return;
+            zwebShowHome(false);
+            zwebHideError();
+            var parsed = zwebParseZttp(input);
+            if (!parsed.domain) {
+                runHyperZSearch(fallbackInput || input);
+                return;
+            }
+
+            var displayUrl = "zttp://" + parsed.domain + (parsed.path ? "/" + parsed.path : "");
+            document.getElementById("zweb-url").value = displayUrl;
+            currentTab.url = displayUrl;
+            zwebSetTabLabel(currentTab, parsed.domain);
+            zwebLastAttempt = { input: input, fallbackInput: fallbackInput, fallbackMode: fallbackMode };
+
+            currentTab.frame.style.display = "none";
+            zwebShowLoading("FETCHING DOMAIN INDEX...");
+
+            zwebFetchZttp(parsed.domain, parsed.path).then(function(html) {
+                if (!currentTab || !currentTab.frame) return;
+                zwebHideLoading();
+                currentTab.frame.removeAttribute("src");
+                currentTab.frame.style.display = "block";
+                currentTab.frame.srcdoc = html;
+            }).catch(function(err) {
+                zwebHideLoading();
+                zwebAfterZttpFail(fallbackInput || input || parsed.domain, fallbackMode);
+            });
+        }
+        function zwebAfterZttpFail(input, fallbackMode) {
+            var q = zwebTrim(input);
+            if (!q) return;
+            if (fallbackMode === "proxy" || zwebLooksLikeProxyUrl(q)) {
+                loadTab(q);
+                return;
+            }
+            currentTab.url = "New Tab";
+            zwebSetTabLabel(currentTab, "Search");
+            zwebShowHome(false);
+            runHyperZSearch(q);
+        }
+        async function zwebFetchZttp(domain, subPath) {
+            var files;
+            if (zttpDomainCache[domain]) {
+                files = zttpDomainCache[domain];
+            } else {
+                var res = await fetch(ZTTP_REPO_API + "/" + encodeURIComponent(domain));
+                if (!res.ok) {
+                    if (res.status === 404) throw new Error('Domain "' + domain + '" not found.');
+                    throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+                }
+                files = await res.json();
+                zttpDomainCache[domain] = files;
+            }
+
+            var htmlFiles = files.filter(function(f) {
+                return f.type === "file" && f.name.endsWith(".html");
+            });
+            if (htmlFiles.length === 0) throw new Error('No renderable content at "' + domain + '".');
+
+            var targetFile;
+            if (subPath) {
+                var candidate = subPath.endsWith(".html") ? subPath : subPath + ".html";
+                var match = htmlFiles.find(function(f) { return f.name === candidate; });
+                if (!match) throw new Error('"' + candidate + '" not found in "' + domain + '".');
+                targetFile = match.name;
+            } else {
+                var main = htmlFiles.find(function(f) { return f.name === "main.html"; });
+                targetFile = main ? main.name : htmlFiles[0].name;
+            }
+
+            var contentUrl = ZTTP_RAW_BASE + "/" + encodeURIComponent(domain) + "/" + encodeURIComponent(targetFile);
+            var contentRes = await fetch(contentUrl);
+            if (!contentRes.ok) throw new Error("Failed to fetch content: " + contentRes.status);
+
+            var htmlContent = await contentRes.text();
+            var injectedBase = '<base href="' + contentUrl.replace(/[^\/]+$/, "") + '">';
+            return injectedBase + htmlContent;
+        }
         function zwebNavigate() {
-            var q = document.getElementById("zweb-url").value.replace(/^\s+|\s+$/g, "");
+            var q = zwebTrim(document.getElementById("zweb-url").value);
             if (!q) return;
 
-            var isURL = (
-                q.indexOf("http://") === 0 ||
-                q.indexOf("https://") === 0 ||
-                q.indexOf(".") !== -1
-            );
+            if (!currentTab) createTab();
 
-            if (isURL) {
-                if (!currentTab) createTab(q);
-                loadTab(q);
+            if (zwebLooksLikeZttp(q)) {
+                loadZttp(q, q, zwebLooksLikeProxyUrl(q) ? "proxy" : "search");
                 return;
             }
 
             runHyperZSearch(q);
         }
-
         document.getElementById("zweb-url").onkeydown = function (e) {
             e = e || window.event;
             if (e.key === "Enter" || e.keyCode === 13) {
@@ -2583,6 +3644,33 @@
         };
 
         createTab();
+        var zwebHomeInput = document.getElementById("zweb-home-input");
+        if (zwebHomeInput) {
+            zwebHomeInput.onkeydown = function(e) {
+                e = e || window.event;
+                if (e.key === "Enter" || e.keyCode === 13) {
+                    zwebSubmitInput(zwebHomeInput.value);
+                    zwebHomeInput.value = "";
+                }
+            };
+        }
+        var zwebDomainListSearch = document.getElementById("zweb-domainlist-search");
+        if (zwebDomainListSearch) {
+            zwebDomainListSearch.oninput = function() {
+                if (zwebAllDomains) zwebRenderDomainList(zwebAllDomains, zwebDomainListSearch.value);
+            };
+        }
+        var zwebRetryBtn = document.getElementById("zweb-retry-btn");
+        if (zwebRetryBtn) {
+            zwebRetryBtn.onclick = function() {
+                if (!zwebLastAttempt) return;
+                if (zwebLastAttempt.proxyUrl) {
+                    loadTab(zwebLastAttempt.proxyUrl);
+                } else {
+                    loadZttp(zwebLastAttempt.input, zwebLastAttempt.fallbackInput, zwebLastAttempt.fallbackMode);
+                }
+            };
+        }
         showSection("zweb");
 
         function openGame(gameId) {
@@ -2887,7 +3975,7 @@
             // Stop all game loops and timers
             pongStop();
             snakeRunning = false;
-            if (snakeTimer) { clearInterval(snakeTimer); snakeTimer = null; }
+            if (snakeRAF) { cancelAnimationFrame(snakeRAF); snakeRAF = null; }
             minesweaperRunning = false;
             flappybirdStop();
             tetrisGameOver = true;
@@ -3825,12 +4913,18 @@
         var snakeStatus = document.getElementById("snake-status");
         var snakeDifficultyEl = document.getElementById("snake-difficulty");
 
-        var snake, snakeDir, snakeFood, snakeTimer, snakeRunning;
+        var snake, snakeDir, snakeFood, snakeRunning;
         var snakeSpeed = 100;
+        var snakePrev = [];           // segment positions before the last logic step (for smooth interpolation)
+        var snakeInputQueue = [];     // buffered turns — applied one-per-step, geometry-dash style
+        var snakeRAF = null;
+        var snakeLastStepTime = 0;
 
         function snakeReset() {
             snake = [{x:10, y:10}];
+            snakePrev = [{x:10, y:10}];
             snakeDir = {x:1, y:0};
+            snakeInputQueue = [];
             snakeFood = spawnFood();
             snakeRunning = true;
 
@@ -3844,8 +4938,9 @@
                 snakeSpeed = 77; // 1.3x faster (100 / 1.3 ≈ 77)
             }
 
-            if (snakeTimer) clearInterval(snakeTimer);
-            snakeTimer = setInterval(snakeLoop, snakeSpeed);
+            snakeLastStepTime = performance.now();
+            if (snakeRAF) cancelAnimationFrame(snakeRAF);
+            snakeRAF = requestAnimationFrame(snakeFrame);
 
             snakeStatus.innerHTML = "Use arrow keys to move";
         }
@@ -3857,19 +4952,42 @@
             };
         }
 
+        // Queue a turn instead of applying it immediately. Only one turn is
+        // consumed per logic step (like Geometry Dash input buffering), so a
+        // direction pressed mid-step always takes effect on the NEXT step,
+        // never mid-step — this also prevents the classic double-turn-in-one-tick
+        // bug that let you reverse directly into your own body.
+        function snakeQueueDir(nx, ny) {
+            var last = snakeInputQueue.length ? snakeInputQueue[snakeInputQueue.length - 1] : snakeDir;
+            if (nx === last.x && ny === last.y) return;   // no-op, already facing that way
+            if (nx === -last.x && ny === -last.y) return; // can't reverse into yourself
+            if (snakeInputQueue.length >= 2) return;       // cap buffer depth
+            snakeInputQueue.push({x: nx, y: ny});
+        }
+
         window.addEventListener("keydown", function(e){
             if (!snakeRunning) return;
             var tag = document.activeElement ? document.activeElement.tagName : '';
             if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
             var key = e.key.toLowerCase();
-            if ((key === "arrowup" || key === "w") && snakeDir.y !== 1) snakeDir = {x:0, y:-1};
-            if ((key === "arrowdown" || key === "s") && snakeDir.y !== -1) snakeDir = {x:0, y:1};
-            if ((key === "arrowleft" || key === "a") && snakeDir.x !== 1) snakeDir = {x:-1, y:0};
-            if ((key === "arrowright" || key === "d") && snakeDir.x !== -1) snakeDir = {x:1, y:0};
+            if (key === "arrowup" || key === "w") snakeQueueDir(0, -1);
+            if (key === "arrowdown" || key === "s") snakeQueueDir(0, 1);
+            if (key === "arrowleft" || key === "a") snakeQueueDir(-1, 0);
+            if (key === "arrowright" || key === "d") snakeQueueDir(1, 0);
         });
 
-        function snakeLoop() {
+        // One discrete grid step: consumes at most one buffered input, then
+        // advances the snake by exactly one cell.
+        function snakeStep() {
             if (!snakeRunning) return;
+
+            if (snakeInputQueue.length) {
+                snakeDir = snakeInputQueue.shift();
+            }
+
+            // Snapshot positions before moving so the render loop can smoothly
+            // interpolate every segment from its old cell to its new cell.
+            snakePrev = snake.map(function(s){ return {x: s.x, y: s.y}; });
 
             var head = {x: snake[0].x + snakeDir.x, y: snake[0].y + snakeDir.y};
 
@@ -3892,25 +5010,72 @@
             } else {
                 snake.pop();
             }
-
-            snakeDraw();
         }
 
-        function snakeDraw() {
-            snakeCtx.clearRect(0,0,400,400);
+        // requestAnimationFrame render loop: runs independently of the fixed
+        // logic-step rate so movement renders buttery-smooth (Google Snake style)
+        // instead of snapping cell-to-cell, while game logic still advances in
+        // fixed discrete steps.
+        function snakeFrame(now) {
+            if (!snakeRunning) return;
 
-            snakeCtx.fillStyle = "#00e0ff";
-            for (var i=0; i<snake.length; i++) {
-                snakeCtx.fillRect(snake[i].x*20, snake[i].y*20, 20, 20);
+            var elapsed = now - snakeLastStepTime;
+            while (elapsed >= snakeSpeed) {
+                snakeStep();
+                if (!snakeRunning) return;
+                snakeLastStepTime += snakeSpeed;
+                elapsed = now - snakeLastStepTime;
+            }
+
+            var t = Math.min(1, elapsed / snakeSpeed);
+            snakeDraw(t);
+            snakeRAF = requestAnimationFrame(snakeFrame);
+        }
+
+        function snakeSegPos(i, t) {
+            var prev = (i === 0) ? snakePrev[0] : snakePrev[i - 1];
+            var cur = snake[i];
+            if (!prev) prev = cur;
+            return {
+                x: prev.x + (cur.x - prev.x) * t,
+                y: prev.y + (cur.y - prev.y) * t
+            };
+        }
+
+        function snakeDrawRoundedCell(x, y, w, h, radius) {
+            var pad = 1.5;
+            x += pad; y += pad; w -= pad * 2; h -= pad * 2;
+            snakeCtx.beginPath();
+            snakeCtx.moveTo(x + radius, y);
+            snakeCtx.arcTo(x + w, y,     x + w, y + h, radius);
+            snakeCtx.arcTo(x + w, y + h, x,     y + h, radius);
+            snakeCtx.arcTo(x,     y + h, x,     y,     radius);
+            snakeCtx.arcTo(x,     y,     x + w, y,     radius);
+            snakeCtx.closePath();
+            snakeCtx.fill();
+        }
+
+        function snakeDraw(t) {
+            if (typeof t !== "number") t = 1;
+            snakeCtx.clearRect(0, 0, 400, 400);
+
+            var cell = 20;
+
+            // Body drawn tail-first so the head renders on top of overlapping segments
+            for (var i = snake.length - 1; i >= 0; i--) {
+                var p = snakeSegPos(i, t);
+                snakeCtx.fillStyle = (i === 0) ? "#40f0ff" : "#00e0ff";
+                snakeDrawRoundedCell(p.x * cell, p.y * cell, cell, cell, i === 0 ? 8 : 6);
             }
 
             snakeCtx.fillStyle = "#ff4b81";
-            snakeCtx.fillRect(snakeFood.x*20, snakeFood.y*20, 20, 20);
+            snakeDrawRoundedCell(snakeFood.x * cell, snakeFood.y * cell, cell, cell, 8);
         }
 
         function snakeGameOver() {
             snakeRunning = false;
-            clearInterval(snakeTimer);
+            if (snakeRAF) { cancelAnimationFrame(snakeRAF); snakeRAF = null; }
+            snakeDraw(0);
             snakeStatus.innerHTML = "Game Over — press Reset";
         }
 
@@ -3936,11 +5101,11 @@
             var snakeAbsDeltaY = Math.abs(snakeDeltaY);
 
             if (snakeAbsDeltaX > snakeAbsDeltaY && snakeAbsDeltaX > 40) {
-                if (snakeDeltaX > 0 && snakeDir.x !== -1) snakeDir = {x:1, y:0};
-                else if (snakeDeltaX < 0 && snakeDir.x !== 1) snakeDir = {x:-1, y:0};
+                if (snakeDeltaX > 0) snakeQueueDir(1, 0);
+                else snakeQueueDir(-1, 0);
             } else if (snakeAbsDeltaY > snakeAbsDeltaX && snakeAbsDeltaY > 40) {
-                if (snakeDeltaY > 0 && snakeDir.y !== -1) snakeDir = {x:0, y:1};
-                else if (snakeDeltaY < 0 && snakeDir.y !== 1) snakeDir = {x:0, y:-1};
+                if (snakeDeltaY > 0) snakeQueueDir(0, 1);
+                else snakeQueueDir(0, -1);
             }
         });
 
