@@ -12588,5 +12588,80 @@
         })();
 
     </script>
+<script>
+(function(){
+    // Privacy/optimization overlay: show black screen when tab/window is unfocused
+    var overlay = document.createElement('div');
+    overlay.id = 'privacy-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = '#000';
+    overlay.style.zIndex = '99999';
+    overlay.style.display = 'none';
+    overlay.style.pointerEvents = 'none';
+    document.body.appendChild(overlay);
+
+    var hiddenCanvases = [];
+    var pausedMedia = [];
+    var isHidden = false;
+
+    function engagePrivacy() {
+        if (isHidden) return;
+        isHidden = true;
+        overlay.style.display = 'block';
+
+        // Hide canvases to reduce GPU/paint work
+        document.querySelectorAll('canvas').forEach(function(cv){
+            if (cv.dataset._prevDisplay === undefined) cv.dataset._prevDisplay = cv.style.display || '';
+            try { cv.style.display = 'none'; } catch(e) {}
+            hiddenCanvases.push(cv);
+        });
+
+        // Pause any playing media
+        document.querySelectorAll('video, audio').forEach(function(m){
+            try {
+                if (!m.paused && !m.ended) { m.pause(); m.dataset._wasPlaying = '1'; pausedMedia.push(m); }
+            } catch(e) {}
+        });
+    }
+
+    function disengagePrivacy() {
+        if (!isHidden) return;
+        isHidden = false;
+        overlay.style.display = 'none';
+
+        hiddenCanvases.forEach(function(cv){
+            try { cv.style.display = cv.dataset._prevDisplay || ''; delete cv.dataset._prevDisplay; } catch(e) {}
+        });
+        hiddenCanvases = [];
+
+        pausedMedia.forEach(function(m){
+            try { if (m.dataset._wasPlaying) { m.play().catch(function(){}); delete m.dataset._wasPlaying; } } catch(e) {}
+        });
+        pausedMedia = [];
+    }
+
+    function update() {
+        // consider document.hidden and window focus for extra safety
+        var shouldHide = document.hidden || !document.hasFocus();
+        if (shouldHide) engagePrivacy(); else disengagePrivacy();
+    }
+
+    // Visibility + focus/blur events
+    document.addEventListener('visibilitychange', update, false);
+    window.addEventListener('blur', update, false);
+    window.addEventListener('focus', update, false);
+
+    // small debounce for quick switches
+    var deb;
+    function debUpdate(){ clearTimeout(deb); deb = setTimeout(update, 50); }
+    document.addEventListener('visibilitychange', debUpdate, false);
+    window.addEventListener('blur', debUpdate, false);
+    window.addEventListener('focus', debUpdate, false);
+
+    // Expose API for manual control/testing
+    window.zwebPrivacy = { engage: engagePrivacy, disengage: disengagePrivacy, isHidden: function(){return isHidden;} };
+})();
+</script>
 </body>
 </html>
