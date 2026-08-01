@@ -3328,6 +3328,7 @@
 
         // Proxy waterfall for regular HTTP/HTTPS pages.
         var ZWEB_PROXIES = [
+            { name: 'hyperzproxy',  iframe: true, wrap: function(u){ return 'https://hyperzproxy.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
             { name: 'corsproxy.io',  wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
             { name: 'thingproxy',    wrap: function(u){ return 'https://thingproxy.freeboard.io/fetch/' + u; } },
             { name: 'allorigins',    wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
@@ -3352,7 +3353,12 @@
         }
 
         function zwebNormalizeHttpUrl(value) {
-            return zwebIsHttpUrl(value) ? value : "https://" + value;
+            // Strip zproxy:// prefix (visual-only protocol used when HyperZProxy is active)
+            value = value.replace(/^zproxy:\/\//i, '');
+            // Preserve explicit http:// or https:// — the wrap function strips
+            // the protocol anyway, so it doesn't matter which one is used here.
+            if (/^https?:\/\//i.test(value)) return value;
+            return "https://" + value;
         }
 
         function zwebParseZttp(value) {
@@ -3444,6 +3450,42 @@
             if (zwebProxyMode === "off") {
                 // OFF: no fetch, no proxy, no client-side anything — straight to a plain iframe.
                 zwebLoadIframeDirect(url);
+                return;
+            }
+
+            // ── HyperZProxy (all sites) ──
+            // HyperZProxy handles ALL sites — it returns a universal wrapper
+            // with multi-layer shadow DOM that proxies the target site. For
+            // web.cloudmoonapp.com it has additional native CloudMoon support.
+            // We load via direct iframe navigation (the proxy doesn't return
+            // CORS headers, so fetch() would be blocked).
+            //
+            // URL bar display: show "zproxy://" prefix instead of "https://"
+            // so the user knows they're on the proxy. The zproxy:// prefix is
+            // visual only — when the user types a URL with zproxy:// it's
+            // stripped before navigation.
+            if (zwebProxyMode === "on" && ZWEB_PROXIES[0] && ZWEB_PROXIES[0].iframe) {
+                if (!url || !url.replace(/^https?:\/\//, '').trim()) {
+                    zwebShowError("No URL specified.");
+                    return;
+                }
+                var proxyUrl = ZWEB_PROXIES[0].wrap(url);
+                // Show zproxy:// in the URL bar (visual indicator)
+                var displayUrl = url.replace(/^https?:\/\//, 'zproxy://');
+                document.getElementById("zweb-url").value = displayUrl;
+                currentTab.url = displayUrl;
+                zwebSetTabLabel(currentTab, url.replace(/^https?:\/\//, ""));
+                zwebShowLoading("FETCHING PAGE...");
+                if (!currentTab || !currentTab.frame) return;
+                currentTab.frame.removeAttribute("srcdoc");
+                currentTab.frame.removeAttribute("src");
+                currentTab.frame.style.display = "block";
+                currentTab.frame.src = proxyUrl;
+                currentTab.frame.onload = function() {
+                    if (currentTab && currentTab.frame) {
+                        zwebHideLoading();
+                    }
+                };
                 return;
             }
 
