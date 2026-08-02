@@ -548,6 +548,29 @@
             box-shadow: 0 0 14px rgba(0,200,255,0.15);
         }
 
+        /* ===== ZWEB BOOKMARKS ===== */
+        .zweb-bookmarks { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; max-width: 600px; }
+        .zweb-bookmark { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .zweb-bookmark:hover { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); color: #00d4ff; transform: translateY(-1px); }
+        .zweb-bookmark-add { background: rgba(0,255,128,0.08); border-color: rgba(0,255,128,0.2); color: #00ff80; }
+        .zweb-bookmark-add:hover { background: rgba(0,255,128,0.15); border-color: rgba(0,255,128,0.4); }
+
+        /* ===== ZWEB CUSTOM ALERT (bookmarks) ===== */
+        .zweb-alert-overlay { position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; animation: zwebAlertIn 0.2s ease; }
+        .zweb-alert-box { background: rgba(20,20,20,0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 32px 40px; max-width: 380px; text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+        .zweb-alert-title { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #fff; margin-bottom: 16px; }
+        .zweb-alert-msg { font-family: 'Rajdhani', sans-serif; font-size: 15px; color: #ccc; line-height: 1.5; margin-bottom: 24px; }
+        .zweb-alert-input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-family: 'Rajdhani', sans-serif; font-size: 14px; outline: none; margin-bottom: 24px; }
+        .zweb-alert-btns { display: flex; gap: 12px; justify-content: center; }
+        .zweb-alert-btn { padding: 10px 24px; border-radius: 8px; border: none; font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; }
+        .zweb-alert-btn-yes { background: rgba(231,76,60,0.15); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+        .zweb-alert-btn-yes:hover { background: rgba(231,76,60,0.25); }
+        .zweb-alert-btn-no { background: rgba(255,255,255,0.05); color: #aaa; border: 1px solid rgba(255,255,255,0.1); }
+        .zweb-alert-btn-no:hover { background: rgba(255,255,255,0.1); }
+        .zweb-alert-btn-ok { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
+        .zweb-alert-btn-ok:hover { background: rgba(0,212,255,0.25); }
+        @keyframes zwebAlertIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
         /* ===== ZWEB MODALS (Domain List / GitHub) ===== */
         .zweb-modal-overlay {
             position: fixed;
@@ -1846,6 +1869,7 @@
                     <button class="zweb-home-action-btn" id="zweb-domainlist-btn" onclick="zwebOpenDomainList()">📂 ZTTP Domain List</button>
                     <button class="zweb-home-action-btn" id="zweb-github-btn" onclick="zwebOpenGithub()">🐙 Our GitHub</button>
                 </div>
+                <div id="zweb-bookmarks" class="zweb-bookmarks"></div>
             </div>
             <div id="zweb-loading">
                 <div class="zweb-loader-ring"></div>
@@ -3461,15 +3485,12 @@
             // CORS headers, so fetch() would be blocked).
             //
             // URL bar display: show "zproxy://" prefix instead of "https://"
-            // so the user knows they're on the proxy. The zproxy:// prefix is
-            // visual only — when the user types a URL with zproxy:// it's
-            // stripped before navigation.
             if (zwebProxyMode === "on" && ZWEB_PROXIES[0] && ZWEB_PROXIES[0].iframe) {
                 if (!url || !url.replace(/^https?:\/\//, '').trim()) {
                     zwebShowError("No URL specified.");
                     return;
                 }
-                var proxyUrl = ZWEB_PROXIES[0].wrap(url);
+                var proxyUrl = 'https://hyperzproxy.z04.workers.dev/' + url.replace(/^https?:\/\//i, '');
                 // Show zproxy:// in the URL bar (visual indicator)
                 var displayUrl = url.replace(/^https?:\/\//, 'zproxy://');
                 document.getElementById("zweb-url").value = displayUrl;
@@ -3482,9 +3503,7 @@
                 currentTab.frame.style.display = "block";
                 currentTab.frame.src = proxyUrl;
                 currentTab.frame.onload = function() {
-                    if (currentTab && currentTab.frame) {
-                        zwebHideLoading();
-                    }
+                    if (currentTab && currentTab.frame) zwebHideLoading();
                 };
                 return;
             }
@@ -3696,6 +3715,117 @@
                 }
             };
         }
+
+        // ===== Bookmarks =====
+        var ZWEB_BOOKMARKS_KEY = 'hyperzweb.bookmarks';
+        var zwebBookmarks = [];
+        var zwebHoldTimer = null;
+
+        function zwebLoadBookmarks() {
+            try {
+                var saved = JSON.parse(localStorage.getItem(ZWEB_BOOKMARKS_KEY) || '[]');
+                zwebBookmarks = saved;
+            } catch(e) { zwebBookmarks = []; }
+            // Ensure presets exist
+            var presets = ['web.cloudmoonapp.com', 'crazygames.com', 'y8.com'];
+            presets.forEach(function(p) {
+                if (zwebBookmarks.indexOf(p) === -1) zwebBookmarks.unshift(p);
+            });
+            zwebSaveBookmarks();
+        }
+
+        function zwebSaveBookmarks() {
+            try { localStorage.setItem(ZWEB_BOOKMARKS_KEY, JSON.stringify(zwebBookmarks)); } catch(e) {}
+        }
+
+        function zwebRenderBookmarks() {
+            var container = document.getElementById('zweb-bookmarks');
+            if (!container) return;
+            container.innerHTML = '';
+            zwebBookmarks.forEach(function(url) {
+                var btn = document.createElement('div');
+                btn.className = 'zweb-bookmark';
+                btn.textContent = url;
+                // Click to navigate
+                btn.addEventListener('click', function() {
+                    zwebSubmitInput(url);
+                });
+                // Long press to remove
+                btn.addEventListener('mousedown', function() {
+                    zwebHoldTimer = setTimeout(function() {
+                        zwebShowRemoveAlert(url);
+                    }, 3000);
+                });
+                btn.addEventListener('mouseup', function() { clearTimeout(zwebHoldTimer); });
+                btn.addEventListener('mouseleave', function() { clearTimeout(zwebHoldTimer); });
+                btn.addEventListener('touchstart', function() {
+                    zwebHoldTimer = setTimeout(function() { zwebShowRemoveAlert(url); }, 3000);
+                });
+                btn.addEventListener('touchend', function() { clearTimeout(zwebHoldTimer); });
+                container.appendChild(btn);
+            });
+            // Add the + button always at the end
+            var addBtn = document.createElement('div');
+            addBtn.className = 'zweb-bookmark zweb-bookmark-add';
+            addBtn.textContent = '+';
+            addBtn.addEventListener('click', function() { zwebShowAddAlert(); });
+            container.appendChild(addBtn);
+        }
+
+        function zwebShowAddAlert() {
+            var overlay = document.createElement('div');
+            overlay.className = 'zweb-alert-overlay';
+            overlay.innerHTML = '<div class="zweb-alert-box">' +
+                '<div class="zweb-alert-title">Add Bookmark</div>' +
+                '<input type="text" class="zweb-alert-input" id="zweb-bookmark-input" placeholder="Enter URL..." />' +
+                '<div class="zweb-alert-btns">' +
+                '<button class="zweb-alert-btn zweb-alert-btn-ok" id="zweb-bm-ok">Add</button>' +
+                '<button class="zweb-alert-btn zweb-alert-btn-no" id="zweb-bm-cancel">Cancel</button>' +
+                '</div></div>';
+            document.body.appendChild(overlay);
+            var input = document.getElementById('zweb-bookmark-input');
+            if (input) input.focus();
+            document.getElementById('zweb-bm-ok').addEventListener('click', function() {
+                var url = input.value.trim();
+                if (url && zwebBookmarks.indexOf(url) === -1) {
+                    zwebBookmarks.push(url);
+                    zwebSaveBookmarks();
+                    zwebRenderBookmarks();
+                }
+                overlay.remove();
+            });
+            document.getElementById('zweb-bm-cancel').addEventListener('click', function() { overlay.remove(); });
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('zweb-bm-ok').click();
+            });
+        }
+
+        function zwebShowRemoveAlert(url) {
+            var overlay = document.createElement('div');
+            overlay.className = 'zweb-alert-overlay';
+            overlay.innerHTML = '<div class="zweb-alert-box">' +
+                '<div class="zweb-alert-title">Remove Bookmark</div>' +
+                '<div class="zweb-alert-msg">Are you sure you want to remove this bookmark?</div>' +
+                '<div class="zweb-alert-btns">' +
+                '<button class="zweb-alert-btn zweb-alert-btn-yes" id="zweb-bm-yes">Yes</button>' +
+                '<button class="zweb-alert-btn zweb-alert-btn-no" id="zweb-bm-no">No</button>' +
+                '</div></div>';
+            document.body.appendChild(overlay);
+            document.getElementById('zweb-bm-yes').addEventListener('click', function() {
+                var idx = zwebBookmarks.indexOf(url);
+                if (idx !== -1) {
+                    zwebBookmarks.splice(idx, 1);
+                    zwebSaveBookmarks();
+                    zwebRenderBookmarks();
+                }
+                overlay.remove();
+            });
+            document.getElementById('zweb-bm-no').addEventListener('click', function() { overlay.remove(); });
+        }
+
+        // Initialize bookmarks on load
+        zwebLoadBookmarks();
+        zwebRenderBookmarks();
         var zwebDomainListSearch = document.getElementById("zweb-domainlist-search");
         if (zwebDomainListSearch) {
             zwebDomainListSearch.oninput = function() {
