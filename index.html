@@ -434,6 +434,56 @@
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
         }
 
+        .btn-fs {
+            width: 36px; height: 36px; border-radius: 8px;
+            border: 1px solid rgba(64,223,255,0.18);
+            background: rgba(64,223,255,0.05);
+            color: rgba(64,223,255,0.7);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .btn-fs:hover {
+            background: rgba(64,223,255,0.12);
+            border-color: rgba(64,223,255,0.4);
+            color: #40e0ff;
+        }
+
+        .zweb-fs-exit {
+            position: fixed; top: 12px; left: 12px; z-index: 2147483647;
+            width: 40px; height: 40px; border-radius: 10px;
+            border: 1px solid rgba(255,68,68,0.3);
+            background: rgba(20,20,20,0.85); color: #ff4444;
+            display: none; align-items: center; justify-content: center;
+            cursor: grab; transition: background 0.2s, border-color 0.2s;
+            backdrop-filter: blur(8px);
+            user-select: none; -webkit-user-select: none;
+            touch-action: none;
+        }
+        .zweb-fs-exit:hover { background: rgba(255,68,68,0.15); border-color: rgba(255,68,68,0.5); }
+        .zweb-fs-exit:active { cursor: grabbing; }
+        .zweb-fs-exit.visible { display: flex; }
+        body.zweb-fullscreen #zweb-url-bar { display: none; }
+        body.zweb-fullscreen #tabs { display: none; }
+        body.zweb-fullscreen #zweb-home { display: none !important; }
+        /* When fullscreen is active, the iframe container must fill the
+           ENTIRE viewport (including the area previously occupied by the
+           URL bar + tabs). Otherwise the iframe sits below HyperZHub's top
+           bar and the exit button (z-index 2147483647) appears above empty
+           space instead of the page. position:fixed;inset:0 forces it to
+           cover everything. */
+        body.zweb-fullscreen #zweb-frames {
+            position: fixed !important;
+            inset: 0 !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 2147483645;
+        }
+
         #zweb-url {
             -webkit-box-flex: 1;
             -ms-flex: 1;
@@ -549,11 +599,21 @@
         }
 
         /* ===== ZWEB BOOKMARKS ===== */
-        .zweb-bookmarks { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; max-width: 600px; }
-        .zweb-bookmark { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; user-select: none; }
-        .zweb-bookmark:hover { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); color: #00d4ff; transform: translateY(-1px); }
-        .zweb-bookmark-add { background: rgba(0,255,128,0.08); border-color: rgba(0,255,128,0.2); color: #00ff80; }
+        .zweb-bookmarks { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; max-width: 600px; }
+        .zweb-bookmark { position: relative; width: 56px; height: 56px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; user-select: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .zweb-bookmark:hover { background: rgba(0,212,255,0.1); border-color: rgba(0,212,255,0.3); transform: translateY(-2px); }
+        .zweb-bookmark img { width: 32px; height: 32px; border-radius: 4px; object-fit: contain; }
+        .zweb-bookmark-fallback { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; color: #00d4ff; text-transform: uppercase; letter-spacing: 1px; }
+        .zweb-bookmarks-label { text-align: center; margin-top: 10px; min-height: 20px; font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #00d4ff; opacity: 0; transition: opacity 0.2s; }
+        .zweb-bookmarks-label.visible { opacity: 1; }
+        .zweb-bookmark-add { background: rgba(0,255,128,0.08); border-color: rgba(0,255,128,0.2); color: #00ff80; font-size: 24px; font-weight: 700; }
         .zweb-bookmark-add:hover { background: rgba(0,255,128,0.15); border-color: rgba(0,255,128,0.4); }
+        /* Right-click context menu */
+        .zweb-ctx-menu { position: fixed; background: rgba(15,15,25,0.98); border: 1px solid rgba(64,223,255,0.25); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); z-index: 2147483647; min-width: 140px; overflow: hidden; animation: zwebAlertIn 0.15s ease; }
+        .zweb-ctx-item { padding: 10px 16px; font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #ccc; cursor: pointer; transition: background 0.15s, color 0.15s; display: flex; align-items: center; gap: 8px; }
+        .zweb-ctx-item:hover { background: rgba(64,223,255,0.1); color: #40e0ff; }
+        .zweb-ctx-item.danger:hover { background: rgba(231,76,60,0.15); color: #e74c3c; }
+        .zweb-ctx-sep { height: 1px; background: rgba(255,255,255,0.08); margin: 0; }
 
         /* ===== ZWEB CUSTOM ALERT (bookmarks) ===== */
         .zweb-alert-overlay { position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; animation: zwebAlertIn 0.2s ease; }
@@ -570,6 +630,42 @@
         .zweb-alert-btn-ok { background: rgba(0,212,255,0.15); color: #00d4ff; border: 1px solid rgba(0,212,255,0.3); }
         .zweb-alert-btn-ok:hover { background: rgba(0,212,255,0.25); }
         @keyframes zwebAlertIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        /* ===== ZWEB SETTINGS PANEL (dark theme, cyan accents) ===== */
+        .zweb-settings-overlay { position: fixed; inset: 0; z-index: 2147483646; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; animation: zwebAlertIn 0.2s ease; }
+        .zweb-settings-box { background: rgba(15,15,25,0.95); border: 1px solid rgba(64,223,255,0.15); border-radius: 16px; padding: 32px 40px; min-width: 360px; max-width: 440px; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+        .zweb-settings-title { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #40e0ff; margin-bottom: 24px; }
+        .zweb-settings-row { margin-bottom: 20px; }
+        .zweb-settings-label { font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #aaa; margin-bottom: 8px; display: block; }
+        .zweb-settings-select { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(64,223,255,0.18); background: rgba(0,0,0,0.4); color: #eef2ff; font-family: 'Rajdhani', sans-serif; font-size: 14px; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2340e0ff' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+        .zweb-settings-select:focus { border-color: rgba(64,223,255,0.4); }
+        .zweb-settings-select option { background: #0f0f19; color: #eef2ff; }
+        /* Custom dropdown (replaces native <select> for full theme control) */
+        .zweb-custom-dd { position: relative; width: 100%; }
+        .zweb-custom-dd-trigger { width: 100%; padding: 10px 36px 10px 14px; border-radius: 8px; border: 1px solid rgba(64,223,255,0.18); background: rgba(0,0,0,0.4); color: #eef2ff; font-family: 'Rajdhani', sans-serif; font-size: 14px; cursor: pointer; outline: none; position: relative; transition: border-color 0.2s; }
+        .zweb-custom-dd-trigger:hover, .zweb-custom-dd-trigger:focus { border-color: rgba(64,223,255,0.4); }
+        .zweb-custom-dd.open .zweb-custom-dd-trigger { border-color: rgba(64,223,255,0.5); }
+        .zweb-custom-dd-trigger::after { content: ''; position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2340e0ff' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; transition: transform 0.2s; }
+        .zweb-custom-dd.open .zweb-custom-dd-trigger::after { transform: translateY(-50%) rotate(180deg); }
+        .zweb-custom-dd-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 200px; overflow-y: auto; background: rgba(15,15,25,0.98); border: 1px solid rgba(64,223,255,0.25); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.5); z-index: 10; display: none; animation: zwebAlertIn 0.15s ease; }
+        .zweb-custom-dd.open .zweb-custom-dd-list { display: block; }
+        .zweb-custom-dd-opt { padding: 10px 14px; color: #ccc; font-family: 'Rajdhani', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .zweb-custom-dd-opt:hover { background: rgba(64,223,255,0.1); color: #40e0ff; }
+        .zweb-custom-dd-opt.selected { background: rgba(64,223,255,0.15); color: #40e0ff; }
+        .zweb-custom-dd-opt.selected::before { content: '\2713  '; color: #40e0ff; }
+        /* Custom scrollbar for dropdown list */
+        .zweb-custom-dd-list::-webkit-scrollbar { width: 6px; }
+        .zweb-custom-dd-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); border-radius: 3px; }
+        .zweb-custom-dd-list::-webkit-scrollbar-thumb { background: rgba(64,223,255,0.3); border-radius: 3px; }
+        .zweb-custom-dd-list::-webkit-scrollbar-thumb:hover { background: rgba(64,223,255,0.5); }
+        .zweb-toggle-row { display: flex; align-items: center; justify-content: space-between; }
+        .zweb-toggle-label { font-family: 'Rajdhani', sans-serif; font-size: 14px; color: #ccc; }
+        .zweb-toggle { position: relative; width: 44px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 12px; cursor: pointer; transition: background 0.2s; }
+        .zweb-toggle.on { background: rgba(64,223,255,0.3); }
+        .zweb-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #888; transition: all 0.2s; }
+        .zweb-toggle.on::after { left: 23px; background: #40e0ff; }
+        .zweb-settings-close { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(64,223,255,0.2); background: rgba(64,223,255,0.08); color: #40e0ff; font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+        .zweb-settings-close:hover { background: rgba(64,223,255,0.15); }
 
         /* ===== ZWEB MODALS (Domain List / GitHub) ===== */
         .zweb-modal-overlay {
@@ -1856,9 +1952,21 @@
         </div>
 
         <div id="zweb-url-bar">
+            <button class="btn-fs" id="zweb-fs-btn" onclick="zwebToggleFullscreen()" title="Toggle fullscreen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"/></svg>
+            </button>
+            <button class="btn-fs" id="zweb-reload-btn" onclick="zwebReload()" title="Reload page">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            </button>
+            <button class="btn-fs" id="zweb-settings-btn" onclick="zwebOpenSettings()" title="Settings">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
             <input id="zweb-url" type="text" placeholder="Search or enter URL...">
             <button class="btn-proxy-toggle proxy-on" id="zweb-proxy-toggle" onclick="zwebToggleProxy()" title="Cycle proxy mode: ON (proxies) -> SEMI (direct fetch) -> OFF (plain iframe)">Proxy: ON</button>
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
+        </div>
+        <div class="zweb-fs-exit" id="zweb-fs-exit" onclick="zwebToggleFullscreen()" title="Exit fullscreen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v4H4M16 3v4h4M8 21v-4H4M16 21v-4h4"/></svg>
         </div>
         <iframe id="zweb-frame" src="about:blank" style="display:none;"></iframe>
         <div id="zweb-frames" style="flex:1;position:relative;overflow:hidden;">
@@ -1870,6 +1978,7 @@
                     <button class="zweb-home-action-btn" id="zweb-github-btn" onclick="zwebOpenGithub()">🐙 Our GitHub</button>
                 </div>
                 <div id="zweb-bookmarks" class="zweb-bookmarks"></div>
+                <div id="zweb-bookmarks-label" class="zweb-bookmarks-label"></div>
             </div>
             <div id="zweb-loading">
                 <div class="zweb-loader-ring"></div>
@@ -2944,6 +3053,13 @@
             // Create a dedicated iframe for this tab
             var frame = document.createElement("iframe");
             frame.style.cssText = "width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;z-index:1;background:#fff;";
+            // Sandbox: allow scripts, same-origin, forms, pointer-lock, downloads,
+            // modals, presentation — but BLOCK all popups (no allow-popups, no
+            // allow-popups-to-escape-sandbox) and BLOCK top navigation (no
+            // allow-top-navigation). This is the maximum popup blocking: every
+            // window.open(), target="_blank", and frame-bust attempt is killed
+            // by the browser itself, on top of the SANDBOX_SCRIPT patches.
+            frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-presentation";
             frame.src = "about:blank";
             document.getElementById("zweb-frames").appendChild(frame);
             tab.frame = frame;
@@ -3032,9 +3148,159 @@
             }
         }
 
+        // ===== ZTTP repo API =====
+        // Original (single-CDN) endpoints — kept for reference / backward compat.
+        // The repo is HyperZTeam555/hyperzhubapps, directory ZTTPDomains/.
         var ZTTP_REPO_API = "https://api.github.com/repos/HyperZTeam555/hyperzhubapps/contents/ZTTPDomains";
         var ZTTP_RAW_BASE = "https://raw.githubusercontent.com/HyperZTeam555/hyperzhubapps/main/ZTTPDomains";
-        var zttpDomainCache = {};
+        var zttpDomainCache = {};   // domain -> file listing array
+        var zttpHtmlCache = {};     // "domain/file" -> final HTML string (with <base>)
+        var zttpHtmlPromises = {};  // "domain/file" -> in-flight Promise (dedupes concurrent requests)
+
+        // ===== ZTTP CDN race =====
+        // The ZTTP system fetches a domain index (file listing) + raw HTML
+        // content for a given zttp://<domain>[/<path>] URL. Previously this
+        // hit a single endpoint (GitHub contents API + raw.githubusercontent),
+        // which is rate-limited and often blocked. Now we race multiple CDNs
+        // in parallel via Promise.any() — first one to return a valid
+        // response wins. If all fail, we throw an AggregateError.
+        //
+        // Each CDN entry exposes:
+        //   - listDomain(domain) -> Promise<[{name, type}]>  (file listing inside one ZTTP domain dir)
+        //   - listTop()          -> Promise<[{name, type}]>  (listing of all ZTTP domain dirs)
+        //   - rawUrl(domain, file) -> string                 (URL for fetching raw file content)
+        //   - name               -> string                   (label for debugging)
+        var ZTTP_CDNS = [
+            {
+                name: 'github-api',
+                listDomain: function(domain) {
+                    return fetch(ZTTP_REPO_API + "/" + encodeURIComponent(domain))
+                        .then(function(res) {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.json();
+                        }).then(function(files) {
+                            if (!Array.isArray(files)) throw new Error('not a directory listing');
+                            return files.map(function(f) { return { name: f.name, type: f.type }; });
+                        });
+                },
+                listTop: function() {
+                    return fetch(ZTTP_REPO_API)
+                        .then(function(res) {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.json();
+                        }).then(function(files) {
+                            if (!Array.isArray(files)) throw new Error('not a directory listing');
+                            return files.map(function(f) { return { name: f.name, type: f.type }; });
+                        });
+                },
+                rawUrl: function(domain, file) {
+                    return ZTTP_RAW_BASE + "/" + encodeURIComponent(domain) + "/" + encodeURIComponent(file);
+                }
+            },
+            {
+                name: 'jsdelivr',
+                // jsdelivr data API: returns { files: [{name, type}] } where type is 'directory' or 'file'
+                listDomain: function(domain) {
+                    return fetch('https://data.jsdelivr.com/v1/packages/gh/HyperZTeam555/hyperzhubapps@main?path=ZTTPDomains/' + encodeURIComponent(domain))
+                        .then(function(res) {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.json();
+                        }).then(function(data) {
+                            var files = (data && data.files) || [];
+                            return files.map(function(f) { return { name: f.name, type: f.type === 'directory' ? 'dir' : 'file' }; });
+                        });
+                },
+                listTop: function() {
+                    return fetch('https://data.jsdelivr.com/v1/packages/gh/HyperZTeam555/hyperzhubapps@main?path=ZTTPDomains')
+                        .then(function(res) {
+                            if (!res.ok) throw new Error('HTTP ' + res.status);
+                            return res.json();
+                        }).then(function(data) {
+                            var files = (data && data.files) || [];
+                            return files.map(function(f) { return { name: f.name, type: f.type === 'directory' ? 'dir' : 'file' }; });
+                        });
+                },
+                rawUrl: function(domain, file) {
+                    return 'https://cdn.jsdelivr.net/gh/HyperZTeam555/hyperzhubapps@main/ZTTPDomains/' + encodeURIComponent(domain) + '/' + encodeURIComponent(file);
+                }
+            },
+            {
+                name: 'statically',
+                // Statically has no public directory-listing API, so listing
+                // calls reject (Promise.any will skip them). Only raw file
+                // serving is supported.
+                listDomain: function() { return Promise.reject(new Error('statically: no listing API')); },
+                listTop:    function() { return Promise.reject(new Error('statically: no listing API')); },
+                rawUrl: function(domain, file) {
+                    return 'https://cdn.statically.io/gh/HyperZTeam555/hyperzhubapps@main/ZTTPDomains/' + encodeURIComponent(domain) + '/' + encodeURIComponent(file);
+                }
+            },
+            {
+                name: 'raw-github',
+                // raw.githubusercontent serves files only — no directory listing.
+                listDomain: function() { return Promise.reject(new Error('raw.githubusercontent: no listing API')); },
+                listTop:    function() { return Promise.reject(new Error('raw.githubusercontent: no listing API')); },
+                rawUrl: function(domain, file) {
+                    return 'https://raw.githubusercontent.com/HyperZTeam555/hyperzhubapps/main/ZTTPDomains/' + encodeURIComponent(domain) + '/' + encodeURIComponent(file);
+                }
+            }
+        ];
+
+        // Race every CDN's listDomain() in parallel. First valid (non-empty)
+        // array wins. Throws AggregateError if all CDNs fail.
+        function zwebFetchDomainIndex(domain) {
+            var promises = ZTTP_CDNS.map(function(cdn) {
+                return cdn.listDomain(domain).then(function(files) {
+                    if (!Array.isArray(files) || files.length === 0) {
+                        throw new Error(cdn.name + ': empty listing');
+                    }
+                    return files;
+                });
+            });
+            return Promise.any(promises);
+        }
+
+        // Race every CDN's listTop() in parallel (for the domain-list modal).
+        // Caches the raw file listing in zwebAllDomainFiles and tracks in-flight
+        // requests so concurrent calls (e.g. clicking the button twice fast)
+        // don't re-fetch. Callers must filter+map to extract domain name strings.
+        var zwebAllDomainsPromise = null;
+        function zwebFetchAllDomains() {
+            if (zwebAllDomainFiles) return Promise.resolve(zwebAllDomainFiles);
+            if (zwebAllDomainsPromise) return zwebAllDomainsPromise;
+            var promises = ZTTP_CDNS.map(function(cdn) {
+                return cdn.listTop().then(function(files) {
+                    if (!Array.isArray(files)) throw new Error(cdn.name + ': not an array');
+                    return files;
+                });
+            });
+            zwebAllDomainsPromise = Promise.any(promises).then(function(files) {
+                zwebAllDomainFiles = files;
+                zwebAllDomainsPromise = null;
+                return files;
+            }).catch(function(err) {
+                zwebAllDomainsPromise = null; // allow retry on failure
+                throw err;
+            });
+            return zwebAllDomainsPromise;
+        }
+
+        // Race every CDN's raw file fetch in parallel. Returns
+        // { content, baseUrl, cdn } so the caller can set <base href> to the
+        // winning CDN (so relative assets resolve to the same CDN).
+        function zwebFetchRawContent(domain, file) {
+            var promises = ZTTP_CDNS.map(function(cdn) {
+                var url = cdn.rawUrl(domain, file);
+                return fetch(url).then(function(res) {
+                    if (!res.ok) throw new Error(cdn.name + ': HTTP ' + res.status);
+                    return res.text();
+                }).then(function(text) {
+                    if (!text || !text.trim()) throw new Error(cdn.name + ': empty content');
+                    return { content: text, baseUrl: url.replace(/[^\/]+$/, ''), cdn: cdn.name };
+                });
+            });
+            return Promise.any(promises);
+        }
 
         // ── GitHub repos available in the "Our GitHub" switcher ─────────────
         var ZWEB_GITHUB_REPOS = [
@@ -3052,7 +3318,30 @@
         function zwebGithubHtmlUrl(repo)   { return "https://github.com/" + repo.fullName; }
 
         // ── ZTTP Domain List modal ──────────────────────────────────────────
-        var zwebAllDomains = null; // cached list of {name} once fetched
+        var zwebAllDomainFiles = null; // cached raw file listing [{name, type}] once fetched
+        var zwebZttpDomainSet = null; // Set of domain names for fast lookup
+
+        // Preload the ZTTP domain list on page load so zwebNavigate can check
+        // if a bare domain (without zttp:// prefix) is a ZTTP domain.
+        function zwebPreloadZttpDomains() {
+            if (zwebAllDomainFiles || zwebAllDomainsPromise) return;
+            zwebFetchAllDomains().then(function(files) {
+                var domains = files
+                    .filter(function(f) { return f.type === "dir"; })
+                    .map(function(f) { return f.name.toLowerCase(); });
+                zwebZttpDomainSet = new Set(domains);
+            }).catch(function(e) {
+                // Silently fail — preload is a best-effort optimization; if it
+                // fails, zwebNavigate just won't recognize bare ZTTP domains.
+            });
+        }
+
+        // Check if a domain name is a known ZTTP domain (from the preloaded list)
+        function zwebIsZttpDomain(name) {
+            if (!name) return false;
+            if (!zwebZttpDomainSet) return false; // not loaded yet
+            return zwebZttpDomainSet.has(name.toLowerCase());
+        }
 
         function zwebOpenDomainList() {
             var modal = document.getElementById("zweb-domainlist-modal");
@@ -3062,27 +3351,30 @@
             modal.className = "zweb-modal-overlay open";
             search.value = "";
 
-            if (zwebAllDomains) {
-                zwebRenderDomainList(zwebAllDomains, "");
+            // Helper: extract domain name strings from the raw file listing
+            function extractDomainNames(files) {
+                return files
+                    .filter(function(f) { return f && f.type === "dir" && typeof f.name === "string"; })
+                    .map(function(f) { return f.name; })
+                    .sort();
+            }
+
+            // If we already have the raw file listing cached, render immediately
+            if (zwebAllDomainFiles) {
+                zwebRenderDomainList(extractDomainNames(zwebAllDomainFiles), "");
                 setTimeout(function(){ search.focus(); }, 50);
                 return;
             }
 
             body.innerHTML = '<div class="zweb-modal-status">Loading domains...</div>';
-            fetch(ZTTP_REPO_API).then(function(res) {
-                if (!res.ok) throw new Error("HTTP " + res.status);
-                return res.json();
-            }).then(function(files) {
-                var domains = files
-                    .filter(function(f) { return f.type === "dir"; })
-                    .map(function(f) { return f.name; })
-                    .sort();
-                zwebAllDomains = domains;
+            zwebFetchAllDomains().then(function(files) {
+                var domains = extractDomainNames(files);
                 zwebRenderDomainList(domains, "");
                 setTimeout(function(){ search.focus(); }, 50);
             }).catch(function(err) {
+                var msg = err && err.message ? err.message : 'all CDNs failed';
                 body.innerHTML = '<div class="zweb-modal-status zweb-modal-error">Failed to load domain list' +
-                    (err && err.message ? " (" + err.message + ")" : "") + '.</div>';
+                    " (" + msg + ")." + '</div>';
             });
         }
 
@@ -3458,10 +3750,306 @@
             }
         }
 
+        function zwebToggleFullscreen() {
+            var exitBtn = document.getElementById("zweb-fs-exit");
+            if (document.body.classList.contains("zweb-fullscreen")) {
+                document.body.classList.remove("zweb-fullscreen");
+                if (exitBtn) exitBtn.classList.remove("visible");
+            } else {
+                document.body.classList.add("zweb-fullscreen");
+                if (exitBtn) exitBtn.classList.add("visible");
+            }
+        }
+
+        // ===== Reload current page =====
+        // Reloads the URL the iframe is ACTUALLY on (from reportedUrl if available,
+        // which is posted by the SANDBOX_SCRIPT inside HyperZProxy), not what the
+        // search bar says.
+        function zwebReload() {
+            if (!currentTab || !currentTab.frame) return;
+            var frame = currentTab.frame;
+            // For HyperZProxy iframes (cross-origin src): reload the REPORTED
+            // url — the page the iframe actually navigated to, which may differ
+            // from frame.src (initial load) or currentTab.url (what we set).
+            if (currentTab.reportedUrl) {
+                var real = zwebStripProxyPrefix(currentTab.reportedUrl);
+                if (real && real.indexOf('about:') !== 0) {
+                    // Re-navigate the iframe to the reported URL via the proxy
+                    loadTab(real);
+                    return;
+                }
+            }
+            // For srcdoc-based iframes (ZTTP, semi mode): re-set srcdoc
+            if (frame.getAttribute('srcdoc')) {
+                var doc = frame.getAttribute('srcdoc');
+                frame.removeAttribute('srcdoc');
+                frame.setAttribute('srcdoc', doc);
+                return;
+            }
+            // For src-based iframes without reportedUrl: try contentWindow.reload()
+            try {
+                if (frame.contentWindow && frame.contentWindow.location) {
+                    frame.contentWindow.location.reload();
+                    return;
+                }
+            } catch(e) { /* cross-origin — fall through */ }
+            // Fall back to re-setting frame.src
+            if (frame.src && frame.src !== 'about:blank') {
+                var s = frame.src;
+                frame.src = 'about:blank';
+                frame.src = s;
+                return;
+            }
+            // Last resort: re-navigate using currentTab.url
+            if (currentTab.url && currentTab.url !== 'New Tab') {
+                loadTab(currentTab.url);
+            }
+        }
+
+        // ===== Real-time URL tracker =====
+        // Updates the URL bar 20x/sec with the current page URL (proxy prefix
+        // stripped), unless the user is focused on the URL bar (so they can type).
+        var HZP_PREFIX = 'https://hyperzproxy.z04.workers.dev/';
+        var CP_PREFIX  = 'https://corsproxy.io/?';
+        var TP_PREFIX  = 'https://thingproxy.freeboard.io/fetch/';
+        var AO_PREFIX  = 'https://api.allorigins.win/raw?url=';
+
+        function zwebGetRealUrl() {
+            if (!currentTab || !currentTab.frame) return null;
+            var frame = currentTab.frame;
+            // PRIORITY 1: reportedUrl — the URL reported by the SANDBOX_SCRIPT
+            // inside the iframe via postMessage. This is the ONLY reliable way
+            // to know the current URL of a cross-origin iframe (frame.src only
+            // reflects the initial load, contentWindow.location throws).
+            if (currentTab.reportedUrl) {
+                return currentTab.reportedUrl;
+            }
+            // For srcdoc iframes, contentWindow.location is about:srcdoc (useless).
+            // Use currentTab.url (the display URL we set when navigating).
+            if (frame.getAttribute('srcdoc')) {
+                return (currentTab.url && currentTab.url !== 'New Tab') ? currentTab.url : null;
+            }
+            // For src-based iframes, try same-origin location access first
+            try {
+                if (frame.contentWindow && frame.contentWindow.location) {
+                    var loc = frame.contentWindow.location.href;
+                    if (loc && loc !== 'about:blank' && loc !== 'about:srcdoc') {
+                        return loc;
+                    }
+                }
+            } catch(e) { /* cross-origin — fall through */ }
+            // Fall back to frame.src (the src attribute — reflects initial load,
+            // may not reflect internal navigation for cross-origin iframes)
+            if (frame.src && frame.src !== 'about:blank') {
+                return frame.src;
+            }
+            return (currentTab.url && currentTab.url !== 'New Tab') ? currentTab.url : null;
+        }
+
+        function zwebStripProxyPrefix(url) {
+            if (!url) return '';
+            // Universal fix: find the LAST /proxy/ in the URL and take everything
+            // after it. Using lastIndexOf handles doubled/tripled URLs where the
+            // proxy URL got nested (e.g. hyperzproxy.../proxy/hyperzproxy.../proxy/host/path)
+            // — indexOf would only strip the first /proxy/ and leave the HZP origin
+            // + another /proxy/ in the result. lastIndexOf always gets the real
+            // target at the very end.
+            var proxyIdx = url.lastIndexOf('/proxy/');
+            if (proxyIdx !== -1) {
+                return url.substring(proxyIdx + 7); // 7 = '/proxy/'.length
+            }
+            // HyperZProxy: https://hyperzproxy.z04.workers.dev/<target>
+            //   (old-style without /proxy/ prefix — just host/path)
+            if (url.indexOf(HZP_PREFIX) === 0) {
+                var target = url.substring(HZP_PREFIX.length);
+                // If it's a fully-encoded blob (old style encoded), decode it
+                if (target.indexOf('://') === -1 && target.indexOf('%') !== -1) {
+                    try { target = decodeURIComponent(target); } catch(e) {}
+                }
+                return target;
+            }
+            // corsproxy.io: https://corsproxy.io/?<encoded>
+            if (url.indexOf(CP_PREFIX) === 0) {
+                try { return decodeURIComponent(url.substring(CP_PREFIX.length)); }
+                catch(e) { return url.substring(CP_PREFIX.length); }
+            }
+            // thingproxy: https://thingproxy.freeboard.io/fetch/<target>
+            if (url.indexOf(TP_PREFIX) === 0) {
+                return url.substring(TP_PREFIX.length);
+            }
+            // allorigins: https://api.allorigins.win/raw?url=<encoded>
+            if (url.indexOf(AO_PREFIX) === 0) {
+                try { return decodeURIComponent(url.substring(AO_PREFIX.length)); }
+                catch(e) { return url.substring(AO_PREFIX.length); }
+            }
+            return url;
+        }
+
+        // ===== Message listener for iframe URL reporting =====
+        // The SANDBOX_SCRIPT inside HyperZProxy posts {type:"hzp-urlchange", url:...}
+        // to its parent (us) on load, on navigation, and every 500ms. We match the
+        // message source to the tab whose contentWindow sent it, and store the URL
+        // so zwebGetRealUrl() and zwebReload() can use it.
+        //
+        // For cross-origin HyperZProxy embeds (third-party sites), the iframe
+        // won't send URLs unless we subscribe first. We send {type:"hzp-subscribe"}
+        // to each tab's iframe on load + periodically (see zwebSubscribeTab).
+        // The iframe acks with {type:"hzp-subscribed"} and starts sending URLs.
+        window.addEventListener("message", function(e) {
+            if (!e || !e.data) return;
+            if (typeof e.data.type !== "string") return;
+            // Find the tab whose iframe contentWindow is the message source
+            var sourceTab = null;
+            for (var i = 0; i < tabs.length; i++) {
+                var t = tabs[i];
+                if (t.frame && t.frame.contentWindow === e.source) {
+                    sourceTab = t;
+                    break;
+                }
+            }
+            if (e.data.type === "hzp-urlchange") {
+                if (typeof e.data.url !== "string") return;
+                if (sourceTab) sourceTab.reportedUrl = e.data.url;
+                // If source didn't match any tab directly, it might be a nested
+                // iframe whose top-level game-iframe belongs to a tab. We can't
+                // easily attribute nested messages, so we ignore them — the direct
+                // child (game-iframe) already reports its own URL.
+                return;
+            }
+            if (e.data.type === "hzp-subscribed") {
+                // Ack from the iframe — it's now sending us URL updates.
+                // No action needed; just a confirmation that subscription worked.
+                if (sourceTab) sourceTab.subscribed = true;
+                return;
+            }
+        });
+
+        // Send hzp-subscribe to a tab's iframe so cross-origin HyperZProxy
+        // frames will start sending us URL updates. Safe to call repeatedly —
+        // the iframe's Set dedupes origins.
+        function zwebSubscribeTab(tab) {
+            if (!tab || !tab.frame) return;
+            try {
+                tab.frame.contentWindow.postMessage({type: "hzp-subscribe"}, "*");
+            } catch(e) { /* iframe not ready yet — will retry on next interval */ }
+        }
+
+        // Periodically subscribe to all tabs' iframes at 20Hz (same as the URL
+        // tracker). The iframe's SANDBOX_SCRIPT may re-initialize on navigation
+        // (new page load), so frequent re-subscribing catches fresh loads fast.
+        // Once subscribed, the Set inside the iframe dedupes, so this is cheap.
+        // (The immediate onload call in loadTab handles the initial subscription.)
+        setInterval(function() {
+            for (var i = 0; i < tabs.length; i++) {
+                zwebSubscribeTab(tabs[i]);
+            }
+        }, 50);
+
+        var zwebUrlTrackerInterval = null;
+        function zwebStartUrlTracker() {
+            if (zwebUrlTrackerInterval) clearInterval(zwebUrlTrackerInterval);
+            zwebUrlTrackerInterval = setInterval(function() {
+                var urlInput = document.getElementById("zweb-url");
+                if (!urlInput) return;
+                // Don't update while the user is typing in the URL bar
+                if (document.activeElement === urlInput) return;
+                // Don't update in fullscreen (URL bar is hidden)
+                if (document.body.classList.contains("zweb-fullscreen")) return;
+                // Don't update on the home/new-tab screen
+                if (!currentTab || currentTab.url === "New Tab") return;
+                var home = document.getElementById("zweb-home");
+                if (home && home.style.display !== "none") return;
+
+                // Use the SAME pattern as zwebReload: currentTab.reportedUrl
+                // directly (the URL reported by the SANDBOX_SCRIPT inside the
+                // iframe via postMessage). This is the ONLY reliable way to
+                // know the current URL of a cross-origin iframe.
+                var realUrl = currentTab.reportedUrl;
+                if (!realUrl) {
+                    // Fallback for non-HyperZProxy modes (srcdoc, direct)
+                    realUrl = zwebGetRealUrl();
+                }
+                if (!realUrl) return;
+                var stripped = zwebStripProxyPrefix(realUrl);
+                if (!stripped) return;
+
+                // Build display URL
+                var displayUrl;
+                if (zwebProxyMode === "on") {
+                    if (/^https?:\/\//.test(stripped)) {
+                        displayUrl = stripped.replace(/^https?:\/\//, 'zproxy://');
+                    } else if (/^zproxy:\/\//.test(stripped) || /^zttp:\/\//.test(stripped)) {
+                        // Already has a special protocol prefix — leave as-is
+                        displayUrl = stripped;
+                    } else {
+                        // No protocol — prepend zproxy://
+                        displayUrl = 'zproxy://' + stripped;
+                    }
+                } else {
+                    displayUrl = stripped;
+                }
+
+                // Only write to the DOM if the value actually changed
+                if (urlInput.value !== displayUrl) {
+                    urlInput.value = displayUrl;
+                }
+            }, 50); // 20 times per second
+        }
+
+        // Make the exit-fullscreen button draggable (but still clickable)
+        (function() {
+            var btn = document.getElementById("zweb-fs-exit");
+            if (!btn) return;
+            var dragging = false, moved = false, startX = 0, startY = 0, btnX = 12, btnY = 12;
+
+            function onStart(e) {
+                dragging = true;
+                moved = false;
+                var point = e.touches ? e.touches[0] : e;
+                startX = point.clientX;
+                startY = point.clientY;
+                btn.style.transition = 'none';
+            }
+            function onMove(e) {
+                if (!dragging) return;
+                var point = e.touches ? e.touches[0] : e;
+                var dx = point.clientX - startX;
+                var dy = point.clientY - startY;
+                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+                btnX = Math.max(0, Math.min(window.innerWidth - 40, btnX + dx));
+                btnY = Math.max(0, Math.min(window.innerHeight - 40, btnY + dy));
+                btn.style.left = btnX + 'px';
+                btn.style.top = btnY + 'px';
+                startX = point.clientX;
+                startY = point.clientY;
+                if (moved) e.preventDefault();
+            }
+            function onEnd(e) {
+                if (!dragging) return;
+                dragging = false;
+                btn.style.transition = '';
+                // If the user didn't move (just clicked), toggle fullscreen
+                if (!moved) {
+                    zwebToggleFullscreen();
+                }
+            }
+            btn.addEventListener('mousedown', onStart);
+            btn.addEventListener('touchstart', onStart, { passive: true });
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchend', onEnd);
+            // Remove the onclick — handled by onEnd now
+            btn.onclick = null;
+        })();
+
         function loadTab(url) {
             if (!currentTab) return;
             zwebShowHome(false);
             zwebHideError();
+            // Hide the HyperZSearch results panel when navigating to a URL
+            var hs = document.getElementById('hyperzsearch');
+            if (hs) hs.style.display = 'none';
             url = zwebNormalizeHttpUrl(url);
             document.getElementById("zweb-url").value = url;
             currentTab.url = url;
@@ -3504,6 +4092,9 @@
                 currentTab.frame.src = proxyUrl;
                 currentTab.frame.onload = function() {
                     if (currentTab && currentTab.frame) zwebHideLoading();
+                    // Send subscribe immediately on load so cross-origin iframes
+                    // start reporting URLs without waiting for the 2s interval.
+                    zwebSubscribeTab(currentTab);
                 };
                 return;
             }
@@ -3610,7 +4201,7 @@
             zwebHideError();
             var parsed = zwebParseZttp(input);
             if (!parsed.domain) {
-                runHyperZSearch(fallbackInput || input);
+                zwebDoSearch(fallbackInput || input);
                 return;
             }
 
@@ -3637,6 +4228,14 @@
         function zwebAfterZttpFail(input, fallbackMode) {
             var q = zwebTrim(input);
             if (!q) return;
+            // If the user explicitly typed zttp:// or zttp:, don't fall back to
+            // search — they wanted ZTTP, not a search for "zttp://domain".
+            // Show an error instead.
+            if (/^zttp:\/\//i.test(q) || /^zttp:/i.test(q)) {
+                var parsed = zwebParseZttp(q);
+                zwebShowError('Failed to load ZTTP domain "' + (parsed.domain || q) + '". The CDN may be unavailable.');
+                return;
+            }
             if (fallbackMode === "proxy" || zwebLooksLikeProxyUrl(q)) {
                 loadTab(q);
                 return;
@@ -3644,19 +4243,26 @@
             currentTab.url = "New Tab";
             zwebSetTabLabel(currentTab, "Search");
             zwebShowHome(false);
-            runHyperZSearch(q);
+            zwebDoSearch(q);
         }
         async function zwebFetchZttp(domain, subPath) {
             var files;
             if (zttpDomainCache[domain]) {
                 files = zttpDomainCache[domain];
             } else {
-                var res = await fetch(ZTTP_REPO_API + "/" + encodeURIComponent(domain));
-                if (!res.ok) {
-                    if (res.status === 404) throw new Error('Domain "' + domain + '" not found.');
-                    throw new Error('HTTP ' + res.status + ': ' + res.statusText);
+                // Race every CDN in parallel — first valid listing wins.
+                // Promise.any throws AggregateError if every CDN fails; we
+                // surface a friendly error if the domain wasn't found.
+                try {
+                    files = await zwebFetchDomainIndex(domain);
+                } catch (aggErr) {
+                    // Re-throw with a more useful message
+                    var inner = aggErr && aggErr.errors ? aggErr.errors : [];
+                    var any404 = inner.some(function(e) { return e && /404/.test(e.message); });
+                    if (any404) throw new Error('Domain "' + domain + '" not found.');
+                    var detail = inner.map(function(e) { return e && e.message ? e.message : String(e); }).join('; ');
+                    throw new Error('All ZTTP CDNs failed for "' + domain + '"' + (detail ? ': ' + detail : ''));
                 }
-                files = await res.json();
                 zttpDomainCache[domain] = files;
             }
 
@@ -3676,13 +4282,36 @@
                 targetFile = main ? main.name : htmlFiles[0].name;
             }
 
-            var contentUrl = ZTTP_RAW_BASE + "/" + encodeURIComponent(domain) + "/" + encodeURIComponent(targetFile);
-            var contentRes = await fetch(contentUrl);
-            if (!contentRes.ok) throw new Error("Failed to fetch content: " + contentRes.status);
+            // Cache the final HTML by domain/file so repeat visits don't re-fetch.
+            // Also dedupe concurrent requests for the same domain/file.
+            var cacheKey = domain + '/' + targetFile;
+            if (zttpHtmlCache[cacheKey]) {
+                return zttpHtmlCache[cacheKey];
+            }
+            if (zttpHtmlPromises[cacheKey]) {
+                return zttpHtmlPromises[cacheKey];
+            }
 
-            var htmlContent = await contentRes.text();
-            var injectedBase = '<base href="' + contentUrl.replace(/[^\/]+$/, "") + '">';
-            return injectedBase + htmlContent;
+            var promise = (async function() {
+                // Race every CDN's raw file fetch in parallel. The winning CDN
+                // also supplies the <base href> so relative assets resolve to
+                // the same CDN (avoids mixed-CDN requests).
+                var result = await zwebFetchRawContent(domain, targetFile);
+                var injectedBase = '<base href="' + result.baseUrl + '">';
+                var html = injectedBase + result.content;
+                zttpHtmlCache[cacheKey] = html;
+                return html;
+            })().catch(function(err) {
+                // Clear the in-flight marker on failure so retries can happen
+                delete zttpHtmlPromises[cacheKey];
+                throw err;
+            }).then(function(html) {
+                delete zttpHtmlPromises[cacheKey];
+                return html;
+            });
+
+            zttpHtmlPromises[cacheKey] = promise;
+            return promise;
         }
         function zwebNavigate() {
             var q = zwebTrim(document.getElementById("zweb-url").value);
@@ -3690,13 +4319,42 @@
 
             if (!currentTab) createTab();
 
-            if (zwebLooksLikeZttp(q)) {
-                loadZttp(q, q, zwebLooksLikeProxyUrl(q) ? "proxy" : "search");
+            // zproxy:// URLs go directly to loadTab (not ZTTP or search)
+            if (/^zproxy:\/\//i.test(q)) {
+                loadTab(q);
                 return;
             }
 
-            runHyperZSearch(q);
+            // zttp:// URLs go to the ZTTP fetcher
+            if (/^zttp:\/\//i.test(q) || /^zttp:/i.test(q)) {
+                loadZttp(q, q, "search");
+                return;
+            }
+
+            // Check if the query is a known ZTTP domain (from the preloaded
+            // domain list). If the user types a bare domain name like "mydomain"
+            // and it matches a ZTTP domain, treat it as zttp://mydomain.
+            // This checks the first path segment (before any /) so "mydomain/page"
+            // also works.
+            var bareDomain = q.split("/")[0].split("?")[0].toLowerCase();
+            if (zwebIsZttpDomain(bareDomain)) {
+                loadZttp("zttp://" + q, q, "search");
+                return;
+            }
+
+            // Real URLs (http://, https://, or domain.tld) go to loadTab
+            if (zwebLooksLikeProxyUrl(q)) {
+                loadTab(q);
+                return;
+            }
+
+            // Not a URL → search (HyperZSearch if enabled, else search engine)
+            zwebDoSearch(q);
         }
+        // Select-all on focus (like a real browser URL bar)
+        document.getElementById("zweb-url").addEventListener("focus", function() {
+            this.select();
+        });
         document.getElementById("zweb-url").onkeydown = function (e) {
             e = e || window.event;
             if (e.key === "Enter" || e.keyCode === 13) {
@@ -3705,6 +4363,8 @@
         };
 
         createTab();
+        zwebStartUrlTracker();
+        zwebPreloadZttpDomains(); // fetch ZTTP domain list in background for navigation lookup
         var zwebHomeInput = document.getElementById("zweb-home-input");
         if (zwebHomeInput) {
             zwebHomeInput.onkeydown = function(e) {
@@ -3717,19 +4377,40 @@
         }
 
         // ===== Bookmarks =====
+        // Bookmark data model: [{name, url}] — name is customizable display label
         var ZWEB_BOOKMARKS_KEY = 'hyperzweb.bookmarks';
         var zwebBookmarks = [];
-        var zwebHoldTimer = null;
+
+        // Default preset bookmarks with names
+        var ZWEB_BOOKMARK_PRESETS = [
+            { name: 'CloudMoon',  url: 'web.cloudmoonapp.com' },
+            { name: 'CrazyGames', url: 'crazygames.com' },
+            { name: 'Y8',         url: 'y8.com' }
+        ];
 
         function zwebLoadBookmarks() {
             try {
                 var saved = JSON.parse(localStorage.getItem(ZWEB_BOOKMARKS_KEY) || '[]');
-                zwebBookmarks = saved;
+                // Migrate old format (array of strings) to new format ({name, url})
+                zwebBookmarks = saved.map(function(b) {
+                    if (typeof b === 'string') {
+                        return { name: zwebDefaultBookmarkName(b), url: b };
+                    }
+                    return b;
+                });
             } catch(e) { zwebBookmarks = []; }
-            // Ensure presets exist
-            var presets = ['web.cloudmoonapp.com', 'crazygames.com', 'y8.com'];
-            presets.forEach(function(p) {
-                if (zwebBookmarks.indexOf(p) === -1) zwebBookmarks.unshift(p);
+            // Ensure presets exist AND have the correct preset name (match by url).
+            // This fixes bookmarks that were migrated from the old string format
+            // (where the name was the URL, e.g. "y8.com" instead of "Y8").
+            ZWEB_BOOKMARK_PRESETS.forEach(function(p) {
+                var existing = zwebBookmarks.find(function(b) { return b.url === p.url; });
+                if (existing) {
+                    // Force-update the name to the preset name
+                    existing.name = p.name;
+                } else {
+                    // Preset doesn't exist — add it at the front
+                    zwebBookmarks.unshift({ name: p.name, url: p.url });
+                }
             });
             zwebSaveBookmarks();
         }
@@ -3738,30 +4419,130 @@
             try { localStorage.setItem(ZWEB_BOOKMARKS_KEY, JSON.stringify(zwebBookmarks)); } catch(e) {}
         }
 
+        // Generate a default bookmark name from a URL (strip protocol, www., path)
+        function zwebDefaultBookmarkName(url) {
+            var name = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+            return name;
+        }
+
+        // Favicon fallback: extract first + last character from the name.
+        // FIRST: first uppercase letter, else first letter, else first digit.
+        //   Record its position (P1).
+        // LAST: last uppercase letter at a position > P1. If none, last letter
+        //   at a position > P1. If none, last digit at a position > P1.
+        //   If none, return just the first char.
+        // This ensures "Y8" → "Y8" (Y is first, 8 is last digit after Y),
+        // "Hello" → "Ho" (H is first, o is last letter after H),
+        // "CrazyGames" → "CG" (C is first upper, G is last upper after C).
+        function zwebBookmarkFallback(name) {
+            var s = String(name || '');
+            if (!s) return '?';
+
+            // Find FIRST: first uppercase, else first letter, else first digit
+            var firstChar = '';
+            var firstPos = -1;
+            for (var i = 0; i < s.length; i++) {
+                var ch = s[i];
+                if (/[A-Z]/.test(ch)) { firstChar = ch; firstPos = i; break; }
+            }
+            if (firstPos === -1) {
+                for (var i = 0; i < s.length; i++) {
+                    var ch = s[i];
+                    if (/[a-zA-Z]/.test(ch)) { firstChar = ch; firstPos = i; break; }
+                }
+            }
+            if (firstPos === -1) {
+                for (var i = 0; i < s.length; i++) {
+                    var ch = s[i];
+                    if (/[0-9]/.test(ch)) { firstChar = ch; firstPos = i; break; }
+                }
+            }
+            if (firstPos === -1) return '?';
+
+            // Find LAST: last uppercase after firstPos, else last letter after
+            // firstPos, else last digit after firstPos
+            var lastChar = '';
+            for (var i = s.length - 1; i > firstPos; i--) {
+                if (/[A-Z]/.test(s[i])) { lastChar = s[i]; break; }
+            }
+            if (!lastChar) {
+                for (var i = s.length - 1; i > firstPos; i--) {
+                    if (/[a-zA-Z]/.test(s[i])) { lastChar = s[i]; break; }
+                }
+            }
+            if (!lastChar) {
+                for (var i = s.length - 1; i > firstPos; i--) {
+                    if (/[0-9]/.test(s[i])) { lastChar = s[i]; break; }
+                }
+            }
+
+            if (!lastChar) return firstChar;
+            return firstChar + lastChar;
+        }
+
+        // Build the favicon URL via HyperZProxy
+        function zwebFaviconUrl(url) {
+            var host = url.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
+            return HZP_PREFIX + 'proxy/' + host + '/favicon.ico';
+        }
+
         function zwebRenderBookmarks() {
             var container = document.getElementById('zweb-bookmarks');
             if (!container) return;
             container.innerHTML = '';
-            zwebBookmarks.forEach(function(url) {
+            var label = document.getElementById('zweb-bookmarks-label');
+            zwebBookmarks.forEach(function(bm, idx) {
                 var btn = document.createElement('div');
                 btn.className = 'zweb-bookmark';
-                btn.textContent = url;
+                btn.setAttribute('data-idx', idx);
+
+                // Favicon image (via HyperZProxy)
+                var img = document.createElement('img');
+                img.src = zwebFaviconUrl(bm.url);
+                img.alt = bm.name;
+                img.style.display = 'none'; // hidden until loaded
+                var fallback = document.createElement('div');
+                fallback.className = 'zweb-bookmark-fallback';
+                fallback.textContent = zwebBookmarkFallback(bm.name);
+                btn.appendChild(fallback);
+                btn.appendChild(img);
+
+                img.onload = function() {
+                    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                        img.style.display = '';
+                        fallback.style.display = 'none';
+                    }
+                };
+                img.onerror = function() {
+                    img.style.display = 'none';
+                    fallback.style.display = '';
+                };
+
+                // Hover → show name in the label below the bookmarks row
+                btn.addEventListener('mouseenter', function() {
+                    if (label) {
+                        label.textContent = bm.name;
+                        label.classList.add('visible');
+                    }
+                });
+                btn.addEventListener('mouseleave', function() {
+                    if (label) {
+                        label.classList.remove('visible');
+                    }
+                });
+
                 // Click to navigate
-                btn.addEventListener('click', function() {
-                    zwebSubmitInput(url);
+                btn.addEventListener('click', function(e) {
+                    if (e.button !== 0) return;
+                    zwebSubmitInput(bm.url);
                 });
-                // Long press to remove
-                btn.addEventListener('mousedown', function() {
-                    zwebHoldTimer = setTimeout(function() {
-                        zwebShowRemoveAlert(url);
-                    }, 3000);
+
+                // Right-click → context menu
+                btn.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    zwebShowContextMenu(e.clientX, e.clientY, idx);
                 });
-                btn.addEventListener('mouseup', function() { clearTimeout(zwebHoldTimer); });
-                btn.addEventListener('mouseleave', function() { clearTimeout(zwebHoldTimer); });
-                btn.addEventListener('touchstart', function() {
-                    zwebHoldTimer = setTimeout(function() { zwebShowRemoveAlert(url); }, 3000);
-                });
-                btn.addEventListener('touchend', function() { clearTimeout(zwebHoldTimer); });
+
                 container.appendChild(btn);
             });
             // Add the + button always at the end
@@ -3772,52 +4553,133 @@
             container.appendChild(addBtn);
         }
 
+        // Right-click context menu
+        function zwebShowContextMenu(x, y, idx) {
+            // Remove any existing menu
+            var existing = document.querySelector('.zweb-ctx-menu');
+            if (existing) existing.remove();
+
+            var bm = zwebBookmarks[idx];
+            if (!bm) return;
+
+            var menu = document.createElement('div');
+            menu.className = 'zweb-ctx-menu';
+            menu.innerHTML =
+                '<div class="zweb-ctx-item" id="zweb-ctx-edit">✏️ Edit</div>' +
+                '<div class="zweb-ctx-sep"></div>' +
+                '<div class="zweb-ctx-item danger" id="zweb-ctx-delete">🗑 Delete</div>';
+            document.body.appendChild(menu);
+
+            // Position (clamp to viewport)
+            menu.style.left = Math.min(x, window.innerWidth - 160) + 'px';
+            menu.style.top = Math.min(y, window.innerHeight - 100) + 'px';
+
+            document.getElementById('zweb-ctx-edit').addEventListener('click', function() {
+                menu.remove();
+                zwebShowEditAlert(idx);
+            });
+            document.getElementById('zweb-ctx-delete').addEventListener('click', function() {
+                menu.remove();
+                zwebShowRemoveAlert(idx);
+            });
+
+            // Close on click outside or ESC
+            function closeMenu() { menu.remove(); document.removeEventListener('click', closeMenu); document.removeEventListener('keydown', escClose); }
+            function escClose(e) { if (e.key === 'Escape') closeMenu(); }
+            setTimeout(function() {
+                document.addEventListener('click', closeMenu);
+                document.addEventListener('keydown', escClose);
+            }, 0);
+        }
+
         function zwebShowAddAlert() {
             var overlay = document.createElement('div');
             overlay.className = 'zweb-alert-overlay';
             overlay.innerHTML = '<div class="zweb-alert-box">' +
                 '<div class="zweb-alert-title">Add Bookmark</div>' +
+                '<input type="text" class="zweb-alert-input" id="zweb-bm-name" placeholder="Name (e.g. My Site)" style="margin-bottom: 12px;" />' +
                 '<input type="text" class="zweb-alert-input" id="zweb-bookmark-input" placeholder="Enter URL..." />' +
                 '<div class="zweb-alert-btns">' +
                 '<button class="zweb-alert-btn zweb-alert-btn-ok" id="zweb-bm-ok">Add</button>' +
                 '<button class="zweb-alert-btn zweb-alert-btn-no" id="zweb-bm-cancel">Cancel</button>' +
                 '</div></div>';
             document.body.appendChild(overlay);
-            var input = document.getElementById('zweb-bookmark-input');
-            if (input) input.focus();
+            var nameInput = document.getElementById('zweb-bm-name');
+            var urlInput = document.getElementById('zweb-bookmark-input');
+            if (nameInput) nameInput.focus();
             document.getElementById('zweb-bm-ok').addEventListener('click', function() {
-                var url = input.value.trim();
-                if (url && zwebBookmarks.indexOf(url) === -1) {
-                    zwebBookmarks.push(url);
+                var url = urlInput.value.trim();
+                var name = nameInput.value.trim() || zwebDefaultBookmarkName(url);
+                if (url && !zwebBookmarks.some(function(b) { return b.url === url; })) {
+                    zwebBookmarks.push({ name: name, url: url });
                     zwebSaveBookmarks();
                     zwebRenderBookmarks();
                 }
                 overlay.remove();
             });
             document.getElementById('zweb-bm-cancel').addEventListener('click', function() { overlay.remove(); });
-            input.addEventListener('keydown', function(e) {
+            urlInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') document.getElementById('zweb-bm-ok').click();
+            });
+            nameInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') urlInput.focus();
             });
         }
 
-        function zwebShowRemoveAlert(url) {
+        function zwebShowEditAlert(idx) {
+            var bm = zwebBookmarks[idx];
+            if (!bm) return;
+            var overlay = document.createElement('div');
+            overlay.className = 'zweb-alert-overlay';
+            overlay.innerHTML = '<div class="zweb-alert-box">' +
+                '<div class="zweb-alert-title">Edit Bookmark</div>' +
+                '<input type="text" class="zweb-alert-input" id="zweb-bm-name" placeholder="Name" value="' + bm.name.replace(/"/g, '&quot;') + '" style="margin-bottom: 12px;" />' +
+                '<input type="text" class="zweb-alert-input" id="zweb-bookmark-input" placeholder="Enter URL..." value="' + bm.url.replace(/"/g, '&quot;') + '" />' +
+                '<div class="zweb-alert-btns">' +
+                '<button class="zweb-alert-btn zweb-alert-btn-ok" id="zweb-bm-ok">Save</button>' +
+                '<button class="zweb-alert-btn zweb-alert-btn-no" id="zweb-bm-cancel">Cancel</button>' +
+                '</div></div>';
+            document.body.appendChild(overlay);
+            var nameInput = document.getElementById('zweb-bm-name');
+            var urlInput = document.getElementById('zweb-bookmark-input');
+            if (nameInput) nameInput.focus();
+            nameInput.select();
+            document.getElementById('zweb-bm-ok').addEventListener('click', function() {
+                var url = urlInput.value.trim();
+                var name = nameInput.value.trim() || zwebDefaultBookmarkName(url);
+                if (url) {
+                    zwebBookmarks[idx] = { name: name, url: url };
+                    zwebSaveBookmarks();
+                    zwebRenderBookmarks();
+                }
+                overlay.remove();
+            });
+            document.getElementById('zweb-bm-cancel').addEventListener('click', function() { overlay.remove(); });
+            urlInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('zweb-bm-ok').click();
+            });
+            nameInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') urlInput.focus();
+            });
+        }
+
+        function zwebShowRemoveAlert(idx) {
+            var bm = zwebBookmarks[idx];
+            if (!bm) return;
             var overlay = document.createElement('div');
             overlay.className = 'zweb-alert-overlay';
             overlay.innerHTML = '<div class="zweb-alert-box">' +
                 '<div class="zweb-alert-title">Remove Bookmark</div>' +
-                '<div class="zweb-alert-msg">Are you sure you want to remove this bookmark?</div>' +
+                '<div class="zweb-alert-msg">Remove "' + bm.name + '"?</div>' +
                 '<div class="zweb-alert-btns">' +
                 '<button class="zweb-alert-btn zweb-alert-btn-yes" id="zweb-bm-yes">Yes</button>' +
                 '<button class="zweb-alert-btn zweb-alert-btn-no" id="zweb-bm-no">No</button>' +
                 '</div></div>';
             document.body.appendChild(overlay);
             document.getElementById('zweb-bm-yes').addEventListener('click', function() {
-                var idx = zwebBookmarks.indexOf(url);
-                if (idx !== -1) {
-                    zwebBookmarks.splice(idx, 1);
-                    zwebSaveBookmarks();
-                    zwebRenderBookmarks();
-                }
+                zwebBookmarks.splice(idx, 1);
+                zwebSaveBookmarks();
+                zwebRenderBookmarks();
                 overlay.remove();
             });
             document.getElementById('zweb-bm-no').addEventListener('click', function() { overlay.remove(); });
@@ -3826,10 +4688,185 @@
         // Initialize bookmarks on load
         zwebLoadBookmarks();
         zwebRenderBookmarks();
+
+        // ===== HyperZWeb Settings (search engine + HyperZSearch toggle) =====
+        var ZWEB_SETTINGS_KEY = 'hyperzweb.settings';
+        var ZWEB_SEARCH_ENGINES = [
+            { name: 'Yahoo',        url: 'https://search.yahoo.com/search?p={search}' },
+            { name: 'WebCrawler',   url: 'https://www.webcrawler.com/serp?q={search}' },
+            { name: 'Search.ch',    url: 'https://search.ch/tel/?all={search}' },
+            { name: 'Brave Search', url: 'https://search.brave.com/search?q={search}' },
+            { name: 'Bing',         url: 'https://www.bing.com/search?q={search}' }
+        ];
+        // Default: Yahoo + HyperZSearch OFF (so the iframe goes to Yahoo by default)
+        var zwebSettings = {
+            engine: ZWEB_SEARCH_ENGINES[0].url,
+            useHyperZSearch: false
+        };
+
+        function zwebLoadSettings() {
+            try {
+                var raw = localStorage.getItem(ZWEB_SETTINGS_KEY);
+                if (!raw) return;
+                var parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    if (typeof parsed.engine === 'string' && parsed.engine.indexOf('{search}') !== -1) {
+                        zwebSettings.engine = parsed.engine;
+                    }
+                    if (typeof parsed.useHyperZSearch === 'boolean') {
+                        zwebSettings.useHyperZSearch = parsed.useHyperZSearch;
+                    }
+                }
+            } catch (e) { /* ignore malformed JSON */ }
+        }
+
+        function zwebSaveSettings() {
+            try {
+                localStorage.setItem(ZWEB_SETTINGS_KEY, JSON.stringify(zwebSettings));
+            } catch (e) { /* ignore quota / disabled storage */ }
+        }
+
+        function zwebOpenSettings() {
+            // Remove any existing overlay first (in case of double-click)
+            var existing = document.querySelector('.zweb-settings-overlay');
+            if (existing) existing.remove();
+
+            var overlay = document.createElement('div');
+            overlay.className = 'zweb-settings-overlay';
+            // Find the currently selected engine name for the trigger label
+            var currentEngine = ZWEB_SEARCH_ENGINES.find(function(e) { return e.url === zwebSettings.engine; });
+            var currentEngineName = currentEngine ? currentEngine.name : ZWEB_SEARCH_ENGINES[0].name;
+            // Build custom dropdown option list
+            var optionsHtml = ZWEB_SEARCH_ENGINES.map(function(e) {
+                var sel = e.url === zwebSettings.engine ? ' selected' : '';
+                return '<div class="zweb-custom-dd-opt' + sel + '" data-url="' + e.url + '" data-name="' + e.name.replace(/"/g, '&quot;') + '">' + e.name + '</div>';
+            }).join('');
+            // Hide the engine row when HyperZSearch is on (it's not used)
+            var engineRowStyle = zwebSettings.useHyperZSearch ? ' style="opacity:0.4; pointer-events:none;"' : '';
+            overlay.innerHTML =
+                '<div class="zweb-settings-box">' +
+                    '<div class="zweb-settings-title">\u2699 Settings</div>' +
+                    '<div class="zweb-settings-row"' + engineRowStyle + ' id="zweb-engine-row">' +
+                        '<label class="zweb-settings-label">Default Search Engine</label>' +
+                        '<div class="zweb-custom-dd' + (zwebSettings.useHyperZSearch ? '' : '') + '" id="zweb-engine-dd">' +
+                            '<button class="zweb-custom-dd-trigger" id="zweb-engine-trigger" type="button"' + (zwebSettings.useHyperZSearch ? ' disabled' : '') + '>' + currentEngineName + '</button>' +
+                            '<div class="zweb-custom-dd-list" id="zweb-engine-list">' + optionsHtml + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="zweb-settings-row zweb-toggle-row">' +
+                        '<span class="zweb-toggle-label">Use HyperZSearch (built-in)</span>' +
+                        '<div class="zweb-toggle' + (zwebSettings.useHyperZSearch ? ' on' : '') + '" id="zweb-hzs-toggle" role="switch" aria-checked="' + (zwebSettings.useHyperZSearch ? 'true' : 'false') + '"></div>' +
+                    '</div>' +
+                    '<button class="zweb-settings-close" id="zweb-settings-close">Close</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+
+            // Custom dropdown logic
+            var dd = document.getElementById('zweb-engine-dd');
+            var trigger = document.getElementById('zweb-engine-trigger');
+            var list = document.getElementById('zweb-engine-list');
+            if (trigger && dd && list) {
+                trigger.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (trigger.disabled) return;
+                    dd.classList.toggle('open');
+                });
+                // Option click
+                var opts = list.querySelectorAll('.zweb-custom-dd-opt');
+                opts.forEach(function(opt) {
+                    opt.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var url = opt.getAttribute('data-url');
+                        var name = opt.getAttribute('data-name');
+                        zwebSettings.engine = url;
+                        trigger.textContent = name;
+                        // Update selected state
+                        opts.forEach(function(o) { o.classList.remove('selected'); });
+                        opt.classList.add('selected');
+                        dd.classList.remove('open');
+                        zwebSaveSettings();
+                    });
+                });
+                // Click outside closes the dropdown
+                document.addEventListener('click', function closeDd(e) {
+                    if (!dd.contains(e.target)) {
+                        dd.classList.remove('open');
+                        document.removeEventListener('click', closeDd);
+                    }
+                });
+            }
+            var toggle = document.getElementById('zweb-hzs-toggle');
+            var engineRow = document.getElementById('zweb-engine-row');
+            if (toggle) {
+                toggle.addEventListener('click', function() {
+                    zwebSettings.useHyperZSearch = !zwebSettings.useHyperZSearch;
+                    if (zwebSettings.useHyperZSearch) toggle.classList.add('on');
+                    else toggle.classList.remove('on');
+                    toggle.setAttribute('aria-checked', zwebSettings.useHyperZSearch ? 'true' : 'false');
+                    // Show/hide the engine row live based on the toggle
+                    if (engineRow) {
+                        if (zwebSettings.useHyperZSearch) {
+                            engineRow.style.opacity = '0.4';
+                            engineRow.style.pointerEvents = 'none';
+                            if (trigger) trigger.disabled = true;
+                        } else {
+                            engineRow.style.opacity = '';
+                            engineRow.style.pointerEvents = '';
+                            if (trigger) trigger.disabled = false;
+                        }
+                    }
+                    zwebSaveSettings();
+                });
+            }
+            var closeBtn = document.getElementById('zweb-settings-close');
+            if (closeBtn) closeBtn.addEventListener('click', function() { overlay.remove(); });
+            // Click on backdrop closes
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) overlay.remove();
+            });
+            // ESC closes
+            var escHandler = function(e) {
+                if (e.key === 'Escape' || e.keyCode === 27) {
+                    overlay.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        }
+
+        // Dispatcher: routes search queries based on the useHyperZSearch setting.
+        //   - true  → existing Wikipedia-backed HyperZSearch results panel
+        //   - false → load the selected engine URL in the iframe (via loadTab
+        //             so it goes through the proxy / semi / off chain like any
+        //             other URL the user might type).
+        function zwebDoSearch(query) {
+            var q = zwebTrim(query);
+            if (!q) return;
+            if (zwebSettings.useHyperZSearch) {
+                runHyperZSearch(q);
+                return;
+            }
+            // Hide the built-in results panel — we're navigating the iframe instead.
+            var hs = document.getElementById('hyperzsearch');
+            if (hs) hs.style.display = 'none';
+            var engineUrl = zwebSettings.engine || ZWEB_SEARCH_ENGINES[0].url;
+            var searchUrl = engineUrl.replace('{search}', encodeURIComponent(q));
+            if (!currentTab) createTab();
+            loadTab(searchUrl);
+        }
+
+        // Load saved settings on startup
+        zwebLoadSettings();
         var zwebDomainListSearch = document.getElementById("zweb-domainlist-search");
         if (zwebDomainListSearch) {
             zwebDomainListSearch.oninput = function() {
-                if (zwebAllDomains) zwebRenderDomainList(zwebAllDomains, zwebDomainListSearch.value);
+                if (zwebAllDomainFiles) {
+                    var domains = zwebAllDomainFiles
+                        .filter(function(f) { return f && f.type === "dir" && typeof f.name === "string"; })
+                        .map(function(f) { return f.name; })
+                        .sort();
+                    zwebRenderDomainList(domains, zwebDomainListSearch.value);
+                }
             };
         }
         var zwebRetryBtn = document.getElementById("zweb-retry-btn");
