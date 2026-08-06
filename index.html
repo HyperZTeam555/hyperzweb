@@ -3587,7 +3587,7 @@
         }
 
         function zwebIsHttpUrl(value) {
-            return url.indexOf('http://')===0||url.indexOf('https://')===0;}
+            return value.indexOf('http://')===0||value.indexOf('https://')===0;}
 
 
         function zwebLooksLikeProxyUrl(value) {
@@ -3596,12 +3596,15 @@
         }
 
         function zwebLooksLikeZttp(value) {
-                        return url.indexOf('zttp://')===0;}
+            return value.indexOf('zttp://')===0;}
 
         function zwebNormalizeHttpUrl(value) {
-                        value = value.replace(/^zproxy:\/\//i, "");
-            if (url.indexOf("http://")===0||url.indexOf("https://")===0) return value;
-
+            value = zwebTrim(value);
+            value = value.replace(/^zproxy:\/\//i, "");
+            if (value.indexOf("http://") !== 0 && value.indexOf("https://") !== 0) {
+                value = "https://" + value;
+            }
+            return value;
         }
 
         function zwebParseZttp(value) {
@@ -3828,10 +3831,10 @@
 
                 var displayUrl;
                 if (zwebProxyMode === "on") {
-                                        if (url.indexOf("http://")===0||url.indexOf("https://")===0) {
-                                        displayUrl = stripped.replace(/^https?:\/\//i, '')
-                                        } else if (url.indexOf('zproxy://')===0) {
-                                            displayUrl = stripped;
+                    if (stripped.indexOf("http://")===0||stripped.indexOf("https://")===0) {
+                        displayUrl = stripped.replace(/^https?:\/\//i, '');
+                    } else if (stripped.indexOf('zproxy://')===0) {
+                        displayUrl = stripped;
                     } else {
                         displayUrl = 'zproxy://' + stripped;
                     }
@@ -4050,7 +4053,7 @@
         function zwebAfterZttpFail(input, fallbackMode) {
             var q = zwebTrim(input);
             if (!q) return;
-            if (url.indexOf('zttp://') === 0) {
+            if (q.indexOf('zttp://') === 0) {
                         var parsed = zwebParseZttp(q);
                 zwebShowError('Failed to load ZTTP domain "' + (parsed.domain || q) + '". The CDN may be unavailable.');
                 return;
@@ -4128,11 +4131,13 @@
 
             if (!currentTab) createTab();
 
-                        if (url.indexOf('zproxy://')===0) {loadTab(q);
+            if (q.indexOf('zproxy://')===0) {
+                loadTab(q);
                 return;
             }
 
-                        if (url.indexOf('zttp://')===0) {loadZttp(q, q, "search");
+            if (q.indexOf('zttp://')===0) {
+                loadZttp(q, q, "search");
                 return;
             }
 
