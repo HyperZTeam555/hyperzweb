@@ -3915,7 +3915,7 @@
 
             if (zwebProxyMode === "on" && ZWEB_PROXIES[0] && ZWEB_PROXIES[0].iframe) {
                 if (!url || !url.replace(/^https?:\/\//i, '').trim()) { zwebShowError("No URL specified."); return; }
-                                var proxyUrl = HZP_PREFIX + 'proxy/' + url.replace(/^https?:\/\//i, '');
+                var proxyUrl = HZP_PREFIX + url.replace(/^https?:\/\//i, '');
                                 var displayUrl = url.replace(/^https?:\/\//i, 'zproxy://');
                 document.getElementById("zweb-url").value = displayUrl;
                 currentTab.url = displayUrl;
@@ -4263,7 +4263,7 @@
 
         function zwebFaviconUrl(url) {
             var host = url.replace(/^https?:\/\//i, '');
-            return HZP_PREFIX + 'proxy/' + host + '/favicon.ico';
+            return HZP_PREFIX + host + '/favicon.ico';
 
         }
 
