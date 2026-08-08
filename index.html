@@ -6688,6 +6688,7 @@
         var checkersGameOver = false;
         var checkersSelectedPiece = null;
         var checkersValidMoves = [];
+        var checkersMustContinue = null;
 
         function checkersInit() {
             checkersBoard = [];
@@ -6719,6 +6720,7 @@
             checkersGameOver = false;
             checkersSelectedPiece = null;
             checkersValidMoves = [];
+            checkersMustContinue = null;
             checkersRender();
             checkersStatusEl.innerHTML = "Red to move";
         }
@@ -6763,20 +6765,89 @@
             }
         }
 
+        function checkersGetCaptureMoves(row, col) {
+            var piece = checkersBoard[row][col];
+            if (!piece) return [];
+            var captures = [];
+            var directions = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+            for (var i = 0; i < directions.length; i++) {
+                var dr = directions[i][0];
+                var dc = directions[i][1];
+                if (!piece.isKing) {
+                    if (piece.color === "red" && dr !== 1) continue;
+                    if (piece.color === "black" && dr !== -1) continue;
+                }
+                var nr = row + dr * 2;
+                var nc = col + dc * 2;
+                var captureRow = row + dr;
+                var captureCol = col + dc;
+                if (captureRow >= 0 && captureRow < 8 && captureCol >= 0 && captureCol < 8) {
+                    var capturePiece = checkersBoard[captureRow][captureCol];
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 &&
+                        capturePiece && capturePiece.color !== piece.color && !checkersBoard[nr][nc]) {
+                        captures.push([nr, nc]);
+                    }
+                }
+            }
+            return captures;
+        }
+
         function checkersClick(row, col) {
             if (checkersGameOver) return;
             var mode = checkersModeEl.value;
             if (mode !== "2p" && checkersCurrentPlayer === "black") return;
 
+            if (checkersMustContinue) {
+                var mcR = checkersMustContinue[0], mcC = checkersMustContinue[1];
+                for (var i = 0; i < checkersValidMoves.length; i++) {
+                    if (checkersValidMoves[i][0] === row && checkersValidMoves[i][1] === col) {
+                        var piece = checkersBoard[mcR][mcC];
+                        var wasKing = piece.isKing;
+                        checkersMove(mcR, mcC, row, col);
+                        var wasPromoted = !wasKing && piece.isKing;
+                        var moreCaptures = !wasPromoted && checkersGetCaptureMoves(row, col).length > 0;
+                        if (moreCaptures) {
+                            checkersMustContinue = [row, col];
+                            checkersSelectedPiece = [row, col];
+                            checkersValidMoves = checkersGetCaptureMoves(row, col);
+                            checkersRender();
+                            checkersStatusEl.innerHTML = (checkersCurrentPlayer === "red" ? "Red" : "Black") + " must continue jumping!";
+                        } else {
+                            checkersMustContinue = null;
+                            checkersSelectedPiece = null;
+                            checkersValidMoves = [];
+                            checkersRender();
+                            checkersNextTurn(mode);
+                        }
+                        return;
+                    }
+                }
+                return;
+            }
+
             var isValidMove = false;
             for (var i = 0; i < checkersValidMoves.length; i++) {
                 if (checkersValidMoves[i][0] === row && checkersValidMoves[i][1] === col) {
                     isValidMove = true;
-                    checkersMove(checkersSelectedPiece[0], checkersSelectedPiece[1], row, col);
-                    checkersSelectedPiece = null;
-                    checkersValidMoves = [];
-                    checkersRender();
-                    checkersNextTurn(mode);
+                    var fromR = checkersSelectedPiece[0], fromC = checkersSelectedPiece[1];
+                    var piece = checkersBoard[fromR][fromC];
+                    var wasKing = piece.isKing;
+                    checkersMove(fromR, fromC, row, col);
+                    var wasCapture = Math.abs(row - fromR) === 2;
+                    var wasPromoted = !wasKing && piece.isKing;
+                    var canContinue = wasCapture && !wasPromoted && checkersGetCaptureMoves(row, col).length > 0;
+                    if (canContinue) {
+                        checkersMustContinue = [row, col];
+                        checkersSelectedPiece = [row, col];
+                        checkersValidMoves = checkersGetCaptureMoves(row, col);
+                        checkersRender();
+                        checkersStatusEl.innerHTML = (checkersCurrentPlayer === "red" ? "Red" : "Black") + " must continue jumping!";
+                    } else {
+                        checkersSelectedPiece = null;
+                        checkersValidMoves = [];
+                        checkersRender();
+                        checkersNextTurn(mode);
+                    }
                     return;
                 }
             }
@@ -7012,8 +7083,36 @@
                 move = bestMove;
             }
 
+            var botPieceRef = checkersBoard[move.from[0]][move.from[1]];
+            var botWasKing = botPieceRef ? botPieceRef.isKing : false;
             checkersMove(move.from[0], move.from[1], move.to[0], move.to[1]);
             checkersRender();
+
+            var wasCapture = Math.abs(move.to[0] - move.from[0]) === 2;
+            var wasPromoted = botPieceRef && !botWasKing && botPieceRef.isKing;
+            if (wasCapture && !wasPromoted) {
+                var curR = move.to[0], curC = move.to[1];
+                var continuationCaptures = checkersGetCaptureMoves(curR, curC);
+                while (continuationCaptures.length > 0) {
+                    var bestCap = null, bestCapScore = -Infinity;
+                    for (var ci = 0; ci < continuationCaptures.length; ci++) {
+                        var nb = _checkersCopy(checkersBoard);
+                        _checkersApply(nb, [curR, curC], continuationCaptures[ci]);
+                        var v = _checkersMM(nb, 2, -Infinity, Infinity, false) + (Math.random()-0.5)*0.2;
+                        if (v > bestCapScore) { bestCapScore = v; bestCap = continuationCaptures[ci]; }
+                    }
+                    if (!bestCap) break;
+                    var stepPiece = checkersBoard[curR][curC];
+                    var stepWasKing = stepPiece ? stepPiece.isKing : false;
+                    checkersMove(curR, curC, bestCap[0], bestCap[1]);
+                    checkersRender();
+                    var stepPromoted = stepPiece && !stepWasKing && stepPiece.isKing;
+                    if (stepPromoted) break;
+                    curR = bestCap[0]; curC = bestCap[1];
+                    continuationCaptures = checkersGetCaptureMoves(curR, curC);
+                }
+            }
+
             checkersNextTurn(mode);
         }
 
