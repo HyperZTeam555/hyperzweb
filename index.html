@@ -378,9 +378,15 @@
             -ms-flex-align: center;
             align-items: center;
             margin-right: 6px;
-            -webkit-transition: background 0.15s, border-color 0.15s;
-            transition: background 0.15s, border-color 0.15s;
+            -webkit-transition: background 0.15s, border-color 0.15s, transform 0.18s ease;
+            transition: background 0.15s, border-color 0.15s, transform 0.18s ease;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
+        .tab.dragging { opacity: 1; z-index: 10; transition: none !important; box-shadow: 0 4px 16px rgba(0,0,0,0.4); cursor: grabbing; }
+        .tab.no-trans { transition: none !important; }
 
         .tab.active {
             background: rgba(0,200,255,0.12);
@@ -3026,6 +3032,129 @@
         var tabs = [];
         var currentTab = null;
 
+        function initTabDrag(tabEl, getTabs, setTabs){
+            tabEl.addEventListener('pointerdown', function(e){
+                if(e.target.closest('.close-btn')) return;
+                if(e.button !== 0 && e.pointerType === 'mouse') return;
+                var startX = e.clientX, startY = e.clientY;
+                var tabsContainer = document.getElementById('tabs');
+                var allTabs = Array.prototype.filter.call(tabsContainer.children, function(c){ return c.classList && c.classList.contains('tab'); });
+                var dragIndex = allTabs.indexOf(tabEl);
+                if(dragIndex === -1) return;
+                var tabRect = tabEl.getBoundingClientRect();
+                var tabWidth = tabRect.width;
+                var gap = 6;
+                var started = false;
+                var hoverIndex = dragIndex;
+                var blocker = null;
+                var currentDX = 0;
+                var origPositions = allTabs.map(function(t){ return t.getBoundingClientRect(); });
+                try { tabEl.setPointerCapture(e.pointerId); } catch(err){}
+                function beginDrag(){
+                    started = true;
+                    tabEl.classList.add('dragging');
+                    allTabs.forEach(function(t){ if(t !== tabEl) t.classList.add('no-trans'); });
+                    requestAnimationFrame(function(){
+                        allTabs.forEach(function(t){ if(t !== tabEl) t.classList.remove('no-trans'); });
+                    });
+                    blocker = document.createElement('div');
+                    blocker.style.cssText = 'position:fixed;inset:0;z-index:2147483701;background:transparent;pointer-events:auto;cursor:grabbing;';
+                    blocker.addEventListener('click', function(ev){ ev.stopPropagation(); ev.preventDefault(); }, true);
+                    document.body.appendChild(blocker);
+                }
+                function applyShifts(){
+                    allTabs.forEach(function(t, i){
+                        if(t === tabEl) return;
+                        var shift = 0;
+                        if(hoverIndex < dragIndex){
+                            if(i >= hoverIndex && i < dragIndex) shift = tabWidth + gap;
+                        } else if(hoverIndex > dragIndex){
+                            if(i > dragIndex && i <= hoverIndex) shift = -(tabWidth + gap);
+                        }
+                        t.style.transform = shift !== 0 ? 'translateX(' + shift + 'px)' : '';
+                    });
+                }
+                function onMove(ev){
+                    if(!started){
+                        if(Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) return;
+                        beginDrag();
+                    }
+                    currentDX = ev.clientX - startX;
+                    tabEl.style.transform = 'translateX(' + currentDX + 'px)';
+                    var draggedLeft = tabRect.left + currentDX;
+                    var draggedRight = draggedLeft + tabWidth;
+                    var newHover = dragIndex;
+                    for(var i = 0; i < allTabs.length; i++){
+                        if(i === dragIndex) continue;
+                        var r = origPositions[i];
+                        var mid = r.left + r.width / 2;
+                        if(dragIndex < i && draggedRight > mid) newHover = Math.max(newHover, i);
+                        else if(dragIndex > i && draggedLeft < mid) newHover = Math.min(newHover, i);
+                    }
+                    if(newHover !== hoverIndex){
+                        hoverIndex = newHover;
+                        applyShifts();
+                    }
+                }
+                function onUp(ev){
+                    try { tabEl.releasePointerCapture(e.pointerId); } catch(err){}
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    window.removeEventListener('pointercancel', onUp);
+                    window.removeEventListener('blur', onUp);
+                    if(started){
+                        tabEl.classList.remove('dragging');
+                        allTabs.forEach(function(t){ t.classList.add('no-trans'); });
+                        tabEl.style.transform = '';
+                        allTabs.forEach(function(t){ t.style.transform = ''; });
+                        if(hoverIndex !== dragIndex){
+                            var refNode = hoverIndex < dragIndex ? allTabs[hoverIndex] : (allTabs[hoverIndex] ? allTabs[hoverIndex].nextSibling : null);
+                            tabsContainer.insertBefore(tabEl, refNode);
+                            var newRect = tabEl.getBoundingClientRect();
+                            var animateFromX = (tabRect.left + currentDX) - newRect.left;
+                            tabEl.style.transform = 'translateX(' + animateFromX + 'px)';
+                            requestAnimationFrame(function(){
+                                allTabs.forEach(function(t){ t.classList.remove('no-trans'); });
+                                tabEl.style.transform = '';
+                                var newTabsOrder = [];
+                                var els = Array.prototype.filter.call(tabsContainer.children, function(c){ return c.classList && c.classList.contains('tab'); });
+                                var currentTabs = getTabs();
+                                els.forEach(function(el){
+                                    var tid = parseInt(el.getAttribute('data-id'), 10);
+                                    for(var j = 0; j < currentTabs.length; j++){
+                                        if(currentTabs[j].id === tid){ newTabsOrder.push(currentTabs[j]); break; }
+                                    }
+                                });
+                                setTabs(newTabsOrder);
+                            });
+                        } else {
+                            requestAnimationFrame(function(){
+                                allTabs.forEach(function(t){ t.classList.remove('no-trans'); });
+                            });
+                        }
+                        var suppressed = false;
+                        function swallowClick(se){
+                            if(suppressed) return;
+                            suppressed = true;
+                            se.stopPropagation();
+                            se.preventDefault();
+                            document.removeEventListener('click', swallowClick, true);
+                        }
+                        document.addEventListener('click', swallowClick, true);
+                        setTimeout(function(){
+                            if(!suppressed){ suppressed = true; document.removeEventListener('click', swallowClick, true); }
+                            if(blocker) blocker.remove();
+                        }, 200);
+                    } else {
+                        if(blocker) blocker.remove();
+                    }
+                }
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+                window.addEventListener('pointercancel', onUp);
+                window.addEventListener('blur', onUp);
+            });
+        }
         function createTab(url) {
             if (!url) url = "New Tab";
             var id = Date.now();
@@ -3053,6 +3182,7 @@
             tabEl.appendChild(title);
             tabEl.appendChild(close);
             tabEl.onclick = (function(tid){ return function(){ switchTab(tid); }; })(id);
+            initTabDrag(tabEl, function(){ return tabs; }, function(newOrder){ tabs = newOrder; });
 
             var tabsBar = document.getElementById("tabs");
             tabsBar.insertBefore(tabEl, tabsBar.querySelector(".new-tab-btn"));
