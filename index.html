@@ -5736,11 +5736,12 @@
                 /[\s\-]*what(?:'s| is| are| was| were)?(?: the)?(?: answer| result| value| solution| sum| product| quotient| difference)?(?: to| of| for)?(?=[\s,?:!])/gi,
                 /[\s\-]*please(?=[\s,])/gi,
                 /[\s\-]*can you|[\s\-]*could you|[\s\-]*i want to|[\s\-]*i need|[\s\-]*tell me|[\s\-]*show me|[\s\-]*help me(?=[\s])/gi,
+                /[\s\-]*how much(?: is| are| was| do| does)?|[\s\-]*how many(?: is| are)?|[\s\-]*whats\b|[\s\-]*how about/gi,
                 /[\s\-]*calculate|[\s\-]*compute|[\s\-]*evaluate|[\s\-]*solve|[\s\-]*find|[\s\-]*convert/gi,
                 /[\s\-]*for me(?=[\s,.!?]|$)/gi,
                 /[\s\-]*in radians|[\s\-]*in degrees/gi,
                 /[\s,]+thanks(?:[\s,]+a lot)?[.!\s]*$/gi,
-                /[\s]*[?.!]+[\s]*$/g
+                /(?:[\s]*[?.]+|(?<![\d\s])[\s]*!+)[\s]*$/g
             ];
             kill.forEach(function (rx) { s = s.replace(rx, ' '); });
             s = s.replace(/\s+/g, ' ').trim();
@@ -5750,18 +5751,20 @@
         var WMA_FNS = 'sqrt|cbrt|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|log2?|ln|exp|abs|round|floor|ceil|sign|min|max|avg|hypot|gcd|lcm|mod|root|ncr|npr|fact|fib|deg|rad';
         function looksLikeMath(q) {
             var s = q.toLowerCase();
-            if (/[\u221a\u03c0\u2211]/.test(q)) return true;
-            if (/\d*\.?\d+\s*(%|percent)\s+of\b/i.test(s)) return true;
-            if (/\bas\s+(a\s+)?(percent|%)\b/i.test(s)) return true;
+            if (/[\u221a\u03c0\u2211\u03a3\u03c3]/.test(q)) return true;
+            if (/\bas\s+(?:a\s+)?(?:percent|%)(?![a-z])/i.test(s)) return true;
+            if (/\d*\.?\d+\s*(?:%|percent)\s+of\b/i.test(s)) return true;
             if (/\d*\.?\d+\s*%/.test(s)) return true;
+            if (/^\s*(pi|phi|tau)\s*$/i.test(s)) return true;
             var fnRe = new RegExp('\\b(' + WMA_FNS + ')\\s*\\(', 'i');
-            if (fnRe.test(s)) return true;
+            var fnNoParenRe = new RegExp('\\b(' + WMA_FNS + ')\\s*[\\d.]', 'i');
+            if (fnRe.test(s) || fnNoParenRe.test(s)) return true;
             if (/\bfactorial\s*\(?\s*\d/i.test(s)) return true;
             if (/\bfibonacci\s*\(?\s*\d/i.test(s)) return true;
             if (/\b(sigma|summation|sum)\s*[(:\d]|\b(sigma|summation|sum)\s+from\b/i.test(s)) return true;
-            if (/\bS\s*\(/.test(s)) return true;
+            if (/\b[sS]\s*\(/.test(q)) return true;
             if (/\d\s*!/.test(s)) return true;
-            if (/\d[\s]*[-+*/^%\u00d7\u00f7][\s]*[\d.]/.test(s)) return true;
+            if (/\d[\s]*[-+*/^%\u00d7\u00f7]+[\s]*[\d.]/.test(s)) return true;
             if (/[\d.]\s*\^\s*[\d.]/.test(s)) return true;
             if (/\b[\d.]+\s*(plus|minus|times|multiplied by|divided by|over|to the power of|squared|cubed)\b/i.test(s)) return true;
             if (/\d/.test(s) && new RegExp('\\b(' + WMA_FNS + '|pi|phi|tau)\\b', 'i').test(s)) return true;
@@ -5771,6 +5774,10 @@
 
         function wmaNormalize(expr) {
             var s = expr;
+            // √5 -> sqrt(5) before the generic symbol swap makes "sqrt5"
+            s = s.replace(/\u221a\s*([\d.]+)/g, 'sqrt($1)');
+            // "sqrt5" / "sqrt 5" (no parens) -> sqrt(5)
+            s = s.replace(/\b(sqrt|cbrt|sin|cos|tan|log|ln|exp|abs|round|floor|ceil)\s*([\d.]+)(?!\()/gi, '$1($2)');
             // "sqrt of 5" style -> sqrt(5); works for all fn names
             s = s.replace(/\b(sqrt|cbrt|sin|cos|tan|log|ln|exp|abs|round|floor|ceil|fact|fib|gcd|lcm|hypot|root|log2)\s+(?:of\s+)?(-?[\d.]+(?:\s*\^\s*[\d.]+)?|pi|phi|tau|e)/gi, '$1($2)');
             // "5 factorial" -> fact(5)
@@ -5802,10 +5809,19 @@
             var expr = norm.expr.replace(/\s+/g, '');
             var asPercent = norm.asPercent;
 
+            // friendly aliases
+            expr = expr.replace(/fibonacci\(/gi, 'fib(');
+            expr = expr.replace(/factorial\(/gi, 'fact(');
+            expr = expr.replace(/summation\(/gi, 'sigma(');
+            // postfix factorial: 5! -> fact(5)
+            expr = expr.replace(/(\d+)!/g, 'fact($1)');
+            // sigma(a,b,body) -> S(a,b,body) so the body becomes a string
+            expr = expr.replace(/sigma\(([^,]+),([^,]+),([^,]+)\)/gi, 'S($1,$2,$3)');
+
             expr = expr.replace(/S\(([^,]+),([^,]+),([^,]+)\)/gi,
                 function (_, a, b, body) { return 'sigma(' + a + ',' + b + ',\'' + body + '\')'; });
             expr = expr.replace(/S_?([a-zA-Z])=([^^]+)\^([^()]+)\(([^)]+)\)/g,
-                function (_, v, a, b, body) { return 'sigma(' + a + ',' + b + ',(' + body + '))'; });
+                function (_, v, a, b, body) { return 'sigma(' + a + ',' + b + ',\'' + body + '\')'; });
 
             var hasDecimal = /\d*\.\d/.test(expr) || /\(\(\d+\)\/100\)/.test(expr) || /\bas\s+/i.test(rawExpr);
             var hasNonIntOps = /(sqrt|cbrt|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|log|log2|ln|exp|abs|round|floor|ceil|sign|min|max|avg|hypot|gcd|lcm|mod|root|ncr|npr|fact|fib|pi|phi|tau|sigma|deg|rad)/i.test(expr) || /[a-df-mo-wyz]/i.test(expr);
