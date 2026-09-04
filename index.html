@@ -1565,6 +1565,36 @@
             margin-bottom: 3px;
         }
 
+        #wma-suggest {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            padding: 6px 0;
+            max-height: 108px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        #wma-suggest:empty { display: none; }
+        .wma-suggest-chip {
+            padding: 6px 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(0,212,255,0.25);
+            background: rgba(0,212,255,0.08);
+            color: var(--accent);
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+        .wma-suggest-chip:hover {
+            background: rgba(0,212,255,0.18);
+            border-color: rgba(0,212,255,0.55);
+            transform: translateY(-1px);
+        }
+        .wma-suggest-chip b { color: #fff; }
+
         #chat-input-bar {
             display: -webkit-box;
             display: -ms-flexbox;
@@ -1910,7 +1940,7 @@
             <div class="center-buttons">
                 <button onclick="showSection('zweb')">Web</button>
                 <button onclick="showSection('games')">Games</button>
-                <button onclick="showSection('chatbot')">AI</button>
+                <button onclick="showSection('chatbot')">WMA</button>
             </div>
         </div>
 
@@ -1921,7 +1951,7 @@
     </div>
 
     <div class="search-panel" id="searchPanel">
-        <input type="text" id="searchInput" placeholder="Search games or ask HyperZAI...">
+        <input type="text" id="searchInput" placeholder="Search games or ask WMA...">
     </div>
 
     <div id="zweb">
@@ -2119,8 +2149,9 @@
 
     <div id="chatbot">
         <div id="chat-log"></div>
+        <div id="wma-suggest" class="wma-suggest"></div>
         <div id="chat-input-bar">
-            <input id="chat-input" type="text" placeholder="Ask HyperZAI anything, or do math...">
+            <input id="chat-input" type="text" placeholder="Ask WMA anything, or do math..." autocomplete="off" spellcheck="false">
             <button id="chat-send" onclick="chatSend()">Send</button>
         </div>
     </div>
@@ -3715,6 +3746,105 @@
         var TP_PREFIX  = 'https://thingproxy.freeboard.io/fetch/';
         var AO_PREFIX  = 'https://api.allorigins.win/raw?url=';
 
+        var ZWEB_RELAY_PREFIX = '/api/hyperzai/relay/';
+        var zwebFastestProxy = null;
+        function zwebFetchFastestProxy() {
+            fetch('api/hyperzai/proxy', { cache: 'no-store' }).then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            }).then(function(j) {
+                if (j && j.ok && typeof j.proxy === 'string' && (j.proxy.charAt(0) === '/' || j.proxy.indexOf('https://') === 0)) {
+                    zwebFastestProxy = j.proxy;
+                }
+            }).catch(function() {});
+        }
+        zwebFetchFastestProxy();
+        setInterval(zwebFetchFastestProxy, 1800000);
+        function zwebWrapFastest(u) {
+            return (zwebFastestProxy || HZP_PREFIX) + u.replace(/^https?:\/\//i, '');
+        }
+        function zwebFastestIsRelay() {
+            return !!zwebFastestProxy && zwebFastestProxy.charAt(0) === '/';
+        }
+        function zwebActiveProxies() {
+            var list = [];
+            if (zwebFastestProxy) {
+                list.push({ name: 'fastest', wrap: function(u) { return zwebWrapFastest(u); } });
+            }
+            for (var i = 0; i < ZWEB_PROXIES.length; i++) {
+                if (zwebFastestProxy && ZWEB_PROXIES[i].name === 'hyperzproxy' && zwebFastestProxy.indexOf('hyperzproxy') !== -1) continue;
+                list.push(ZWEB_PROXIES[i]);
+            }
+            return list;
+        }
+        var ZWEB_PAGECACHE_KEY = 'hyperzweb.pagecache.v1';
+        var ZWEB_PAGECACHE_MAX_ENTRY = 600000;
+        var ZWEB_PAGECACHE_MAX_TOTAL = 3000000;
+        function zwebReadPageCache() {
+            try { return JSON.parse(localStorage.getItem(ZWEB_PAGECACHE_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function zwebWritePageCache(c) {
+            try { localStorage.setItem(ZWEB_PAGECACHE_KEY, JSON.stringify(c)); } catch (e) {}
+        }
+        function zwebGetCachedPage(url) {
+            var c = zwebReadPageCache();
+            return (c && c[url] && typeof c[url].h === 'string') ? c[url].h : null;
+        }
+        function zwebCachePage(url, html) {
+            if (!url || !html || html.length > ZWEB_PAGECACHE_MAX_ENTRY) return;
+            var c = zwebReadPageCache();
+            c[url] = { h: html, t: Date.now() };
+            var total = 0, keys = [];
+            for (var k in c) {
+                if (!Object.prototype.hasOwnProperty.call(c, k)) continue;
+                total += (c[k].h || '').length;
+                keys.push(k);
+            }
+            while (total > ZWEB_PAGECACHE_MAX_TOTAL && keys.length > 1) {
+                var oldest = keys[0];
+                for (var i = 1; i < keys.length; i++) {
+                    if ((c[keys[i]].t || 0) < (c[oldest].t || 0)) oldest = keys[i];
+                }
+                total -= (c[oldest].h || '').length;
+                delete c[oldest];
+                keys.splice(keys.indexOf(oldest), 1);
+            }
+            zwebWritePageCache(c);
+        }
+        function zwebIframeFallbackFetch(url) {
+            if (!currentTab || !currentTab.frame) return;
+            zwebShowLoading("FETCHING PAGE...");
+            var zwebList = zwebActiveProxies();
+            zwebFetchViaProxy(url, 0, zwebList).then(function(html) {
+                if (!currentTab || !currentTab.frame) return;
+                zwebHideLoading();
+                zwebCachePage(url, html);
+                var injectedBase = '<base href="' + url.replace(/[^\/]+$/, "") + '">';
+                currentTab.frame.removeAttribute("src");
+                currentTab.frame.style.display = "block";
+                currentTab.frame.srcdoc = injectedBase + html;
+            }).catch(function(err) {
+                zwebLoadFromCache(url);
+            });
+        }
+        function zwebLoadFromCache(url) {
+            if (!currentTab || !currentTab.frame) return;
+            var cached = zwebGetCachedPage(url);
+            if (cached) {
+                zwebHideLoading();
+                var injectedBase = '<base href="' + url.replace(/[^\/]+$/, "") + '">';
+                currentTab.frame.removeAttribute("src");
+                currentTab.frame.style.display = "block";
+                currentTab.frame.srcdoc = injectedBase + cached;
+                zwebShowLoading("SERVED FROM CACHE");
+                setTimeout(function() { zwebHideLoading(); }, 1600);
+            } else {
+                zwebHideLoading();
+                zwebShowError('Unable to load "' + url + '" — all proxies failed and no cached copy is available.');
+            }
+        }
+
         function zwebGetRealUrl() {
             if (!currentTab || !currentTab.frame) return null;
             var frame = currentTab.frame;
@@ -3743,6 +3873,9 @@
             var proxyIdx = url.lastIndexOf('/proxy/');
             if (proxyIdx !== -1) {
                 return url.substring(proxyIdx + 7);
+            }
+            if (url.indexOf(ZWEB_RELAY_PREFIX) === 0) {
+                return url.substring(ZWEB_RELAY_PREFIX.length);
             }
             if (url.indexOf(HZP_PREFIX) === 0) {
                 var target = url.substring(HZP_PREFIX.length);
@@ -3901,7 +4034,7 @@
 
             if (zwebProxyMode === "on" && ZWEB_PROXIES[0] && ZWEB_PROXIES[0].iframe) {
                 if (!url || !url.replace(/^https?:\/\//i, '').trim()) { zwebShowError("No URL specified."); return; }
-                var proxyUrl = HZP_PREFIX + url.replace(/^https?:\/\//i, '');
+                var proxyUrl = zwebWrapFastest(url);
                                 var displayUrl = url.replace(/^https?:\/\//i, 'zproxy://');
                 document.getElementById("zweb-url").value = displayUrl;
                 currentTab.url = displayUrl;
@@ -3916,22 +4049,42 @@
                 currentTab.frame.onload = function() {
                     if (currentTab && currentTab.frame) zwebHideLoading();
                     zwebSubscribeTab(currentTab);
+                    if (zwebFastestIsRelay() && currentTab && currentTab.frame) {
+                        var relayDoc = null;
+                        try { relayDoc = currentTab.frame.contentDocument; } catch (e) { relayDoc = null; }
+                        var relayFailed = false;
+                        if (relayDoc) {
+                            if ((relayDoc.contentType || '').indexOf('json') !== -1) relayFailed = true;
+                            else {
+                                try {
+                                    var relayText = (relayDoc.body && relayDoc.body.textContent) || '';
+                                    if (relayText.replace(/^\s+/, '').indexOf('{"ok":false') === 0) relayFailed = true;
+                                } catch (e2) {}
+                            }
+                        }
+                        if (relayFailed) {
+                            zwebFastestProxy = null;
+                            zwebIframeFallbackFetch(url);
+                        }
+                    }
                 };
                 return;
             }
 
             zwebShowLoading(zwebProxyMode === "on" ? "FETCHING PAGE..." : "FETCHING (NO PROXY)...");
 
-            var startIdx = zwebProxyMode === "on" ? 0 : ZWEB_PROXIES.length;
-            zwebFetchViaProxy(url, startIdx).then(function(html) {
+            var zwebList = zwebActiveProxies();
+            var startIdx = zwebProxyMode === "on" ? 0 : zwebList.length;
+            zwebFetchViaProxy(url, startIdx, zwebList).then(function(html) {
                 if (!currentTab || !currentTab.frame) return;
                 zwebHideLoading();
+                zwebCachePage(url, html);
                 var injectedBase = '<base href="' + url.replace(/[^\/]+$/, "") + '">';
                 currentTab.frame.removeAttribute("src");
                 currentTab.frame.style.display = "block";
                 currentTab.frame.srcdoc = injectedBase + html;
             }).catch(function(err) {
-                zwebLoadIframeDirect(url);
+                zwebLoadFromCache(url);
             });
         }
 
@@ -3975,18 +4128,19 @@
             frame.src = url;
         }
 
-        async function zwebFetchViaProxy(targetUrl, idx) {
-            if (idx > ZWEB_PROXIES.length) {
+        async function zwebFetchViaProxy(targetUrl, idx, list) {
+            list = list || ZWEB_PROXIES;
+            if (idx > list.length) {
                 throw new Error('Unable to load "' + targetUrl + '" via fetch.');
             }
 
-            var isDirect = idx === ZWEB_PROXIES.length;
+            var isDirect = idx === list.length;
             if (isDirect) zwebShowLoading("FETCHING DIRECTLY (NO PROXY)...");
             else if (idx === 0) zwebShowLoading("FETCHING PAGE...");
-            else zwebShowLoading("RETRYING (" + ZWEB_PROXIES[idx].name + ")...");
+            else zwebShowLoading("RETRYING (" + list[idx].name + ")...");
 
             try {
-                var fetchUrl = isDirect ? targetUrl : ZWEB_PROXIES[idx].wrap(targetUrl);
+                var fetchUrl = isDirect ? targetUrl : list[idx].wrap(targetUrl);
                 var res = await fetch(fetchUrl);
                 if (!res.ok) throw new Error("HTTP " + res.status);
                 var html = await res.text();
@@ -4002,7 +4156,7 @@
                 return html;
             } catch (e) {
                 if (isDirect) throw e;
-                return zwebFetchViaProxy(targetUrl, idx + 1);
+                return zwebFetchViaProxy(targetUrl, idx + 1, list);
             }
         }
 
@@ -5599,7 +5753,7 @@
                 label.innerHTML = "You";
             } else {
                 wrapper.style.alignItems = "flex-start";
-                label.innerHTML = "HyperZAI";
+                label.innerHTML = "WMA";
             }
 
             bubble.innerHTML = text;
@@ -5615,135 +5769,518 @@
             var q = chatInput.value.replace(/^\s+|\s+$/g, "");
             if (!q) return;
             chatInput.value = "";
+            wmaRenderSuggestions([]);
             addChatMessage(q, "user");
             handleChat(q);
         }
 
+        /* ==================================================================
+           WMA - WikiMathAssistant
+           A math-aware chat engine: understands natural math phrases
+           ("85% of 5", "sqrt(5) as %"), extracts math from sentences,
+           knows a big pile of functions/constants, and answers general
+           questions across several Wikipedia APIs in reliability order.
+           ================================================================== */
+
+        var WMA_CONSTANTS = {
+            pi: Math.PI, e: Math.E, phi: (1 + Math.sqrt(5)) / 2,
+            tau: Math.PI * 2, sqrt2: Math.SQRT2, ln2: Math.LN2, ln10: Math.LN10,
+            log2e: Math.LOG2E, log10e: Math.LOG10E,
+            c: 299792458, g: 9.80665, h: 6.62607015e-34,
+            na: 6.02214076e23, k: 1.380649e-23, r: 8.31446261815324
+        };
+
+        function wmaFact(n) {
+            n = BigInt(n);
+            if (n < 0n) throw new Error("factorial of negative");
+            var r = 1n, i;
+            for (i = 2n; i <= n; i++) r *= i;
+            return r;
+        }
+        function wmaFib(n) {
+            n = BigInt(n);
+            if (n < 0n) throw new Error("fib of negative");
+            var a = 0n, b = 1n, i;
+            for (i = 0n; i < n; i++) { var t = a; a = b; b = t + b; }
+            return a;
+        }
+        function wmaGcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = b; b = a % b; a = t; } return a; }
+        function wmaLcm(a, b) { return Math.abs(a * b) / wmaGcd(a, b); }
+        function wmaNCr(n, r) {
+            n = Number(n); r = Number(r);
+            if (r < 0 || r > n) return 0;
+            r = Math.min(r, n - r);
+            var out = 1, i;
+            for (i = 0; i < r; i++) out = out * (n - i) / (i + 1);
+            return out;
+        }
+        function wmaNP(n, r) {
+            n = Number(n); r = Number(r);
+            if (r < 0 || r > n) return 0;
+            var out = 1, i;
+            for (i = 0; i < r; i++) out *= (n - i);
+            return out;
+        }
+        function wmaMod(a, b) { return ((a % b) + b) % b; }
+        function wmaRoot(n, x) { return Math.pow(x, 1 / n); }
+        function wmaExp(x) { return Math.exp(x); }
+        function wmaAbs(x) { return Math.abs(x); }
+        function wmaFloor(x) { return Math.floor(x); }
+        function wmaCeil(x) { return Math.ceil(x); }
+        function wmaRound(x, d) { var m = Math.pow(10, d || 0); return Math.round(x * m) / m; }
+        function wmaSign(x) { return Math.sign(x); }
+        function wmaMin() { return Math.min.apply(null, arguments); }
+        function wmaMax() { return Math.max.apply(null, arguments); }
+        function wmaAvg() { var s = 0, i; for (i = 0; i < arguments.length; i++) s += arguments[i]; return s / arguments.length; }
+        function wmaHypot() { return Math.hypot.apply(null, arguments); }
+        function wmaAsin(x) { return Math.asin(x); }
+        function wmaAcos(x) { return Math.acos(x); }
+        function wmaAtan(x) { return Math.atan(x); }
+        function wmaAtan2(y, x) { return Math.atan2(y, x); }
+        function wmaSinh(x) { return Math.sinh(x); }
+        function wmaCosh(x) { return Math.cosh(x); }
+        function wmaTanh(x) { return Math.tanh(x); }
+        function wmaLog(x, b) { return b ? Math.log(x) / Math.log(b) : Math.log10(x); }
+        function wmaLog2(x) { return Math.log2(x); }
+        function wmaLogN(x) { return Math.log(x); }
+        function wmaCbrt(x) { return Math.cbrt(x); }
+        function wmaDeg(x) { return x * 180 / Math.PI; }
+        function wmaRad(x) { return x * Math.PI / 180; }
+
+        var WMA_FN_NAMES = ['fact','fib','gcd','lcm','nCr','nPr','mod','root','exp','abs','floor','ceil','round','sign','min','max','avg','hypot','asin','acos','atan','atan2','sinh','cosh','tanh','log','log2','ln','sqrt','cbrt','sin','cos','tan','deg','rad','sigma','pi','e','phi','tau'];
+
+        /* Strip conversational filler so "what is the answer to sqrt(5)"
+           becomes "sqrt(5)". Keeps numbers, operators, function names,
+           parens, %, commas, and a few math words. */
+        function wmaExtractMath(q) {
+            var s = ' ' + q + ' ';
+            s = s.replace(/[¿¡]/g, '');
+            var kill = [
+                /[\s\-]*what(?:'s| is| are| was| were)?(?: the)?(?: answer| result| value| solution| sum| product| quotient| difference)?(?: to| of| for)?(?=[\s,?:!(\-])/gi,
+                /[\s\-]*please(?=[\s,])/gi,
+                /[\s\-]*can you|[\s\-]*could you|[\s\-]*i want to|[\s\-]*i need|[\s\-]*tell me|[\s\-]*show me|[\s\-]*help me(?=[\s])/gi,
+                /[\s\-]*how much(?: is| are| was| do| does)?|[\s\-]*how many(?: is| are)?|[\s\-]*whats\b|[\s\-]*how about/gi,
+                /[\s\-]*calculate|[\s\-]*compute|[\s\-]*evaluate|[\s\-]*solve|[\s\-]*find|[\s\-]*convert/gi,
+                /[\s\-]*for me(?=[\s,.!?]|$)/gi,
+                /[\s\-]*in radians|[\s\-]*in degrees/gi,
+                /[\s,]+thanks(?:[\s,]+a lot)?[.!\s]*$/gi,
+                /(?:[\s]*[?.]+|(?<![\d\s])[\s]*!+)[\s]*$/g
+            ];
+            kill.forEach(function (rx) { s = s.replace(rx, ' '); });
+            s = s.replace(/\s+/g, ' ').trim();
+            return s;
+        }
+
+        var WMA_FNS = 'sqrt|cbrt|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|log2?|ln|exp|abs|round|floor|ceil|sign|min|max|avg|hypot|gcd|lcm|mod|root|ncr|npr|fact|fib|deg|rad';
+        function looksLikeMath(q) {
+            var s = q.toLowerCase();
+            if (/[\u221a\u03c0\u2211\u03a3\u03c3]/.test(q)) return true;
+            if (/\bas\s+(?:a\s+)?(?:percent|%)(?![a-z])/i.test(s)) return true;
+            if (/\d*\.?\d+\s*(?:%|percent)\s+of\b/i.test(s)) return true;
+            if (/\d*\.?\d+\s*%/.test(s)) return true;
+            if (/^\s*(pi|phi|tau)\s*$/i.test(s)) return true;
+            var fnRe = new RegExp('\\b(' + WMA_FNS + ')\\s*\\(', 'i');
+            var fnNoParenRe = new RegExp('\\b(' + WMA_FNS + ')\\s*[\\d.]', 'i');
+            if (fnRe.test(s) || fnNoParenRe.test(s)) return true;
+            if (/\bfactorial\s*\(?\s*\d/i.test(s)) return true;
+            if (/\bfibonacci\s*\(?\s*\d/i.test(s)) return true;
+            if (/\b(sigma|summation|sum)\s*[(:\d]|\b(sigma|summation|sum)\s+from\b/i.test(s)) return true;
+            if (/\b[sS]\s*\(/.test(q)) return true;
+            if (/\d\s*!/.test(s)) return true;
+            if (/\d[\s]*[-+*/^%\u00d7\u00f7]+[\s]*[\d.]/.test(s)) return true;
+            if (/[\d.]\s*\^\s*[\d.]/.test(s)) return true;
+            if (/\b[\d.]+\s*(plus|minus|times|multiplied by|divided by|over|to the power of|squared|cubed)\b/i.test(s)) return true;
+            if (/\d/.test(s) && new RegExp('\\b(' + WMA_FNS + '|pi|phi|tau)\\b', 'i').test(s)) return true;
+            if (/^\s*(pi|phi|tau|e)\s*[+*/^-]/i.test(s)) return true;
+            if (/^[\s\d+\-*/^%().,!\u00d7\u00f7]+$/.test(q) && /[-+*/^%\u00d7\u00f7]|\)[\s]*\(/.test(q) && /[\d!]/.test(q)) return true;
+            return false;
+        }
+
+        function wmaNormalize(expr) {
+            var s = expr;
+            // √5 -> sqrt(5) before the generic symbol swap makes "sqrt5"
+            s = s.replace(/\u221a\s*([\d.]+)/g, 'sqrt($1)');
+            // "sqrt5" / "sqrt 5" (no parens) -> sqrt(5)
+            s = s.replace(/\b(sqrt|cbrt|sin|cos|tan|log|ln|exp|abs|round|floor|ceil)\s*([\d.]+)(?!\()/gi, '$1($2)');
+            // "sqrt of 5" style -> sqrt(5); works for all fn names
+            s = s.replace(/\b(sqrt|cbrt|sin|cos|tan|log|ln|exp|abs|round|floor|ceil|fact|fib|gcd|lcm|hypot|root|log2)\s+(?:of\s+)?(-?[\d.]+(?:\s*\^\s*[\d.]+)?|pi|phi|tau|e)/gi, '$1($2)');
+            // "5 factorial" -> fact(5)
+            s = s.replace(/(-?[\d.]+)\s+factorial/gi, 'fact($1)');
+            // "sum from 1 to 5 of x*2" / "summation 1 to 5 x*2" -> S(1,5,x*2)
+            s = s.replace(/\b(?:sum|summation)\s+from\s+(-?[\d.]+)\s+to\s+(-?[\d.]+)\s+(?:of\s+)?([^,]+)/gi, 'S($1,$2,$3)');
+            s = s.replace(/\bsigma\s+from\s+(-?[\d.]+)\s+to\s+(-?[\d.]+)\s+(?:of\s+)?([^,]+)/gi, 'S($1,$2,$3)');
+            s = s.replace(/\u00d7|·/g, '*').replace(/\u00f7/g, '/');
+            s = s.replace(/\u221a/g, 'sqrt');
+            s = s.replace(/\u2211|\u03a3/g, 'S');
+            s = s.replace(/\u03c0/g, 'pi');
+            s = s.replace(/\bsquared\b/gi, '^2').replace(/\bcubed\b/gi, '^3');
+            s = s.replace(/\btimes\b/gi, '*').replace(/\bmultiplied by\b/gi, '*');
+            s = s.replace(/\bdivided by\b/gi, '/').replace(/\bover\b/gi, '/');
+            s = s.replace(/\bplus\b/gi, '+').replace(/\bminus\b/gi, '-');
+            s = s.replace(/\bto the power of\b/gi, '^').replace(/\braised to\b/gi, '^');
+            // "X% of Y" -> (X/100)*Y
+            s = s.replace(/([\d.]+)\s*(?:%|percent)\s*of\s*([\d.]+(?:\s*[\^]\s*[\d.]+)?|\([^()]*\)|sqrt\([^()]*\)|[a-z]+\([^()]*\)|[a-z]+)/gi, '(($1)/100)*$2');
+            // leftover "N%" -> (N/100)
+            s = s.replace(/([\d.]+)\s*(?:%|percent)(?![\w])/gi, '(($1)/100)');
+            // "X as %" / "X as a percent" -> (X*100) with % label
+            var asPercent = /\bas\s+(?:a\s+)?(?:percent|%)/i.test(s);
+            s = s.replace(/\s*as\s+(?:a\s+)?(?:percent|%)\s*/gi, '');
+            return { expr: s, asPercent: asPercent };
+        }
+
+        function evalMathExpression(rawExpr) {
+            var norm = wmaNormalize(rawExpr);
+            var expr = norm.expr.replace(/\s+/g, '');
+            var asPercent = norm.asPercent;
+
+            // friendly aliases
+            expr = expr.replace(/fibonacci\(/gi, 'fib(');
+            expr = expr.replace(/factorial\(/gi, 'fact(');
+            expr = expr.replace(/summation\(/gi, 'sigma(');
+            // postfix factorial: 5! -> fact(5)
+            expr = expr.replace(/(\d+)!/g, 'fact($1)');
+            // sigma(a,b,body) -> S(a,b,body) so the body becomes a string
+            expr = expr.replace(/sigma\(([^,]+),([^,]+),([^,]+)\)/gi, 'S($1,$2,$3)');
+
+            expr = expr.replace(/S\(([^,]+),([^,]+),([^,]+)\)/gi,
+                function (_, a, b, body) { return 'sigma(' + a + ',' + b + ',\'' + body + '\')'; });
+            expr = expr.replace(/S_?([a-zA-Z])=([^^]+)\^([^()]+)\(([^)]+)\)/g,
+                function (_, v, a, b, body) { return 'sigma(' + a + ',' + b + ',\'' + body + '\')'; });
+
+            var hasDecimal = /\d*\.\d/.test(expr) || /\(\(\d+\)\/100\)/.test(expr) || /\bas\s+/i.test(rawExpr);
+            var hasNonIntOps = /(sqrt|cbrt|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|log|log2|ln|exp|abs|round|floor|ceil|sign|min|max|avg|hypot|gcd|lcm|mod|root|ncr|npr|fact|fib|pi|phi|tau|sigma|deg|rad)/i.test(expr) || /[a-df-mo-wyz]/i.test(expr);
+
+            var out;
+            if (!hasDecimal && !hasNonIntOps && !/[eE]/.test(expr) && !asPercent && expr.indexOf('/') === -1 && expr.indexOf('^-') === -1) {
+                var safe = expr.replace(/\^/g, '**').replace(/(\d+)/g, '$1n');
+                if (/\bsigma\(/.test(safe)) {
+                    safe = safe.replace(/\bsigma\(/g, 'sigma(');
+                    var fnS = Function('fact','fib','sigma','gcd','lcm','mod','nCr','nPr','min','max','avg','abs','round','floor','ceil','sign','pi','e','phi','tau','return ' + safe);
+                    var outS = fnS(wmaFact, wmaFib, wmaSigma, wmaGcd, wmaLcm, wmaMod, wmaNCr, wmaNP, wmaMin, wmaMax, wmaAvg, wmaAbs, wmaRound, wmaFloor, wmaCeil, wmaSign, Math.PI, Math.E, (1+Math.sqrt(5))/2, Math.PI*2);
+                    return outS;
+                }
+                var fn = Function('fact','fib','sigma','gcd','lcm','mod','nCr','nPr','min','max','avg','abs','round','floor','ceil','sign','pi','e','phi','tau',
+                    'sqrt','cbrt','sin','cos','tan','asin','acos','atan','atan2','sinh','cosh','tanh','log','log2','ln','exp','hypot','root','deg','rad',
+                    'return ' + safe);
+                out = fn(wmaFact, wmaFib, wmaSigma, wmaGcd, wmaLcm, wmaMod, wmaNCr, wmaNP, wmaMin, wmaMax, wmaAvg, wmaAbs, wmaRound, wmaFloor, wmaCeil, wmaSign,
+                    Math.PI, Math.E, (1+Math.sqrt(5))/2, Math.PI*2,
+                    Math.sqrt, Math.cbrt, Math.sin, Math.cos, Math.tan, Math.asin, Math.acos, Math.atan, Math.atan2, Math.sinh, Math.cosh, Math.tanh,
+                    wmaLog, Math.log2, wmaLogN, Math.exp, Math.hypot, wmaRoot, wmaDeg, wmaRad);
+            } else {
+                var safe2 = expr
+                    .replace(/\^/g, '**')
+                    .replace(/\bln\(/gi, 'wmaLogN(')
+                    .replace(/\blog2\(/gi, 'wmaLog2(')
+                    .replace(/\blog\(/gi, 'wmaLog(')
+                    .replace(/\bdeg\(/gi, 'wmaDeg(')
+                    .replace(/\brad\(/gi, 'wmaRad(')
+                    .replace(/\broot\(/gi, 'wmaRoot(')
+                    .replace(/\bhypot\(/gi, 'wmaHypot(')
+                    .replace(/\bncr\(/gi, 'wmaNCr(')
+                    .replace(/\bnpr\(/gi, 'wmaNP(')
+                    .replace(/\bgcd\(/gi, 'wmaGcd(')
+                    .replace(/\blcm\(/gi, 'wmaLcm(')
+                    .replace(/\bmod\(/gi, 'wmaMod(')
+                    .replace(/\bfact\(/gi, 'wmaFact(')
+                    .replace(/\bfib\(/gi, 'wmaFib(')
+                    .replace(/\bmin\(/gi, 'wmaMin(')
+                    .replace(/\bmax\(/gi, 'wmaMax(')
+                    .replace(/\bavg\(/gi, 'wmaAvg(')
+                    .replace(/\babs\(/gi, 'wmaAbs(')
+                    .replace(/\bround\(/gi, 'wmaRound(')
+                    .replace(/\bfloor\(/gi, 'wmaFloor(')
+                    .replace(/\bceil\(/gi, 'wmaCeil(')
+                    .replace(/\bsign\(/gi, 'wmaSign(')
+                    .replace(/\bsqrt\(/gi, 'Math.sqrt(')
+                    .replace(/\bcbrt\(/gi, 'Math.cbrt(')
+                    .replace(/\bsinh\(/gi, 'Math.sinh(')
+                    .replace(/\bcosh\(/gi, 'Math.cosh(')
+                    .replace(/\btanh\(/gi, 'Math.tanh(')
+                    .replace(/\basin\(/gi, 'Math.asin(')
+                    .replace(/\bacos\(/gi, 'Math.acos(')
+                    .replace(/\batan2\(/gi, 'Math.atan2(')
+                    .replace(/\batan\(/gi, 'Math.atan(')
+                    .replace(/\bsin\(/gi, 'Math.sin(')
+                    .replace(/\bcos\(/gi, 'Math.cos(')
+                    .replace(/\btan\(/gi, 'Math.tan(')
+                    .replace(/\bexp\(/gi, 'Math.exp(')
+                    .replace(/\bpi\b/gi, 'Math.PI')
+                    .replace(/\bphi\b/gi, '((1+Math.sqrt(5))/2)')
+                    .replace(/\btau\b/gi, '(Math.PI*2)')
+                    .replace(/\bsigma\(/gi, 'wmaSigma(')
+                    .replace(/(?<![\w.])e(?![\w(])/g, 'Math.E');
+                var fn2 = Function('wmaSigma','wmaFact','wmaFib','wmaGcd','wmaLcm','wmaMod','wmaNCr','wmaNP','wmaMin','wmaMax','wmaAvg','wmaAbs','wmaRound','wmaFloor','wmaCeil','wmaSign','wmaLog','wmaLog2','wmaLogN','wmaRoot','wmaHypot','wmaDeg','wmaRad',
+                    'return ' + safe2);
+                out = fn2(wmaSigma, wmaFact, wmaFib, wmaGcd, wmaLcm, wmaMod, wmaNCr, wmaNP, wmaMin, wmaMax, wmaAvg, wmaAbs, wmaRound, wmaFloor, wmaCeil, wmaSign, wmaLog, wmaLog2, wmaLogN, wmaRoot, wmaHypot, wmaDeg, wmaRad);
+            }
+
+            if (asPercent) {
+                var pctVal = (typeof out === 'bigint' ? Number(out) : out) * 100;
+                out = wmaRound(pctVal, 6) + '%';
+            }
+            return out;
+        }
+
+        function wmaSigma(from, to, bodyFnVar) {
+            var f = Number(from), t = Number(to);
+            var i, body, replaced, sum = 0;
+            for (i = f; i <= t; i++) {
+                body = bodyFnVar.toString();
+                replaced = body.replace(/x/g, String(i));
+                sum += Number(evalMathExpression(replaced));
+            }
+            return sum;
+        }
+
+        /* ================= suggestion chips ================= */
+
+        function wmaRenderSuggestions(list) {
+            var box = document.getElementById('wma-suggest');
+            if (!box) return;
+            box.innerHTML = '';
+            list.forEach(function (item) {
+                var chip = document.createElement('div');
+                chip.className = 'wma-suggest-chip';
+                chip.innerHTML = item;
+                chip.onclick = function () { wmaPickSuggestion(item); };
+                box.appendChild(chip);
+            });
+        }
+
+        function wmaPickSuggestion(item) {
+            // strip the <b> wrapper if present
+            var plain = item.replace(/<[^>]+>/g, '');
+            chatInput.value = plain;
+            wmaRenderSuggestions(wmaSuggestionsFor(plain));
+            chatInput.focus();
+        }
+
+        function wmaSuggestionsFor(text) {
+            var t = text.trim();
+            // if the input already ends with "as %", use the part before it
+            // as the base so we never stack "as % as %".
+            var alreadyPct = /\bas\s+(?:a\s+)?(?:%|percent)\s*$/i.test(t);
+            if (alreadyPct) t = t.replace(/\s*as\s+(?:a\s+)?(?:%|percent)\s*$/i, '').trim();
+            var s = [];
+            function add(v) { if (s.indexOf(v) === -1 && v !== t) s.push(v); }
+
+            var numMatch = t.match(/^-?\d*\.?\d+$/);
+            var mPct = t.match(/^([\d.]+)\s*(%|percent)?$/i);
+            var mSqrt = t.match(/^sqrt\(([\d.]+)\)$/i);
+            var mFn = t.match(/^([a-z][a-z0-9]*)\(([^()]*)\)$/i);
+            var mExpr = t.match(/^[\d.\s+\-*/^%()a-z]+$/i);
+
+            if (mSqrt) {
+                if (!alreadyPct) add('<b>sqrt(' + mSqrt[1] + ')</b> as %');
+                add('85% of sqrt(' + mSqrt[1] + ')');
+                add('sqrt(' + mSqrt[1] + ') squared');
+                add('sqrt(' + mSqrt[1] + ') * pi');
+                add('fact(round(sqrt(' + mSqrt[1] + ')))');
+                add('fib(round(sqrt(' + mSqrt[1] + ')))');
+                add('sqrt(' + mSqrt[1] + ') + e');
+                add('log(sqrt(' + mSqrt[1] + '))');
+            } else if (mPct && mPct[2]) {
+                add('<b>' + mPct[1] + '%</b> of 5');
+                add(mPct[1] + '% of 10');
+                add(mPct[1] + '% of 100');
+                add(mPct[1] + '% of sqrt(2)');
+            } else if (numMatch) {
+                add('<b>' + t + '</b> + 10');
+                add(t + ' * 2');
+                add(t + ' ^ 2');
+                add(t + ' / 7');
+                add('sqrt(' + t + ')');
+                add(t + ' as %');
+                add('fact(' + t + ')');
+                add('fib(' + t + ')');
+                add(t + ' % of 50'.replace('%', ''));
+                add('gcd(' + t + ', 24)');
+                add('nCr(' + t + ', 3)');
+                add('log(' + t + ')');
+            } else if (mFn) {
+                var fnName = mFn[1].toLowerCase();
+                if (!alreadyPct) add('<b>' + mFn[1] + '</b>(' + mFn[2] + ') as %');
+                add('85% of ' + mFn[1] + '(' + mFn[2] + ')');
+                add(mFn[1] + '(' + mFn[2] + ') ^ 2');
+                add(mFn[1] + '(' + mFn[2] + ') * pi');
+                add('log(' + mFn[1] + '(' + mFn[2] + '))');
+            } else if (mExpr && t) {
+                if (!alreadyPct) add('<b>' + t + '</b> as %');
+                add('85% of (' + t + ')');
+                add('(' + t + ') ^ 2');
+                add('sqrt(' + t + ')');
+                add('log(' + t + ')');
+            }
+            return s.slice(0, 10);
+        }
+
+        var _wmaSuggestTimer = null;
+        chatInput.addEventListener('input', function () {
+            clearTimeout(_wmaSuggestTimer);
+            _wmaSuggestTimer = setTimeout(function () {
+                var v = chatInput.value.trim();
+                var isNumOrMath = /^-?[\d.]+$/.test(v) || looksLikeMath(v);
+                if (!v || !isNumOrMath || v.length > 60) { wmaRenderSuggestions([]); return; }
+                wmaRenderSuggestions(wmaSuggestionsFor(v));
+            }, 160);
+        });
+        chatInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') wmaRenderSuggestions([]);
+        });
+
+        /* ================= chat routing ================= */
+
         function handleChat(q) {
-            if (looksLikeMath(q)) {
+            var cleaned = wmaExtractMath(q);
+            if (looksLikeMath(cleaned)) {
                 try {
-                    var res = evalMathExpression(q);
-                    addChatMessage(String(res), "bot");
+                    var res = evalMathExpression(cleaned);
+                    var label = (cleaned !== q ? 'Interpreted as: <b>' + wmaEscapeHtml(cleaned) + '</b><br>' : '');
+                    addChatMessage(label + String(res), "bot");
                 } catch (e) {
                     addChatMessage("Math error: " + e.message, "bot");
                 }
             } else {
-                fetchWikipedia(q);
+                wmaAnswer(cleaned || q);
             }
         }
 
-        function looksLikeMath(q) {
-            if (/[Σσ]/.test(q)) return true;
-            if (/factorial|fib|fibonacci/i.test(q)) return true;
-            if (/[0-9]/.test(q) && /[+\-*/^!]/.test(q)) return true;
-            if (/sqrt|cos|sin|tan|log|ln/i.test(q)) return true;
-            return false;
+        function wmaEscapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, function (ch) {
+                return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch];
+            });
         }
 
-        function evalMathExpression(expr) {
-            expr = expr.replace(/\s+/g, "");
+        /* ================= wiki APIs, reliability order =================
+           1. Wikipedia REST summary (en)     - canonical, fast, stable
+           2. Wikipedia action=query search   - full-text, catches typos
+           3. Wikipedia REST summary (simple) - simpler wording fallback
+           4. Wikidata entities               - structured facts
+           5. Wikipedia opensearch            - title suggestions
+           ================================================================== */
 
-            expr = expr.replace(/Σ\(([^,]+),([^,]+),([^,]+)\)/gi,
-                function (_, from, to, body) { return "sigma(" + from + "," + to + ",(" + body + "))"; });
+        function wmaAnswer(q) {
+            addChatMessage('Searching...', 'bot-pending');
+            var pending = chatLog.querySelectorAll('.chat-msg.bot-pending');
+            var node = pending[pending.length - 1];
+            if (!node) node = addChatMessage('', 'bot');
+            wmaWikiSummary(q, 'en', node, function (ok) {
+                if (ok) return;
+                wmaWikiSearch(q, node, function (ok2) {
+                    if (ok2) return;
+                    wmaWikiSummary(q, 'simple', node, function (ok3) {
+                        if (ok3) return;
+                        wmaWikiData(q, node, function (ok4) {
+                            if (ok4) return;
+                            wmaOpenSearch(q, node);
+                        });
+                    });
+                });
+            });
+        }
 
-            expr = expr.replace(/Σ_?([a-zA-Z])=([^^]+)\^([^()]+)\(([^)]+)\)/g,
-                function (_, v, from, to, body) { return "sigma(" + from + "," + to + ",(" + body + "))"; });
-
-            expr = expr.replace(/fib\(([^)]+)\)/gi, "fib($1)");
-            expr = expr.replace(/fibonacci\(([^)]+)\)/gi, "fib($1)");
-
-            expr = expr.replace(/([0-9]+)!/g, "fact($1)");
-
-            var hasDecimal = /[0-9]*\.[0-9]+/.test(expr);
-            var hasNonIntOps = /sqrt|cos|sin|tan|log|ln/i.test(expr);
-
-            function fact(n) {
-                n = BigInt(n);
-                if (n < 0n) throw new Error("factorial of negative");
-                var r = 1n;
-                var i;
-                for (i = 2n; i <= n; i++) r *= i;
-                return r;
-            }
-
-            function fib(n) {
-                n = BigInt(n);
-                if (n < 0n) throw new Error("fib of negative");
-                var a = 0n, b = 1n, i;
-                for (i = 0n; i < n; i++) {
-                    var tmp = a;
-                    a = b;
-                    b = tmp + b;
-                }
-                return a;
-            }
-
-            function sigma(from, to, bodyFnVar) {
-                var f = BigInt(from);
-                var t = BigInt(to);
-                var i, body, replaced;
-                if (hasDecimal || hasNonIntOps) {
-                    var sum = 0;
-                    for (i = Number(f); i <= Number(t); i++) {
-                        body = bodyFnVar.toString();
-                        replaced = body.replace(/([a-zA-Z])/g, String(i));
-                        sum += Number(Function("return " + replaced)());
-                    }
-                    return sum;
-                } else {
-                    var sumBig = 0n;
-                    for (i = f; i <= t; i++) {
-                        body = bodyFnVar.toString();
-                        replaced = body.replace(/([a-zA-Z])/g, i.toString());
-                        var val = BigInt(Function("return " + replaced)());
-                        sumBig += val;
-                    }
-                    return sumBig;
-                }
-            }
-
-            if (!hasDecimal && !hasNonIntOps && !/[eE]/.test(expr)) {
-                var safe = expr.replace(/\^/g, "**").replace(/([0-9]+)/g, "$1n");
-                var fn = Function("fact", "fib", "sigma", "return " + safe);
-                return fn(fact, fib, sigma);
-            } else {
-                var safe2 = expr
-                    .replace(/\^/g, "**")
-                    .replace(/ln\(/gi, "Math.log(")
-                    .replace(/log\(/gi, "Math.log10(")
-                    .replace(/sqrt\(/gi, "Math.sqrt(")
-                    .replace(/cos\(/gi, "Math.cos(")
-                    .replace(/sin\(/gi, "Math.sin(")
-                    .replace(/tan\(/gi, "Math.tan(");
-                var fn2 = Function("fact", "fib", "sigma", "return " + safe2);
-                return fn2(fact, fib, sigma);
+        function wmaSetBot(node, html) {
+            if (node && node.className.indexOf('bot') !== -1) {
+                node.innerHTML = html;
             }
         }
 
-        function fetchWikipedia(q) {
-            var title = encodeURIComponent(q.replace(/^what\s+is\s+/i, "").replace(/^\s+|\s+$/g, ""));
-            var url = "https://en.wikipedia.org/api/rest_v1/page/summary/" + title;
-
+        function wmaWikiSummary(q, lang, node, cb) {
+            var title = encodeURIComponent(q.replace(/^(what|who|where|when|why|how)\s+(is|are|was|were|does|do)\s+/i, '').trim());
+            var url = 'https://' + lang + '.wikipedia.org/api/rest_v1/page/summary/' + title + '?redirect=true';
             var xhr = new XMLHttpRequest();
-            xhr.open("GET", url, true);
+            xhr.open('GET', url, true);
             xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            var data = JSON.parse(xhr.responseText);
-                            if (data.extract) {
-                                addChatMessage(data.extract, "bot");
-                            } else {
-                                addChatMessage("No summary available for that topic.", "bot");
-                            }
-                        } catch (e) {
-                            addChatMessage("Wikipedia parse error: " + e.message, "bot");
+                if (xhr.readyState !== 4) return;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.extract) {
+                            var src = '<div style="font-size:10px;opacity:0.6;margin-top:4px">Wikipedia (' + lang + ')</div>';
+                            wmaSetBot(node, wmaEscapeHtml(data.extract) + src);
+                            cb(true);
+                            return;
                         }
-                    } else {
-                        addChatMessage("Wikipedia error: " + xhr.status, "bot");
-                    }
+                    } catch (e) {}
+                }
+                cb(false);
+            };
+            xhr.onerror = function () { cb(false); };
+            xhr.send(null);
+        }
+
+        function wmaWikiSearch(q, node, cb) {
+            var url = 'https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' +
+                encodeURIComponent(q) + '&srlimit=1&utf8=&format=json&origin=*';
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        var hit = data.query && data.query.search && data.query.search[0];
+                        if (hit && hit.snippet) {
+                            var text = hit.snippet.replace(/<[^>]+>/g, '');
+                            var more = hit.title && hit.title.toLowerCase() !== q.toLowerCase()
+                                ? ' (from: ' + wmaEscapeHtml(hit.title) + ')' : '';
+                            var src = '<div style="font-size:10px;opacity:0.6;margin-top:4px">Wikipedia search</div>';
+                            wmaSetBot(node, wmaEscapeHtml(text) + '...' + more + src);
+                            cb(true);
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                cb(false);
+            };
+            xhr.onerror = function () { cb(false); };
+            xhr.open('GET', url, true);
+            xhr.send(null);
+        }
+
+        function wmaWikiData(q, node, cb) {
+            var url = 'https://www.wikidata.org/w/api.php?action=wbsearchentities&search=' +
+                encodeURIComponent(q) + '&language=en&limit=1&format=json&origin=*';
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        var ent = data.search && data.search[0];
+                        if (ent && (ent.description || ent.label)) {
+                            var text = wmaEscapeHtml(ent.label || q) + (ent.description ? ' — ' + wmaEscapeHtml(ent.description) : '');
+                            var src = '<div style="font-size:10px;opacity:0.6;margin-top:4px">Wikidata</div>';
+                            wmaSetBot(node, text + src);
+                            cb(true);
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                cb(false);
+            };
+            xhr.onerror = function () { cb(false); };
+            xhr.open('GET', url, true);
+            xhr.send(null);
+        }
+
+        function wmaOpenSearch(q, node, cb) {
+            var url = 'https://en.wikipedia.org/w/api.php?action=opensearch&search=' +
+                encodeURIComponent(q) + '&limit=5&format=json&origin=*';
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4) return;
+                var titles = [];
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try { titles = JSON.parse(xhr.responseText)[1] || []; } catch (e) {}
+                }
+                if (titles.length) {
+                    wmaSetBot(node, 'No direct answer. Try one of: ' + titles.slice(0, 5).map(wmaEscapeHtml).join(' · '));
+                } else {
+                    wmaSetBot(node, 'No results found for that.');
                 }
             };
+            xhr.onerror = function () { wmaSetBot(node, 'Network error while searching.'); };
+            xhr.open('GET', url, true);
             xhr.send(null);
         }
 
@@ -9087,7 +9624,7 @@
         }
 
         setTimeout(function() {
-            addChatMessage("Welcome to HyperZAI! Ask me anything, do math calculations, or search for information.", "bot");
+            addChatMessage("Welcome to WMA (WikiMathAssistant)! Ask me anything, do math like \"85% of 5\" or \"sqrt(5) as %\", or search for information.", "bot");
         }, 100);
 
         let hackersim_bitcoin = 0;
