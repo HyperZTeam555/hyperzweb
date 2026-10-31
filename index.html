@@ -4340,6 +4340,7 @@
             zwebShowLoading("LOADING DIRECTLY...");
             var frame = currentTab.frame;
             frame.removeAttribute("srcdoc");
+            try { frame.src = "about:blank"; } catch (e) {}
 
             var settled = false;
             var timeoutTimer = setTimeout(function() {
@@ -4352,6 +4353,10 @@
 
             function onLoad() {
                 if (settled || gen !== zwebLoadGen) return;
+                try {
+                    var cur = frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href;
+                    if (!cur || cur === "about:blank") return;
+                } catch (e) {}
                 settled = true;
                 clearTimeout(timeoutTimer);
                 cleanup();
@@ -4370,8 +4375,8 @@
                 frame.removeEventListener('error', onError);
             }
 
-            frame.addEventListener('load', onLoad, { once: true });
-            frame.addEventListener('error', onError, { once: true });
+            frame.addEventListener('load', onLoad);
+            frame.addEventListener('error', onError);
             frame.src = url;
         }
 
@@ -13781,3 +13786,4 @@
 </script>
 </body>
 </html>
+
