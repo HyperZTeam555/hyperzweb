@@ -1988,6 +1988,9 @@
             <button class="btn-fs" id="zweb-settings-btn" onclick="zwebOpenSettings()" title="Settings">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
+            <button class="btn-fs" id="zweb-opennewtab-btn" onclick="zwebOpenInNewTab()" title="Open in new tab">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </button>
             <input id="zweb-url" type="text" placeholder="Search or enter URL...">
             <button class="btn-proxy-toggle proxy-on" id="zweb-proxy-toggle" onclick="zwebToggleProxy()" title="Cycle proxy mode: ON (proxies) -> SEMI (direct fetch) -> OFF (plain iframe)">Proxy: ON</button>
             <button class="btn-go" onclick="zwebNavigate()">Go</button>
@@ -3072,7 +3075,7 @@
             var frame = document.createElement("iframe");
             frame.style.cssText = "width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;z-index:1;background:transparent;";
             
-            frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-presentation";
+            frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-presentation allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation";
             frame.src = "about:blank";
             document.getElementById("zweb-frames").appendChild(frame);
             tab.frame = frame;
@@ -4557,6 +4560,67 @@
             }
 
             zwebDoSearch(q);
+        }
+
+        var HZ_VIG_KEY = 'HyperZHubKey1600';
+        var HZ_VIG_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+        function hzVigShift(s, key, dir) {
+            var A = HZ_VIG_ALPHABET, AL = A.length, out = '', i, ai, ki;
+            for (i = 0; i < s.length; i++) {
+                ai = A.indexOf(s.charAt(i));
+                if (ai < 0) { out += s.charAt(i); continue; }
+                ki = A.indexOf(key.charAt(i % key.length));
+                out += dir ? A[(ai + ki) % AL] : A[(ai - ki + AL) % AL];
+            }
+            return out;
+        }
+        function hzVigEncodePath(url) {
+            var bytes = [];
+            try { bytes = Array.from(new TextEncoder().encode(String(url))); }
+            catch (eT) {
+                var us = unescape(encodeURIComponent(String(url)));
+                for (var i = 0; i < us.length; i++) bytes.push(us.charCodeAt(i));
+            }
+            var bin = '', CH = 0x8000;
+            for (var j = 0; j < bytes.length; j += CH) bin += String.fromCharCode.apply(null, bytes.slice(j, j + CH));
+            var b64u = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            return hzVigShift(b64u, HZ_VIG_KEY, true);
+        }
+        function zwebEncodedProxyUrl(target) {
+            var base = (zwebFastestProxy && zwebFastestProxy.indexOf('http') === 0) ? zwebFastestProxy : HZP_PREFIX;
+            if (base.charAt(base.length - 1) !== '/') base += '/';
+            return base + hzVigEncodePath(target) + '?encode=true';
+        }
+        function hzWebProxyEncoding() {
+            try {
+                var v = localStorage.getItem('hyperzhub.proxyEncoding');
+                if (v !== null) return v === '1';
+            } catch (e) {}
+            return true;
+        }
+        function zwebOpenInNewTab() {
+            var q = zwebTrim(document.getElementById("zweb-url").value);
+            var target = null;
+            if (q) {
+                if (q.indexOf('zproxy://') === 0) q = q.substring('zproxy://'.length);
+                if (q.indexOf('zttp://') === 0) q = q.substring('zttp://'.length);
+                if (zwebLooksLikeProxyUrl(q)) target = zwebNormalizeHttpUrl(q);
+                else target = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
+            } else {
+                var real = zwebGetRealUrl();
+                if (real) {
+                    real = zwebStripProxyPrefix(real);
+                    if (/^https?:\/\//i.test(real)) target = real;
+                }
+            }
+            if (!target) return;
+            if (hzWebProxyEncoding()) {
+                window.open(zwebEncodedProxyUrl(target), '_blank');
+            } else {
+                var plainBase = (zwebFastestProxy && zwebFastestProxy.indexOf('http') === 0) ? zwebFastestProxy : HZP_PREFIX;
+                if (plainBase.charAt(plainBase.length - 1) !== '/') plainBase += '/';
+                window.open(plainBase + target.replace(/^https?:\/\//i, ''), '_blank');
+            }
         }
         document.getElementById("zweb-url").addEventListener("focus", function() {
             this.select();
