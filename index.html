@@ -3705,11 +3705,11 @@
         });
 
         var ZWEB_PROXIES = [
-            { name: 'hyperzproxy',  prefix: 'https://hyperzproxy.z04.workers.dev/', wrap: function(u){ return 'https://hyperzproxy.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'zhyperproxy',  prefix: 'https://zhp.z04.workers.dev/', wrap: function(u){ return 'https://zhp.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'zproxymirror', prefix: 'https://zpm.z04.workers.dev/', wrap: function(u){ return 'https://zpm.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'znetwork',     prefix: 'https://znetwork.z04.workers.dev/', wrap: function(u){ return 'https://znetwork.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'zproxyupper',  prefix: 'https://zprxm.z04.workers.dev/', wrap: function(u){ return 'https://zprxm.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
+            { name: 'hyperzproxy',  direct: true, prefix: 'https://hyperzproxy.z04.workers.dev/', wrap: function(u){ return 'https://hyperzproxy.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
+            { name: 'zhyperproxy',  direct: true, prefix: 'https://zhp.z04.workers.dev/', wrap: function(u){ return 'https://zhp.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
+            { name: 'zproxymirror', direct: true, prefix: 'https://zpm.z04.workers.dev/', wrap: function(u){ return 'https://zpm.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
+            { name: 'znetwork',     direct: true, prefix: 'https://znetwork.z04.workers.dev/', wrap: function(u){ return 'https://znetwork.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
+            { name: 'zproxyupper',  direct: true, prefix: 'https://zprxm.z04.workers.dev/', wrap: function(u){ return 'https://zprxm.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
             { name: 'corsproxy.io', wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
             { name: 'allorigins',   wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
             { name: 'codetabs',     wrap: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
@@ -3735,6 +3735,7 @@
         function zwebNormalizeHttpUrl(value) {
             value = zwebTrim(value);
             value = value.replace(/^zproxy:\/\//i, "");
+            value = zwebUnwrapProxyTarget(value);
             if (value.indexOf("http://") !== 0 && value.indexOf("https://") !== 0) {
                 value = "https://" + value;
             }
@@ -3802,6 +3803,7 @@
         }
 
         var zwebLastAttempt = null;
+        var zwebLastProxyOrigin = "";
         var zwebLoadGen = 0;
         var zwebProxyMode = "on";
 
@@ -3810,6 +3812,11 @@
             zwebHideLoading();
             zwebHideError();
             if (currentTab) {
+                if (currentTab._directWait) {
+                    var skipWait = currentTab._directWait;
+                    currentTab._directWait = null;
+                    try { skipWait.reject(new Error('skipped')); } catch (eD) {}
+                }
                 currentTab.url = "New Tab";
                 currentTab.reportedUrl = null;
                 currentTab.subscribed = false;
@@ -4010,7 +4017,12 @@
         function zwebActiveProxies() {
             var list = [];
             if (zwebFastestProxy) {
-                list.push({ name: 'fastest', wrap: function(u) { return zwebWrapFastest(u); } });
+                list.push({
+                    name: 'fastest',
+                    prefix: zwebFastestProxy,
+                    direct: zwebIsHzpProxyPrefix(zwebFastestProxy),
+                    wrap: function(u) { return zwebWrapFastest(u); }
+                });
             }
             for (var i = 0; i < ZWEB_PROXIES.length; i++) {
                 if (zwebFastestProxy && ZWEB_PROXIES[i].prefix && ZWEB_PROXIES[i].prefix === zwebFastestProxy) continue;
@@ -4018,6 +4030,19 @@
                 list.push(ZWEB_PROXIES[i]);
             }
             return list;
+        }
+        function zwebIsHzpProxyPrefix(prefix) {
+            return /^https:\/\/(?:hyperzproxy|zhp|zpm|znetwork|zprxm)\.z04\.workers\.dev\/?$/i.test(String(prefix || ''));
+        }
+        function zwebDirectProxies() {
+            return zwebActiveProxies().filter(function(p) { return !!(p && p.direct && p.wrap); });
+        }
+        function zwebDirectProxyUrl(proxy, target) {
+            if (proxy && proxy.prefix) {
+                var base = String(proxy.prefix).replace(/\/+$/, '') + '/';
+                return base + String(target || '').replace(/^\/+/, '');
+            }
+            return proxy.wrap(target);
         }
         var ZWEB_IDB_NAME = 'hyperzweb.cache';
         var ZWEB_IDB_VERSION = 1;
@@ -4075,20 +4100,33 @@
         }
         function zwebGetCachedPage(url) {
             return zwebIdbGet('pages', url).then(function(row) {
-                if (row && typeof row.h === 'string' && row.h && (!row.t || Date.now() - row.t < ZWEB_PAGECACHE_TTL)) return row.h;
+                if (row && typeof row.h === 'string' && row.h && (!row.t || Date.now() - row.t < ZWEB_PAGECACHE_TTL)) {
+                    return { html: row.h, origin: typeof row.o === 'string' ? row.o : '' };
+                }
                 return null;
             });
         }
-        function zwebCachePage(url, html) {
+        function zwebCachePage(url, html, proxyOrigin) {
             if (!url || !html || html.length > ZWEB_PAGECACHE_MAX_ENTRY) return;
-            zwebIdbPut('pages', { url: url, h: html, t: Date.now() });
+            zwebIdbPut('pages', { url: url, h: html, o: proxyOrigin || '', t: Date.now() });
         }
-        function zwebRenderFetchedHtml(url, html) {
+        function zwebInjectProxyOrigin(html, proxyOrigin) {
+            if (!proxyOrigin) return html;
+            var origin = JSON.stringify(String(proxyOrigin)).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+            var script = '<script>self.__hzpOriginOverride=' + origin + ';<\/script>';
+            var head = /<head\b[^>]*>/i.exec(html);
+            if (head) {
+                var at = head.index + head[0].length;
+                return html.slice(0, at) + script + html.slice(at);
+            }
+            return script + html;
+        }
+        function zwebRenderFetchedHtml(url, html, proxyOrigin) {
             if (!currentTab || !currentTab.frame) return;
             var injectedBase = '<base href="' + url.replace(/[^\/]+$/, "") + '">';
             currentTab.frame.removeAttribute("src");
             currentTab.frame.style.display = "block";
-            currentTab.frame.srcdoc = injectedBase + html;
+            currentTab.frame.srcdoc = injectedBase + zwebInjectProxyOrigin(html, proxyOrigin);
         }
         function zwebIframeFallbackFetch(url) {
             if (!currentTab || !currentTab.frame) return;
@@ -4099,8 +4137,8 @@
                 if (gen !== zwebLoadGen) return;
                 if (!currentTab || !currentTab.frame) return;
                 zwebHideLoading();
-                zwebCachePage(url, html);
-                zwebRenderFetchedHtml(url, html);
+                zwebCachePage(url, html, zwebLastProxyOrigin);
+                zwebRenderFetchedHtml(url, html, zwebLastProxyOrigin);
             }).catch(function(err) {
                 if (gen !== zwebLoadGen) return;
                 zwebLoadFromCache(url);
@@ -4112,10 +4150,13 @@
             zwebGetCachedPage(url).then(function(cached) {
                 if (gen !== zwebLoadGen) return;
                 if (!currentTab || !currentTab.frame) return;
-                if (!cached) cached = zwebLegacyCachedPage(url);
-                if (cached) {
+                if (!cached) {
+                    var legacy = zwebLegacyCachedPage(url);
+                    if (legacy) cached = { html: legacy, origin: '' };
+                }
+                if (cached && cached.html) {
                     zwebHideLoading();
-                    zwebRenderFetchedHtml(url, cached);
+                    zwebRenderFetchedHtml(url, cached.html, cached.origin);
                     zwebShowLoading("SERVED FROM CACHE");
                     setTimeout(function() { if (gen === zwebLoadGen) zwebHideLoading(); }, 1600);
                     return;
@@ -4148,33 +4189,74 @@
             return (currentTab.url && currentTab.url !== 'New Tab') ? currentTab.url : null;
         }
 
+        function zwebDecodeEncodedTarget(raw) {
+            var value = String(raw == null ? '' : raw);
+            if (!value) return '';
+            var q = value.indexOf('?');
+            if (q === -1 || !/[?&]encode=true(?:&|$)/i.test(value.substring(q))) return '';
+            var path = value.substring(0, q);
+            try {
+                var decoded = hzVigDecodePath(path);
+                if (decoded && /^(?:https?|wss?):\/\//i.test(decoded)) return decoded;
+            } catch (e) {}
+            return '';
+        }
+        function zwebNormalizeUnwrappedTarget(value) {
+            value = zwebTrim(value).replace(/^\/+/, '');
+            if (!value) return '';
+            if (/^\/\//.test(value)) return 'https:' + value;
+            if (/^(?:https?|wss?):\/\//i.test(value)) return value;
+            if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return value;
+            return 'https://' + value;
+        }
+        function zwebUnwrapProxyRest(rest) {
+            rest = String(rest || '');
+            var decoded = zwebDecodeEncodedTarget(rest);
+            if (decoded) return decoded;
+            rest = rest.replace(/^\/+/, '');
+            if (/^proxy\//i.test(rest)) rest = rest.substring(6);
+            if (!rest) return '';
+            return zwebNormalizeUnwrappedTarget(rest);
+        }
         function zwebStripProxyPrefix(url) {
             if (!url) return '';
-            var proxyIdx = url.lastIndexOf('/proxy/');
-            if (proxyIdx !== -1) {
-                return url.substring(proxyIdx + 7);
+            var value = String(url);
+            var proxyPath = /^\/proxy\/(.+)$/i.exec(value);
+            if (proxyPath) return zwebUnwrapProxyRest(proxyPath[1]);
+            if (value.indexOf(ZWEB_RELAY_PREFIX) === 0) {
+                return zwebUnwrapProxyRest(value.substring(ZWEB_RELAY_PREFIX.length));
             }
-            if (url.indexOf(ZWEB_RELAY_PREFIX) === 0) {
-                return url.substring(ZWEB_RELAY_PREFIX.length);
-            }
+            var prefixes = [];
+            if (zwebFastestProxy) prefixes.push(zwebFastestProxy);
             for (var zp = 0; zp < ZWEB_PROXIES.length; zp++) {
                 var zpPre = ZWEB_PROXIES[zp].prefix;
-                if (zpPre && url.indexOf(zpPre) === 0) return url.substring(zpPre.length);
+                if (zpPre && prefixes.indexOf(zpPre) === -1) prefixes.push(zpPre);
             }
-            if (url.indexOf(HZP_PREFIX) === 0) {
-                var target = url.substring(HZP_PREFIX.length);
-                return target;
+            if (HZP_PREFIX && prefixes.indexOf(HZP_PREFIX) === -1) prefixes.push(HZP_PREFIX);
+            for (var pi = 0; pi < prefixes.length; pi++) {
+                if (value.indexOf(prefixes[pi]) === 0) {
+                    return zwebUnwrapProxyRest(value.substring(prefixes[pi].length));
+                }
             }
-            if (url.indexOf(CP_PREFIX) === 0) {
-                try { return decodeURIComponent(url.substring(CP_PREFIX.length)); }
-                catch(e) { return url.substring(CP_PREFIX.length); }
+            if (value.indexOf(CP_PREFIX) === 0) {
+                try { return zwebNormalizeUnwrappedTarget(decodeURIComponent(value.substring(CP_PREFIX.length))); }
+                catch(e) { return zwebNormalizeUnwrappedTarget(value.substring(CP_PREFIX.length)); }
             }
-            if (url.indexOf(TP_PREFIX) === 0) { return url.substring(TP_PREFIX.length); }
-            if (url.indexOf(AO_PREFIX) === 0) {
-                try { return decodeURIComponent(url.substring(AO_PREFIX.length)); }
-                catch(e) { return url.substring(AO_PREFIX.length); }
+            if (value.indexOf(TP_PREFIX) === 0) {
+                return zwebUnwrapProxyRest(value.substring(TP_PREFIX.length));
             }
-            return url;
+            if (value.indexOf(AO_PREFIX) === 0) {
+                try { return zwebNormalizeUnwrappedTarget(decodeURIComponent(value.substring(AO_PREFIX.length))); }
+                catch(e) { return zwebNormalizeUnwrappedTarget(value.substring(AO_PREFIX.length)); }
+            }
+            return value;
+        }
+        function zwebUnwrapProxyTarget(url) {
+            var value = zwebTrim(url);
+            if (!value) return '';
+            var stripped = zwebStripProxyPrefix(value);
+            if (stripped && stripped !== value && /^(?:https?|wss?):\/\//i.test(stripped)) return stripped;
+            return value;
         }
 
         window.addEventListener("message", function(e) {
@@ -4189,8 +4271,29 @@
                 }
             }
             if (e.data.type === "hzp-urlchange") {
-                if (typeof e.data.url !== "string") return;
-                if (sourceTab) sourceTab.reportedUrl = e.data.url;
+                var reported = (typeof e.data.real === "string" && e.data.real) ? e.data.real : e.data.url;
+                if (typeof reported !== "string" || !reported) return;
+                if (!e.data.real && typeof e.data.url === "string") {
+                    var fromProxyUrl = zwebStripProxyPrefix(e.data.url);
+                    if (fromProxyUrl && fromProxyUrl !== e.data.url) reported = fromProxyUrl;
+                }
+                if (!/^(?:https?|wss?):\/\//i.test(reported) && reported.indexOf("zproxy://") !== 0) return;
+                if (sourceTab) {
+                    sourceTab.reportedUrl = reported;
+                    if (sourceTab._directWait && sourceTab._directWait.gen === zwebLoadGen) {
+                        var directWait = sourceTab._directWait;
+                        var hostMatches = true;
+                        if (directWait.host) {
+                            try {
+                                hostMatches = new URL(reported).hostname.replace(/^www\./i, "").toLowerCase() === directWait.host;
+                            } catch (eHost) { hostMatches = false; }
+                        }
+                        if (hostMatches) {
+                            sourceTab._directWait = null;
+                            directWait.resolve(reported);
+                        }
+                    }
+                }
                 return;
             }
             if (e.data.type === "hzp-subscribed") {
@@ -4222,7 +4325,7 @@
                 if (document.body.classList.contains("zweb-fullscreen")) return;
                 if (!currentTab || currentTab.url === "New Tab") return;
                 var home = document.getElementById("zweb-home");
-                if (home && home.style.display !== "none") return;
+                if (home && !home.classList.contains("hidden")) return;
 
                 var realUrl = currentTab.reportedUrl;
                 if (!realUrl) {
@@ -4298,48 +4401,184 @@
         function loadTab(url) {
             if (!currentTab) return;
             var gen = ++zwebLoadGen;
+            var targetTab = currentTab;
             zwebShowHome(false);
             zwebHideError();
             var hs = document.getElementById('hyperzsearch');
             if (hs) hs.style.display = 'none';
             url = zwebNormalizeHttpUrl(url);
+            zwebLastProxyOrigin = "";
+            if (targetTab._directWait) {
+                var staleWait = targetTab._directWait;
+                targetTab._directWait = null;
+                try { staleWait.reject(new Error('skipped')); } catch (eW) {}
+            }
+            targetTab.reportedUrl = null;
+            targetTab.subscribed = false;
             document.getElementById("zweb-url").value = url;
-            currentTab.url = url;
+            targetTab.url = url;
 
-            zwebSetTabLabel(currentTab, url.replace(/^https?:\/\//i, ''));
+            zwebSetTabLabel(targetTab, url.replace(/^https?:\/\//i, ''));
             zwebLastAttempt = { proxyUrl: url };
 
-
-            currentTab.frame.style.display = "none";
+            targetTab.frame.style.display = "none";
 
             if (zwebProxyMode === "off") {
-                zwebLoadIframeDirect(url);
+                zwebLoadIframeDirect(url, gen);
                 return;
             }
 
+            if (zwebProxyMode === "on") {
+                zwebShowLoading("LOADING VIA PROXY...");
+                zwebLoadProxiedIframe(url, gen).then(function(result) {
+                    if (gen !== zwebLoadGen) return;
+                    if (!targetTab || !targetTab.frame) return;
+                    if (result && result.real && !targetTab.reportedUrl) targetTab.reportedUrl = result.real;
+                    if (currentTab === targetTab) {
+                        zwebHideLoading();
+                        zwebHideError();
+                        targetTab.frame.style.display = "block";
+                    }
+                }).catch(function() {
+                    if (gen !== zwebLoadGen) return;
+                    if (!targetTab || !targetTab.frame) return;
+                    zwebShowLoading("FETCHING PAGE...");
+                    zwebFetchViaProxy(url, 0, zwebActiveProxies(), gen).then(function(html) {
+                        if (gen !== zwebLoadGen) return;
+                        if (!targetTab || !targetTab.frame) return;
+                        zwebHideLoading();
+                        zwebCachePage(url, html, zwebLastProxyOrigin);
+                        zwebRenderFetchedHtml(url, html, zwebLastProxyOrigin);
+                    }).catch(function(err) {
+                        if (gen !== zwebLoadGen) return;
+                        zwebLoadFromCache(url, gen);
+                    });
+                });
+                return;
+            }
 
-            zwebShowLoading(zwebProxyMode === "on" ? "FETCHING PAGE..." : "FETCHING (NO PROXY)...");
+            zwebShowLoading("FETCHING (NO PROXY)...");
 
             var zwebList = zwebActiveProxies();
-            var startIdx = zwebProxyMode === "on" ? 0 : zwebList.length;
+            var startIdx = zwebList.length;
             zwebFetchViaProxy(url, startIdx, zwebList, gen).then(function(html) {
                 if (gen !== zwebLoadGen) return;
-                if (!currentTab || !currentTab.frame) return;
+                if (!targetTab || !targetTab.frame) return;
                 zwebHideLoading();
-                zwebCachePage(url, html);
-                var injectedBase = '<base href="' + url.replace(/[^\/]+$/, "") + '">';
-                currentTab.frame.removeAttribute("src");
-                currentTab.frame.style.display = "block";
-                currentTab.frame.srcdoc = injectedBase + html;
+                zwebCachePage(url, html, zwebLastProxyOrigin);
+                zwebRenderFetchedHtml(url, html, zwebLastProxyOrigin);
             }).catch(function(err) {
                 if (gen !== zwebLoadGen) return;
                 zwebLoadFromCache(url, gen);
             });
         }
 
-        function zwebLoadIframeDirect(url) {
+        function zwebLoadProxiedIframe(target, gen) {
+            return new Promise(function(resolve, reject) {
+                var list = zwebDirectProxies().slice(0, 3);
+                if (!list.length) {
+                    reject(new Error('no direct proxy available'));
+                    return;
+                }
+                var index = 0;
+                function next() {
+                    if (gen !== zwebLoadGen) { reject(new Error('skipped')); return; }
+                    if (index >= list.length) { reject(new Error('direct proxy failed')); return; }
+                    attempt(list[index++]).then(resolve, next);
+                }
+                function attempt(proxy) {
+                    return new Promise(function(res, rej) {
+                        if (!currentTab || !currentTab.frame) { rej(new Error('no frame')); return; }
+                        var tab = currentTab;
+                        var frame = tab.frame;
+                        var expected = zwebDirectProxyUrl(proxy, target);
+                        var settled = false;
+                        var started = false;
+                        var loadSeen = false;
+                        var graceTimer = null;
+                        var hardTimer = null;
+                        var waitHost = "";
+                        try { waitHost = new URL(target).hostname.replace(/^www\./i, "").toLowerCase(); } catch (eW) {}
+                        var wait = {
+                            gen: gen,
+                            host: waitHost,
+                            resolve: function(real) { finish(real); },
+                            reject: function(err) { fail(err); }
+                        };
+                        function cleanup() {
+                            try { frame.removeEventListener('load', onLoad); } catch (eL) {}
+                            try { frame.removeEventListener('error', onError); } catch (eE) {}
+                            if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+                            if (hardTimer) { clearTimeout(hardTimer); hardTimer = null; }
+                            if (tab._directWait === wait) tab._directWait = null;
+                        }
+                        function finish(real) {
+                            if (settled) return;
+                            settled = true;
+                            cleanup();
+                            res({ real: real || '', proxy: proxy });
+                        }
+                        function fail(err) {
+                            if (settled) return;
+                            settled = true;
+                            cleanup();
+                            rej(err || new Error('direct proxy failed'));
+                        }
+                        function verifySilentLoad() {
+                            if (settled) return;
+                            graceTimer = setTimeout(function() {
+                                if (!settled) finish('');
+                            }, 5000);
+                            fetch(expected, { method: 'HEAD', cache: 'no-store', credentials: 'omit' }).then(function(res) {
+                                if (settled) return;
+                                var ct = String(res.headers.get('content-type') || '').toLowerCase();
+                                if (ct.indexOf('text/html') !== -1) {
+                                    fail(new Error('proxy returned html without a client'));
+                                    return;
+                                }
+                                finish('');
+                            }).catch(function() {
+                                if (!settled) finish('');
+                            });
+                        }
+                        function onLoad() {
+                            if (settled || !started || gen !== zwebLoadGen) return;
+                            try {
+                                var attr = frame.getAttribute('src') || '';
+                                if (!attr || attr === 'about:blank') return;
+                                if (frame.contentWindow && frame.contentWindow.location && frame.contentWindow.location.href === 'about:blank') return;
+                            } catch (eC) {}
+                            loadSeen = true;
+                            if (!graceTimer) graceTimer = setTimeout(verifySilentLoad, 2500);
+                        }
+                        function onError() {
+                            if (!settled) fail(new Error('iframe error'));
+                        }
+                        tab._directWait = wait;
+                        try { frame.removeAttribute('srcdoc'); } catch (eR) {}
+                        try { frame.src = 'about:blank'; } catch (eB) {}
+                        setTimeout(function() {
+                            if (settled) return;
+                            if (gen !== zwebLoadGen) { fail(new Error('skipped')); return; }
+                            frame.addEventListener('load', onLoad);
+                            frame.addEventListener('error', onError);
+                            started = true;
+                            try { frame.src = expected; } catch (eS) { fail(eS); return; }
+                            hardTimer = setTimeout(function() {
+                                if (settled) return;
+                                if (loadSeen) return;
+                                fail(new Error('timeout'));
+                            }, 12000);
+                        }, 30);
+                    });
+                }
+                next();
+            });
+        }
+
+        function zwebLoadIframeDirect(url, gen) {
             if (!currentTab || !currentTab.frame) return;
-            var gen = ++zwebLoadGen;
+            if (typeof gen !== "number") gen = ++zwebLoadGen;
             zwebShowLoading("LOADING DIRECTLY...");
             var frame = currentTab.frame;
             frame.removeAttribute("srcdoc");
@@ -4383,10 +4622,18 @@
             frame.src = url;
         }
 
+        function zwebProxyOriginOf(url) {
+            try {
+                var abs = new URL(url, location.href);
+                if (abs.origin !== location.origin) return abs.origin;
+            } catch (e) {}
+            return "";
+        }
         async function zwebFetchViaProxy(targetUrl, idx, list, gen) {
             list = list || ZWEB_PROXIES;
             if (typeof gen !== "number") gen = zwebLoadGen;
             if (gen !== zwebLoadGen) throw new Error("skipped");
+            if (idx === 0) zwebLastProxyOrigin = "";
             if (idx > list.length) {
                 throw new Error('Unable to load "' + targetUrl + '" via fetch.');
             }
@@ -4412,6 +4659,7 @@
                     (lowerSnippet.indexOf('error') !== -1 && lowerSnippet.indexOf('forbidden') !== -1));
                 if (blocked) throw new Error("Proxy blocked the request");
 
+                zwebLastProxyOrigin = isDirect ? "" : zwebProxyOriginOf(fetchUrl);
                 return html;
             } catch (e) {
                 if (gen !== zwebLoadGen) throw new Error("skipped");
@@ -4585,6 +4833,19 @@
             for (var j = 0; j < bytes.length; j += CH) bin += String.fromCharCode.apply(null, bytes.slice(j, j + CH));
             var b64u = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             return hzVigShift(b64u, HZ_VIG_KEY, true);
+        }
+        function hzVigDecodePath(value) {
+            var s = hzVigShift(String(value == null ? '' : value), HZ_VIG_KEY, false);
+            s = s.replace(/-/g, '+').replace(/_/g, '/');
+            while (s.length % 4) s += '=';
+            try {
+                var bin = atob(s);
+                try {
+                    var bytes = new Uint8Array(bin.length);
+                    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    return new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+                } catch (eD) { return bin; }
+            } catch (e) { return ''; }
         }
         function zwebEncodedProxyUrl(target) {
             var base = (zwebFastestProxy && zwebFastestProxy.indexOf('http') === 0) ? zwebFastestProxy : HZP_PREFIX;
