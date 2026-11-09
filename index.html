@@ -4398,15 +4398,60 @@
             btn.onclick = null;
         })();
 
+        function zwebNeedsTopLevelIsolation(url) {
+            try {
+                var abs = new URL(zwebNormalizeHttpUrl(url));
+                var host = abs.hostname.toLowerCase().replace(/^www\./i, '');
+                return host === 'developer.puter.com' && /^\/labs\/firefox-wasm(?:\/|$)/i.test(abs.pathname);
+            } catch (e) { return false; }
+        }
+
+        // Firefox WASM requires SharedArrayBuffer/JSPI, which need cross-origin
+        // isolation. An iframe cannot become isolated unless every parent frame
+        // is isolated too, so open this proxied page at top level in a new tab.
+        function zwebOpenTopLevelProxy(url) {
+            url = zwebNormalizeHttpUrl(url);
+            var proxies = zwebDirectProxies();
+            var target = '';
+            if (proxies.length) {
+                target = zwebDirectProxyUrl(proxies[0], url);
+            } else {
+                var base = String(zwebFastestProxy || HZP_PREFIX).replace(/\/+$/, '') + '/';
+                target = base + url.replace(/^https?:\/\//i, '');
+            }
+            var a = document.createElement('a');
+            a.href = target;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); }, 0);
+        }
+
         function loadTab(url) {
             if (!currentTab) return;
             var gen = ++zwebLoadGen;
             var targetTab = currentTab;
+            url = zwebNormalizeHttpUrl(url);
+            if (zwebNeedsTopLevelIsolation(url)) {
+                document.getElementById("zweb-url").value = url;
+                if (targetTab._directWait) {
+                    var ffWait = targetTab._directWait;
+                    targetTab._directWait = null;
+                    try { ffWait.reject(new Error('skipped')); } catch (eFF) {}
+                }
+                zwebShowLoading("FIREFOX WASM NEEDS CROSS-ORIGIN ISOLATION — OPENING IN A NEW TAB...");
+                zwebOpenTopLevelProxy(url);
+                setTimeout(function() {
+                    if (gen === zwebLoadGen) zwebHideLoading();
+                }, 2500);
+                return;
+            }
             zwebShowHome(false);
             zwebHideError();
             var hs = document.getElementById('hyperzsearch');
             if (hs) hs.style.display = 'none';
-            url = zwebNormalizeHttpUrl(url);
             zwebLastProxyOrigin = "";
             if (targetTab._directWait) {
                 var staleWait = targetTab._directWait;
@@ -4908,13 +4953,31 @@
         }
 
         var ZWEB_BOOKMARKS_KEY = 'hyperzweb.bookmarks';
+        var ZWEB_BOOKMARK_MIGRATION_KEY = 'hyperzweb.bookmarks.presets.v1';
         var zwebBookmarks = [];
 
         var ZWEB_BOOKMARK_PRESETS = [
-            { name: 'CloudMoon',  url: 'web.cloudmoonapp.com' },
-            { name: 'CrazyGames', url: 'crazygames.com' },
-            { name: 'Y8',         url: 'y8.com' }
+            { name: 'YouTube',      url: 'https://www.youtube.com/' },
+            { name: 'Discord',      url: 'https://discord.com/' },
+            { name: 'TikTok',       url: 'https://www.tiktok.com/' },
+            { name: 'Hacker News',  url: 'https://news.ycombinator.com/' },
+            { name: 'Instagram',    url: 'https://www.instagram.com/' },
+            { name: 'Reddit',       url: 'https://www.reddit.com/' },
+            { name: 'Firefox WASM', url: 'https://developer.puter.com/labs/firefox-wasm/' }
         ];
+        var ZWEB_OLD_BOOKMARK_PRESETS = [
+            'web.cloudmoonapp.com',
+            'crazygames.com',
+            'y8.com'
+        ];
+
+        function zwebBookmarkKey(url) {
+            return String(url || '').replace(/^\s+|\s+$/g, '')
+                .replace(/^https?:\/\//i, '')
+                .replace(/^www\./i, '')
+                .replace(/\/+$/, '')
+                .toLowerCase();
+        }
 
         function zwebLoadBookmarks() {
             try {
@@ -4924,16 +4987,29 @@
                         return { name: zwebDefaultBookmarkName(b), url: b };
                     }
                     return b;
+                }).filter(function(b) {
+                    return b && typeof b.url === 'string' && b.url;
                 });
             } catch(e) { zwebBookmarks = []; }
-            ZWEB_BOOKMARK_PRESETS.forEach(function(p) {
-                var existing = zwebBookmarks.find(function(b) { return b.url === p.url; });
-                if (existing) {
-                    existing.name = p.name;
-                } else {
-                    zwebBookmarks.unshift({ name: p.name, url: p.url });
-                }
+
+            var presetKeys = ZWEB_BOOKMARK_PRESETS.map(function(p) { return zwebBookmarkKey(p.url); });
+            var oldKeys = ZWEB_OLD_BOOKMARK_PRESETS.map(zwebBookmarkKey);
+            var presetsMigrated = false;
+            try { presetsMigrated = localStorage.getItem(ZWEB_BOOKMARK_MIGRATION_KEY) === '1'; } catch (eM) {}
+            zwebBookmarks = zwebBookmarks.filter(function(b) {
+                var key = zwebBookmarkKey(b.url);
+                if (presetKeys.indexOf(key) !== -1) return false;
+                if (!presetsMigrated && oldKeys.indexOf(key) !== -1) return false;
+                return true;
             });
+            if (!presetsMigrated) {
+                try { localStorage.setItem(ZWEB_BOOKMARK_MIGRATION_KEY, '1'); } catch (eM2) {}
+            }
+
+            var presetEntries = ZWEB_BOOKMARK_PRESETS.map(function(p) {
+                return { name: p.name, url: p.url };
+            });
+            zwebBookmarks = presetEntries.concat(zwebBookmarks);
             zwebSaveBookmarks();
         }
 
@@ -4991,7 +5067,7 @@
         }
 
         function zwebFaviconUrl(url) {
-            var host = url.replace(/^https?:\/\//i, '');
+            var host = String(url || '').replace(/^https?:\/\//i, '').split(/[\/?#]/)[0];
             return HZP_PREFIX + 'proxy/' + host + '/favicon.ico';
 
         }
