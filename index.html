@@ -4,6 +4,63 @@
     <meta charset="UTF-8">
     <title>HyperZWeb</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+    (function () {
+        var state = window.__hzpCoi = { ready: false, unsupported: false, error: '' };
+        var KEY = 'hyperzweb.coi.attempts.v1';
+        if (window.crossOriginIsolated) {
+            state.ready = true;
+            try { sessionStorage.removeItem(KEY); } catch (eClear) {}
+            return;
+        }
+        if (location.protocol === 'file:' || !('serviceWorker' in navigator)) {
+            state.unsupported = true;
+            return;
+        }
+        var attempts = 0;
+        try { attempts = Number(sessionStorage.getItem(KEY) || '0') || 0; } catch (eTried) {}
+        function markReady() {
+            if (window.crossOriginIsolated) {
+                state.ready = true;
+                try { sessionStorage.removeItem(KEY); } catch (eClear) {}
+                return true;
+            }
+            return false;
+        }
+        function retryOrFail() {
+            if (attempts >= 2) { state.unsupported = true; return; }
+            try { sessionStorage.setItem(KEY, String(attempts + 1)); } catch (eSet) {}
+            location.reload();
+        }
+        function registerAt(url, scope) {
+            return navigator.serviceWorker.register(url, { scope: scope, updateViaCache: 'none' });
+        }
+        var swUrl = new URL('sw.js', location.href);
+        swUrl.searchParams.set('page', location.pathname);
+        swUrl.searchParams.set('v', '2');
+        registerAt(swUrl.href, './').then(function () {
+            return navigator.serviceWorker.ready;
+        }).then(function () {
+            if (markReady()) return;
+            retryOrFail();
+        }).catch(function () {
+            // HyperZProxy also exposes the worker at /__hz_sw.js for pages
+            // mounted below the origin root.
+            var fallback = new URL('/__hz_sw.js', location.origin);
+            fallback.searchParams.set('page', location.pathname);
+            fallback.searchParams.set('v', '2');
+            return registerAt(fallback.href, '/').then(function () {
+                return navigator.serviceWorker.ready;
+            }).then(function () {
+                if (markReady()) return;
+                retryOrFail();
+            });
+        }).catch(function (e) {
+            state.error = String(e && e.message || e);
+            state.unsupported = true;
+        });
+    })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         
@@ -3076,6 +3133,7 @@
             frame.style.cssText = "width:100%;height:100%;border:none;display:none;position:absolute;top:0;left:0;z-index:1;background:transparent;";
             
             frame.sandbox = "allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-presentation allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation";
+            frame.setAttribute("allow", "cross-origin-isolated");
             frame.src = "about:blank";
             document.getElementById("zweb-frames").appendChild(frame);
             tab.frame = frame;
@@ -3704,12 +3762,20 @@
             if (e.key === "Escape") { zwebCloseDomainList(); zwebCloseGithub(); }
         });
 
+        function zwebProxyQueryTarget(target) {
+            return encodeURI(String(target)).replace(/&/g, '%26').replace(/#/g, '%23');
+        }
+        function zwebProxyQueryUrl(base, target, encoded) {
+            base = String(base || HZP_PREFIX || '').replace(/\/+$/, '');
+            var payload = encoded ? hzVigEncodePath(target) : zwebProxyQueryTarget(target);
+            return base + '/?' + payload + '&encode=' + (encoded ? 'true' : 'false');
+        }
         var ZWEB_PROXIES = [
-            { name: 'hyperzproxy',  direct: true, prefix: 'https://hyperzproxy.z04.workers.dev/', wrap: function(u){ return 'https://hyperzproxy.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'zhyperproxy',  direct: true, prefix: 'https://zhp.z04.workers.dev/', wrap: function(u){ return 'https://zhp.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'zproxymirror', direct: true, prefix: 'https://zpm.z04.workers.dev/', wrap: function(u){ return 'https://zpm.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'znetwork',     direct: true, prefix: 'https://znetwork.z04.workers.dev/', wrap: function(u){ return 'https://znetwork.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
-            { name: 'zproxyupper',  direct: true, prefix: 'https://zprxm.z04.workers.dev/', wrap: function(u){ return 'https://zprxm.z04.workers.dev/' + u.replace(/^https?:\/\//i, ''); } },
+            { name: 'hyperzproxy',  direct: true, prefix: 'https://hyperzproxy.z04.workers.dev/', wrap: function(u){ return zwebProxyQueryUrl('https://hyperzproxy.z04.workers.dev/', u, false); } },
+            { name: 'zhyperproxy',  direct: true, prefix: 'https://zhp.z04.workers.dev/', wrap: function(u){ return zwebProxyQueryUrl('https://zhp.z04.workers.dev/', u, false); } },
+            { name: 'zproxymirror', direct: true, prefix: 'https://zpm.z04.workers.dev/', wrap: function(u){ return zwebProxyQueryUrl('https://zpm.z04.workers.dev/', u, false); } },
+            { name: 'znetwork',     direct: true, prefix: 'https://znetwork.z04.workers.dev/', wrap: function(u){ return zwebProxyQueryUrl('https://znetwork.z04.workers.dev/', u, false); } },
+            { name: 'zproxyupper',  direct: true, prefix: 'https://zprxm.z04.workers.dev/', wrap: function(u){ return zwebProxyQueryUrl('https://zprxm.z04.workers.dev/', u, false); } },
             { name: 'corsproxy.io', wrap: function(u){ return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
             { name: 'allorigins',   wrap: function(u){ return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
             { name: 'codetabs',     wrap: function(u){ return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); } },
@@ -3969,7 +4035,7 @@
             return nxt();
         }
         function zwebMirrorLatency(p, rounds) {
-            var target = p.prefix + 'duckduckgo.com/?hzp=' + Date.now() + Math.random().toString(36).slice(2);
+            var target = zwebProxyQueryUrl(p.prefix, 'https://duckduckgo.com/?hzp=' + Date.now() + Math.random().toString(36).slice(2), false);
             var lat = [];
             function once(n) {
                 if (n >= rounds) return Promise.resolve(lat);
@@ -4011,8 +4077,15 @@
         }
         zwebRefreshFastestProxy();
         setInterval(zwebRefreshFastestProxy, 1800000);
+        function zwebUseQueryProxyBase(base) {
+            base = String(base || '').replace(/\/+$/, '');
+            return zwebIsHzpProxyPrefix(base) ||
+                /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(base);
+        }
         function zwebWrapFastest(u) {
-            return (zwebFastestProxy || HZP_PREFIX) + u.replace(/^https?:\/\//i, '');
+            var base = zwebFastestProxy || HZP_PREFIX;
+            if (zwebUseQueryProxyBase(base)) return zwebProxyQueryUrl(base, u, false);
+            return base + String(u).replace(/^https?:\/\//i, '');
         }
         function zwebActiveProxies() {
             var list = [];
@@ -4039,8 +4112,7 @@
         }
         function zwebDirectProxyUrl(proxy, target) {
             if (proxy && proxy.prefix) {
-                var base = String(proxy.prefix).replace(/\/+$/, '') + '/';
-                return base + String(target || '').replace(/^\/+/, '');
+                return zwebProxyQueryUrl(proxy.prefix, target, false);
             }
             return proxy.wrap(target);
         }
@@ -4189,9 +4261,37 @@
             return (currentTab.url && currentTab.url !== 'New Tab') ? currentTab.url : null;
         }
 
+        function zwebUnwrapProxyQuery(rest) {
+            var value = String(rest == null ? '' : rest);
+            if (value.charAt(0) !== '?') return '';
+            var raw = value.slice(1);
+            if (!raw) return '';
+            var encoded = false, targetRaw = raw;
+            var flagRe = /(?:^|&)encode=(true|false)(?:&|$)/ig;
+            var flag = null, m;
+            while ((m = flagRe.exec(raw))) flag = m;
+            if (flag) {
+                encoded = String(flag[1]).toLowerCase() === 'true';
+                targetRaw = raw.slice(0, flag.index);
+            }
+            var pm = /^(?:url|u|target)=([\s\S]*)$/i.exec(targetRaw);
+            if (pm) targetRaw = pm[1];
+            if (!targetRaw) return '';
+            var decoded = targetRaw;
+            try { decoded = decodeURIComponent(targetRaw); } catch (e) {}
+            if (encoded) {
+                try { decoded = hzVigDecodePath(decoded); } catch (e) { decoded = ''; }
+            }
+            if (!decoded) return '';
+            decoded = zwebNormalizeUnwrappedTarget(decoded);
+            if (/^(?:https?|wss?):\/\//i.test(decoded)) return decoded;
+            return '';
+        }
         function zwebDecodeEncodedTarget(raw) {
             var value = String(raw == null ? '' : raw);
             if (!value) return '';
+            var queryTarget = zwebUnwrapProxyQuery(value);
+            if (queryTarget) return queryTarget;
             var q = value.indexOf('?');
             if (q === -1 || !/[?&]encode=true(?:&|$)/i.test(value.substring(q))) return '';
             var path = value.substring(0, q);
@@ -4398,7 +4498,7 @@
             btn.onclick = null;
         })();
 
-        function zwebNeedsTopLevelIsolation(url) {
+        function zwebNeedsFirefoxWasm(url) {
             try {
                 var abs = new URL(zwebNormalizeHttpUrl(url));
                 var host = abs.hostname.toLowerCase().replace(/^www\./i, '');
@@ -4406,46 +4506,14 @@
             } catch (e) { return false; }
         }
 
-        // Firefox WASM requires SharedArrayBuffer/JSPI, which need cross-origin
-        // isolation. An iframe cannot become isolated unless every parent frame
-        // is isolated too, so open this proxied page at top level in a new tab.
-        function zwebOpenTopLevelProxy(url) {
-            url = zwebNormalizeHttpUrl(url);
-            var proxies = zwebDirectProxies();
-            var target = '';
-            if (proxies.length) {
-                target = zwebDirectProxyUrl(proxies[0], url);
-            } else {
-                var base = String(zwebFastestProxy || HZP_PREFIX).replace(/\/+$/, '') + '/';
-                target = base + url.replace(/^https?:\/\//i, '');
-            }
-            var a = document.createElement('a');
-            a.href = target;
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() { if (a.parentNode) a.parentNode.removeChild(a); }, 0);
-        }
-
         function loadTab(url) {
             if (!currentTab) return;
             var gen = ++zwebLoadGen;
             var targetTab = currentTab;
             url = zwebNormalizeHttpUrl(url);
-            if (zwebNeedsTopLevelIsolation(url)) {
+            if (zwebNeedsFirefoxWasm(url) && !window.crossOriginIsolated && window.__hzpCoi && window.__hzpCoi.unsupported) {
                 document.getElementById("zweb-url").value = url;
-                if (targetTab._directWait) {
-                    var ffWait = targetTab._directWait;
-                    targetTab._directWait = null;
-                    try { ffWait.reject(new Error('skipped')); } catch (eFF) {}
-                }
-                zwebShowLoading("FIREFOX WASM NEEDS CROSS-ORIGIN ISOLATION — OPENING IN A NEW TAB...");
-                zwebOpenTopLevelProxy(url);
-                setTimeout(function() {
-                    if (gen === zwebLoadGen) zwebHideLoading();
-                }, 2500);
+                zwebShowError("Firefox WASM needs cross-origin isolation. Make sure sw.js is served next to this page (or open HyperZWeb through HyperZProxy), then reload.");
                 return;
             }
             zwebShowHome(false);
@@ -4894,7 +4962,8 @@
         }
         function zwebEncodedProxyUrl(target) {
             var base = (zwebFastestProxy && zwebFastestProxy.indexOf('http') === 0) ? zwebFastestProxy : HZP_PREFIX;
-            if (base.charAt(base.length - 1) !== '/') base += '/';
+            if (zwebUseQueryProxyBase(base)) return zwebProxyQueryUrl(base, target, true);
+            base = String(base).replace(/\/+$/, '') + '/';
             return base + hzVigEncodePath(target) + '?encode=true';
         }
         function hzWebProxyEncoding() {
@@ -4924,8 +4993,12 @@
                 window.open(zwebEncodedProxyUrl(target), '_blank');
             } else {
                 var plainBase = (zwebFastestProxy && zwebFastestProxy.indexOf('http') === 0) ? zwebFastestProxy : HZP_PREFIX;
-                if (plainBase.charAt(plainBase.length - 1) !== '/') plainBase += '/';
-                window.open(plainBase + target.replace(/^https?:\/\//i, ''), '_blank');
+                if (zwebUseQueryProxyBase(plainBase)) {
+                    window.open(zwebProxyQueryUrl(plainBase, target, false), '_blank');
+                } else {
+                    plainBase = String(plainBase).replace(/\/+$/, '') + '/';
+                    window.open(plainBase + target.replace(/^https?:\/\//i, ''), '_blank');
+                }
             }
         }
         document.getElementById("zweb-url").addEventListener("focus", function() {
@@ -5068,7 +5141,7 @@
 
         function zwebFaviconUrl(url) {
             var host = String(url || '').replace(/^https?:\/\//i, '').split(/[\/?#]/)[0];
-            return HZP_PREFIX + 'proxy/' + host + '/favicon.ico';
+            return zwebProxyQueryUrl(HZP_PREFIX, 'https://' + host + '/favicon.ico', false);
 
         }
 
